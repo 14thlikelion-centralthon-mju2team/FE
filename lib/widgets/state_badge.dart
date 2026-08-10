@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class StateBadge extends StatelessWidget {
-  final String state; // "green" | "yellow" | "red" | null(데이터 부족)
+  final String? state; // "green" | "yellow" | "red" | null(데이터 부족)
 
   const StateBadge({super.key, required this.state});
 
@@ -11,7 +11,8 @@ class StateBadge extends StatelessWidget {
       'green' => (const Color(0xFF3F6F6B), '양호'),
       'yellow' => (const Color(0xFFE3B96C), '주의'),
       'red' => (const Color(0xFFA8586B), '복귀 필요'), // State Rose
-      _ => (Colors.grey, '기록이 더 필요해요'),
+      null => (Colors.grey, '기록이 더 필요해요'),
+      _ => (Colors.grey, '기록이 더 필요해요'), // 예상 밖 값(오타 등) 방어
     };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
