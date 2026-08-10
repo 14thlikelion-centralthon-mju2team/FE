@@ -1,121 +1,92 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'dart:io';
+import 'package:geofencing_api/geofencing_api.dart';
 
-void main() {
-  runApp(const MyApp());
+void main() => runApp(const MaterialApp(home: SpikeScreen()));
+
+class SpikeScreen extends StatefulWidget {
+  const SpikeScreen({super.key});
+  @override
+  State<SpikeScreen> createState() => _SpikeScreenState();
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class _SpikeScreenState extends State<SpikeScreen> {
+  String log = "대기 중";
 
-  // This widget is the root of your application.
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
-        colorScheme: .fromSeed(seedColor: Colors.deepPurple),
-      ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+  // 공식 문서의 권한 요청 함수 그대로
+  Future<bool> requestLocationPermission({bool background = false}) async {
+    if (!await Geofencing.instance.isLocationServicesEnabled) {
+      setState(() => log = "위치 서비스가 꺼져 있음");
+      return false;
+    }
+
+    LocationPermission permission = await Geofencing.instance.getLocationPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geofencing.instance.requestLocationPermission();
+    }
+
+    if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
+      setState(() => log = "권한 거절됨: ${permission.name}");
+      return false;
+    }
+
+    // 안드로이드는 배경 권한을 한 번 더 요청해야 함
+    if (Platform.isAndroid && background && permission == LocationPermission.whileInUse) {
+      permission = await Geofencing.instance.requestLocationPermission();
+      if (permission != LocationPermission.always) {
+        setState(() => log = "배경 권한 획득 실패");
+        return false;
+      }
+    }
+
+    setState(() => log = "권한 상태: ${permission.name}");
+    return true;
+  }
+
+  void setupAndStart() async {
+    Geofencing.instance.setup(
+      interval: 5000,
+      accuracy: 100,
+      statusChangeDelay: 10000,
     );
+
+    final regions = {
+      GeofenceRegion.circular(
+        id: 'test_place',
+        data: {'name': '테스트 장소'},
+        center: const LatLng(37.5665, 126.9780), // 본인 현재 위치 좌표로 바꾸기
+        radius: 100,
+      ),
+    };
+
+    Geofencing.instance.addGeofenceStatusChangedListener(_onStatusChanged);
+    await Geofencing.instance.start(regions: regions);
+    setState(() => log = "지오펜스 시작됨");
   }
-}
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
-
-  @override
-  State<MyHomePage> createState() => _MyHomePageState();
-}
-
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
-
-  void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
-    });
+  Future<void> _onStatusChanged(
+    GeofenceRegion region, GeofenceStatus status, Location location) async {
+    debugPrint("[${DateTime.now()}] ${region.id}: ${status.name}");
+    setState(() => log = "이벤트: ${region.id} / ${status.name} / ${DateTime.now()}");
   }
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
     return Scaffold(
-      appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
-      ),
       body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
         child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: .center,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Text('You have pushed the button this many times:'),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
+            Text(log, style: const TextStyle(fontSize: 16), textAlign: TextAlign.center),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () => requestLocationPermission(background: true),
+              child: const Text("1. 권한 요청(배경 포함)"),
             ),
+            ElevatedButton(onPressed: setupAndStart, child: const Text("2. 지오펜스 시작")),
           ],
         ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
       ),
     );
   }
