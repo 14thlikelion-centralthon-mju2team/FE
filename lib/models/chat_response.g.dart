@@ -8,16 +8,16 @@ part of 'chat_response.dart';
 
 _ChatResponse _$ChatResponseFromJson(Map<String, dynamic> json) =>
     _ChatResponse(
-      responseType: json['responseType'] as String,
-      message: json['message'] as String,
+      intent: json['intent'] as String,
+      targetTaskId: json['targetTaskId'] as String?,
       proposedActionId: json['proposedActionId'] as String?,
-      beforeActionId: json['beforeActionId'] as String?,
+      reason: json['reason'] as String,
     );
 
 Map<String, dynamic> _$ChatResponseToJson(_ChatResponse instance) =>
     <String, dynamic>{
-      'responseType': instance.responseType,
-      'message': instance.message,
+      'intent': instance.intent,
+      'targetTaskId': instance.targetTaskId,
       'proposedActionId': instance.proposedActionId,
-      'beforeActionId': instance.beforeActionId,
+      'reason': instance.reason,
     };

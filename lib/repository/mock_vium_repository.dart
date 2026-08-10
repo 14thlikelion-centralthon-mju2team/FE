@@ -62,10 +62,10 @@ class MockViumRepository implements ViumRepository {
   Future<ChatResponse> sendChatMessage(String message) async {
     await Future.delayed(const Duration(milliseconds: 800));
     return const ChatResponse(
-      responseType: 'modify',
-      message: '물 마시기를 3잔으로 늘려드릴까요?',
+      intent: 'modify',
+      targetTaskId: 'task-1',
       proposedActionId: 'a1-modified',
-      beforeActionId: 'a1',
+      reason: '물 3잔은 지금보다 두 단계 높아요. 우선 2잔으로 올려볼까요?',
     );
   }
 

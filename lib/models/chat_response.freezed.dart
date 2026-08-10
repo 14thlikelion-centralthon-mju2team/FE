@@ -15,8 +15,8 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$ChatResponse {
 
- String get responseType;// "explain" | "modify" | "coach" | "safety_redirect"
- String get message; String? get proposedActionId; String? get beforeActionId;
+ String get intent;// "modify" | "explain"
+ String? get targetTaskId; String? get proposedActionId; String get reason;
 /// Create a copy of ChatResponse
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -29,16 +29,16 @@ $ChatResponseCopyWith<ChatResponse> get copyWith => _$ChatResponseCopyWithImpl<C
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is ChatResponse&&(identical(other.responseType, responseType) || other.responseType == responseType)&&(identical(other.message, message) || other.message == message)&&(identical(other.proposedActionId, proposedActionId) || other.proposedActionId == proposedActionId)&&(identical(other.beforeActionId, beforeActionId) || other.beforeActionId == beforeActionId));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ChatResponse&&(identical(other.intent, intent) || other.intent == intent)&&(identical(other.targetTaskId, targetTaskId) || other.targetTaskId == targetTaskId)&&(identical(other.proposedActionId, proposedActionId) || other.proposedActionId == proposedActionId)&&(identical(other.reason, reason) || other.reason == reason));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,responseType,message,proposedActionId,beforeActionId);
+int get hashCode => Object.hash(runtimeType,intent,targetTaskId,proposedActionId,reason);
 
 @override
 String toString() {
-  return 'ChatResponse(responseType: $responseType, message: $message, proposedActionId: $proposedActionId, beforeActionId: $beforeActionId)';
+  return 'ChatResponse(intent: $intent, targetTaskId: $targetTaskId, proposedActionId: $proposedActionId, reason: $reason)';
 }
 
 
@@ -49,7 +49,7 @@ abstract mixin class $ChatResponseCopyWith<$Res>  {
   factory $ChatResponseCopyWith(ChatResponse value, $Res Function(ChatResponse) _then) = _$ChatResponseCopyWithImpl;
 @useResult
 $Res call({
- String responseType, String message, String? proposedActionId, String? beforeActionId
+ String intent, String? targetTaskId, String? proposedActionId, String reason
 });
 
 
@@ -66,13 +66,13 @@ class _$ChatResponseCopyWithImpl<$Res>
 
 /// Create a copy of ChatResponse
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? responseType = null,Object? message = null,Object? proposedActionId = freezed,Object? beforeActionId = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? intent = null,Object? targetTaskId = freezed,Object? proposedActionId = freezed,Object? reason = null,}) {
   return _then(_self.copyWith(
-responseType: null == responseType ? _self.responseType : responseType // ignore: cast_nullable_to_non_nullable
-as String,message: null == message ? _self.message : message // ignore: cast_nullable_to_non_nullable
-as String,proposedActionId: freezed == proposedActionId ? _self.proposedActionId : proposedActionId // ignore: cast_nullable_to_non_nullable
-as String?,beforeActionId: freezed == beforeActionId ? _self.beforeActionId : beforeActionId // ignore: cast_nullable_to_non_nullable
-as String?,
+intent: null == intent ? _self.intent : intent // ignore: cast_nullable_to_non_nullable
+as String,targetTaskId: freezed == targetTaskId ? _self.targetTaskId : targetTaskId // ignore: cast_nullable_to_non_nullable
+as String?,proposedActionId: freezed == proposedActionId ? _self.proposedActionId : proposedActionId // ignore: cast_nullable_to_non_nullable
+as String?,reason: null == reason ? _self.reason : reason // ignore: cast_nullable_to_non_nullable
+as String,
   ));
 }
 
@@ -157,10 +157,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String responseType,  String message,  String? proposedActionId,  String? beforeActionId)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String intent,  String? targetTaskId,  String? proposedActionId,  String reason)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _ChatResponse() when $default != null:
-return $default(_that.responseType,_that.message,_that.proposedActionId,_that.beforeActionId);case _:
+return $default(_that.intent,_that.targetTaskId,_that.proposedActionId,_that.reason);case _:
   return orElse();
 
 }
@@ -178,10 +178,10 @@ return $default(_that.responseType,_that.message,_that.proposedActionId,_that.be
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String responseType,  String message,  String? proposedActionId,  String? beforeActionId)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String intent,  String? targetTaskId,  String? proposedActionId,  String reason)  $default,) {final _that = this;
 switch (_that) {
 case _ChatResponse():
-return $default(_that.responseType,_that.message,_that.proposedActionId,_that.beforeActionId);case _:
+return $default(_that.intent,_that.targetTaskId,_that.proposedActionId,_that.reason);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -198,10 +198,10 @@ return $default(_that.responseType,_that.message,_that.proposedActionId,_that.be
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String responseType,  String message,  String? proposedActionId,  String? beforeActionId)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String intent,  String? targetTaskId,  String? proposedActionId,  String reason)?  $default,) {final _that = this;
 switch (_that) {
 case _ChatResponse() when $default != null:
-return $default(_that.responseType,_that.message,_that.proposedActionId,_that.beforeActionId);case _:
+return $default(_that.intent,_that.targetTaskId,_that.proposedActionId,_that.reason);case _:
   return null;
 
 }
@@ -213,14 +213,14 @@ return $default(_that.responseType,_that.message,_that.proposedActionId,_that.be
 @JsonSerializable()
 
 class _ChatResponse implements ChatResponse {
-  const _ChatResponse({required this.responseType, required this.message, this.proposedActionId, this.beforeActionId});
+  const _ChatResponse({required this.intent, this.targetTaskId, this.proposedActionId, required this.reason});
   factory _ChatResponse.fromJson(Map<String, dynamic> json) => _$ChatResponseFromJson(json);
 
-@override final  String responseType;
-// "explain" | "modify" | "coach" | "safety_redirect"
-@override final  String message;
+@override final  String intent;
+// "modify" | "explain"
+@override final  String? targetTaskId;
 @override final  String? proposedActionId;
-@override final  String? beforeActionId;
+@override final  String reason;
 
 /// Create a copy of ChatResponse
 /// with the given fields replaced by the non-null parameter values.
@@ -235,16 +235,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ChatResponse&&(identical(other.responseType, responseType) || other.responseType == responseType)&&(identical(other.message, message) || other.message == message)&&(identical(other.proposedActionId, proposedActionId) || other.proposedActionId == proposedActionId)&&(identical(other.beforeActionId, beforeActionId) || other.beforeActionId == beforeActionId));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ChatResponse&&(identical(other.intent, intent) || other.intent == intent)&&(identical(other.targetTaskId, targetTaskId) || other.targetTaskId == targetTaskId)&&(identical(other.proposedActionId, proposedActionId) || other.proposedActionId == proposedActionId)&&(identical(other.reason, reason) || other.reason == reason));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,responseType,message,proposedActionId,beforeActionId);
+int get hashCode => Object.hash(runtimeType,intent,targetTaskId,proposedActionId,reason);
 
 @override
 String toString() {
-  return 'ChatResponse(responseType: $responseType, message: $message, proposedActionId: $proposedActionId, beforeActionId: $beforeActionId)';
+  return 'ChatResponse(intent: $intent, targetTaskId: $targetTaskId, proposedActionId: $proposedActionId, reason: $reason)';
 }
 
 
@@ -255,7 +255,7 @@ abstract mixin class _$ChatResponseCopyWith<$Res> implements $ChatResponseCopyWi
   factory _$ChatResponseCopyWith(_ChatResponse value, $Res Function(_ChatResponse) _then) = __$ChatResponseCopyWithImpl;
 @override @useResult
 $Res call({
- String responseType, String message, String? proposedActionId, String? beforeActionId
+ String intent, String? targetTaskId, String? proposedActionId, String reason
 });
 
 
@@ -272,13 +272,13 @@ class __$ChatResponseCopyWithImpl<$Res>
 
 /// Create a copy of ChatResponse
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? responseType = null,Object? message = null,Object? proposedActionId = freezed,Object? beforeActionId = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? intent = null,Object? targetTaskId = freezed,Object? proposedActionId = freezed,Object? reason = null,}) {
   return _then(_ChatResponse(
-responseType: null == responseType ? _self.responseType : responseType // ignore: cast_nullable_to_non_nullable
-as String,message: null == message ? _self.message : message // ignore: cast_nullable_to_non_nullable
-as String,proposedActionId: freezed == proposedActionId ? _self.proposedActionId : proposedActionId // ignore: cast_nullable_to_non_nullable
-as String?,beforeActionId: freezed == beforeActionId ? _self.beforeActionId : beforeActionId // ignore: cast_nullable_to_non_nullable
-as String?,
+intent: null == intent ? _self.intent : intent // ignore: cast_nullable_to_non_nullable
+as String,targetTaskId: freezed == targetTaskId ? _self.targetTaskId : targetTaskId // ignore: cast_nullable_to_non_nullable
+as String?,proposedActionId: freezed == proposedActionId ? _self.proposedActionId : proposedActionId // ignore: cast_nullable_to_non_nullable
+as String?,reason: null == reason ? _self.reason : reason // ignore: cast_nullable_to_non_nullable
+as String,
   ));
 }
 
