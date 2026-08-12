@@ -22,7 +22,7 @@ class PlaceCacheEntryAdapter extends TypeAdapter<PlaceCacheEntry> {
       label: fields[2] as String,
       lat: (fields[3] as num).toDouble(),
       lng: (fields[4] as num).toDouble(),
-      radius: (fields[5] as num).toDouble(),
+      radiusM: (fields[5] as num).toInt(),
     );
   }
 
@@ -41,7 +41,7 @@ class PlaceCacheEntryAdapter extends TypeAdapter<PlaceCacheEntry> {
       ..writeByte(4)
       ..write(obj.lng)
       ..writeByte(5)
-      ..write(obj.radius);
+      ..write(obj.radiusM);
   }
 
   @override

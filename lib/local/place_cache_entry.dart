@@ -20,7 +20,7 @@ class PlaceCacheEntry extends HiveObject {
   double lng;
 
   @HiveField(5)
-  double radius;
+  int radiusM;
 
   PlaceCacheEntry({
     required this.userId,
@@ -28,6 +28,6 @@ class PlaceCacheEntry extends HiveObject {
     required this.label,
     required this.lat,
     required this.lng,
-    required this.radius,
+    required this.radiusM,
   });
 }
