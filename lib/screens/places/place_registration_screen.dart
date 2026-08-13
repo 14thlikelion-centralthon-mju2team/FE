@@ -22,13 +22,24 @@ class PlaceRegistrationScreen extends ConsumerStatefulWidget {
 class _PlaceRegistrationScreenState extends ConsumerState<PlaceRegistrationScreen> {
   String selectedLabel = _labelOptions.first;
   final customLabelController = TextEditingController();
-  double radiusM = 300; // 스키마 기본값
+  double radiusM = 300;
   double? lat;
   double? lng;
   bool locating = false;
   bool saving = false;
 
+  @override
+  void dispose() {
+    customLabelController.dispose();
+    super.dispose();
+  }
+
   Box<PlaceCacheEntry> get _placeBox => Hive.box<PlaceCacheEntry>('place_cache');
+
+  void _showError(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
 
   Future<void> _useCurrentLocation() async {
     setState(() => locating = true);
@@ -39,6 +50,9 @@ class _PlaceRegistrationScreenState extends ConsumerState<PlaceRegistrationScree
         lat = position.latitude;
         lng = position.longitude;
       });
+    } catch (e) {
+      // geofencing_api와 geolocator가 권한을 공유하지 않는 경우(또는 그 사이 권한이 회수된 경우) 대비
+      _showError('현재 위치를 가져오지 못했어요. 위치 권한을 확인해주세요.');
     } finally {
       if (mounted) setState(() => locating = false);
     }
@@ -51,58 +65,68 @@ class _PlaceRegistrationScreenState extends ConsumerState<PlaceRegistrationScree
 
     setState(() => saving = true);
 
-    final repo = ref.read(viumRepositoryProvider);
-    final placeId = const Uuid().v4();
-    final place = Place(
-      id: placeId,
-      label: label,
-      lat: lat!,
-      lng: lng!,
-      radiusM: radiusM.round(),
-    );
-
-    // 1. 서버에 등록 (mock)
-    await repo.registerPlace(place);
-    if (!mounted) return;
-
-    // 2. 로컬 캐시에 저장
-    await _placeBox.put(
-      placeId,
-      PlaceCacheEntry(
-        userId: 'current-user', // 실제 로그인 붙으면 provider에서 가져오도록 교체
-        placeId: placeId,
+    try {
+      final repo = ref.read(viumRepositoryProvider);
+      final placeId = const Uuid().v4();
+      final place = Place(
+        id: placeId,
         label: label,
         lat: lat!,
         lng: lng!,
         radiusM: radiusM.round(),
-      ),
-    );
+      );
 
-    // 3. 지오펜스 등록
-    Geofencing.instance.addRegion(
-      GeofenceRegion.circular(
-        id: placeId,
-        data: {'label': label},
-        center: LatLng(lat!, lng!),
-        radius: radiusM,
-      ),
-    );
+      // 1. 서버에 등록 (mock)
+      await repo.registerPlace(place);
 
-    if (!mounted) return;
-    setState(() {
-      saving = false;
-      lat = null;
-      lng = null;
-      customLabelController.clear();
-    });
+      // 2. 로컬 캐시에 저장
+      await _placeBox.put(
+        placeId,
+        PlaceCacheEntry(
+          userId: 'current-user', // 실제 로그인 붙으면 provider에서 가져오도록 교체
+          placeId: placeId,
+          label: label,
+          lat: lat!,
+          lng: lng!,
+          radiusM: radiusM.round(),
+        ),
+      );
+
+      // 3. 지오펜스 등록
+      // ⚠️ addRegion이 Future를 반환하면 앞에 await 추가할 것 (hover로 확인 필요)
+      Geofencing.instance.addRegion(
+        GeofenceRegion.circular(
+          id: placeId,
+          data: {'label': label},
+          center: LatLng(lat!, lng!),
+          radius: radiusM,
+        ),
+      );
+
+      if (!mounted) return;
+      setState(() {
+        lat = null;
+        lng = null;
+        customLabelController.clear();
+      });
+    } catch (e) {
+      _showError('장소 등록에 실패했어요. 다시 시도해주세요.');
+    } finally {
+      if (mounted) setState(() => saving = false);
+    }
   }
 
   Future<void> _remove(PlaceCacheEntry entry) async {
-    final repo = ref.read(viumRepositoryProvider);
-    await repo.deletePlace(entry.placeId);
-    await _placeBox.delete(entry.placeId);
-    Geofencing.instance.removeRegionById(entry.placeId);
-    setState(() {});
+    try {
+      final repo = ref.read(viumRepositoryProvider);
+      await repo.deletePlace(entry.placeId);
+      await _placeBox.delete(entry.placeId);
+      // ⚠️ removeRegionById도 위와 동일하게 Future 여부 확인 필요
+      Geofencing.instance.removeRegionById(entry.placeId);
+      if (mounted) setState(() {});
+    } catch (e) {
+      _showError('장소 삭제에 실패했어요. 다시 시도해주세요.');
+    }
   }
 
   @override
@@ -135,7 +159,7 @@ class _PlaceRegistrationScreenState extends ConsumerState<PlaceRegistrationScree
                 Slider(
                   value: radiusM,
                   min: 100,
-                  max: 2000, // DB 제약(100~2000)과 일치
+                  max: 2000,
                   divisions: 19,
                   label: '${radiusM.round()}m',
                   onChanged: (v) => setState(() => radiusM = v),
