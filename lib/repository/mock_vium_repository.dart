@@ -48,14 +48,19 @@ class MockViumRepository implements ViumRepository {
   Future<List<DailyState>> fetchDailyStates(DateTime from, DateTime to) async {
     await Future.delayed(const Duration(milliseconds: 400));
     return [
-      DailyState(runDate: DateTime.now(), doneCount: 2, expectedCount: 3, completionRate: 0.67, signal: 'green'),
+      DailyState(
+        runDate: DateTime.now(),
+        doneCount: 2,
+        expectedCount: 3,
+        completionRate: 0.67,
+        signal: 'green',
+      ),
     ];
   }
 
   @override
   Future<void> submitAdjustment(Adjustment adjustment) async {
     await Future.delayed(const Duration(milliseconds: 400));
-    // mock이라 항상 성공 처리. 나중에 실제 API 연결 시 409(stale) 케이스 예외 던지는 로직 추가 필요
   }
 
   @override
@@ -81,6 +86,11 @@ class MockViumRepository implements ViumRepository {
   Future<Place> registerPlace(Place place) async {
     await Future.delayed(const Duration(milliseconds: 300));
     return place;
+  }
+
+  @override
+  Future<void> deletePlace(String placeId) async {
+    await Future.delayed(const Duration(milliseconds: 200));
   }
 
   @override

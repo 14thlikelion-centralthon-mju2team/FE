@@ -4,6 +4,7 @@ import 'placeholder_screen.dart';
 import '../screens/onboarding/auth_screen.dart';
 import '../screens/onboarding/age_confirm_screen.dart';
 import '../screens/onboarding/location_permission_screen.dart';
+import '../screens/places/place_registration_screen.dart';
 
 final appRouter = GoRouter(
   initialLocation: '/onboarding/splash',
@@ -24,6 +25,7 @@ final appRouter = GoRouter(
     GoRoute(path: '/onboarding/location-modal', builder: (c, s) => const PlaceholderScreen(title: '권한 모달')),
     GoRoute(path: '/onboarding/complete', builder: (c, s) => const PlaceholderScreen(title: '온보딩 완료')),
     GoRoute(path: '/onboarding/routine-setup', builder: (c, s) => const PlaceholderScreen(title: '목표·기본 루틴 설정')),
+    GoRoute(path: '/places/manage', builder: (c, s) => const PlaceRegistrationScreen()),
 
     // 메인 5탭
     StatefulShellRoute.indexedStack(

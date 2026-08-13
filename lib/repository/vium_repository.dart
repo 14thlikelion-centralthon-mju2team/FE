@@ -23,7 +23,7 @@ abstract class ViumRepository {
   // 상태·리포트
   Future<List<DailyState>> fetchDailyStates(DateTime from, DateTime to);
 
-  // 난이도 조정 (챗봇 "적용" 버튼, 상태 판정 재제안 둘 다 여기로)
+  // 난이도 조정
   Future<void> submitAdjustment(Adjustment adjustment);
 
   // 챗봇
@@ -32,6 +32,7 @@ abstract class ViumRepository {
   // 장소·지오펜스
   Future<List<Place>> fetchPlaces();
   Future<Place> registerPlace(Place place);
+  Future<void> deletePlace(String placeId);
   Future<void> notifyPlaceEnter(String placeId);
 
   // 건강 데이터·외부 일정
