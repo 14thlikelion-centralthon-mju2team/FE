@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'placeholder_screen.dart';
 import '../screens/onboarding/auth_screen.dart';
 import '../screens/onboarding/age_confirm_screen.dart';
+import '../screens/onboarding/location_permission_screen.dart';
 
 final appRouter = GoRouter(
   initialLocation: '/onboarding/splash',
@@ -19,7 +20,7 @@ final appRouter = GoRouter(
     GoRoute(path: '/onboarding/health-data', builder: (c, s) => const PlaceholderScreen(title: '건강 데이터 업로드')),
     GoRoute(path: '/onboarding/external-data', builder: (c, s) => const PlaceholderScreen(title: '외부 데이터 연동')),
     GoRoute(path: '/onboarding/notification-permission', builder: (c, s) => const PlaceholderScreen(title: '알림 권한')),
-    GoRoute(path: '/onboarding/location-intro', builder: (c, s) => const PlaceholderScreen(title: '위치 권한 안내')),
+    GoRoute(path: '/onboarding/location-intro', builder: (c, s) => const LocationPermissionScreen()),
     GoRoute(path: '/onboarding/location-modal', builder: (c, s) => const PlaceholderScreen(title: '권한 모달')),
     GoRoute(path: '/onboarding/complete', builder: (c, s) => const PlaceholderScreen(title: '온보딩 완료')),
     GoRoute(path: '/onboarding/routine-setup', builder: (c, s) => const PlaceholderScreen(title: '목표·기본 루틴 설정')),
