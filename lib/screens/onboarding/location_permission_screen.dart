@@ -32,7 +32,9 @@ class _LocationPermissionScreenState extends State<LocationPermissionScreen> {
       statusMessage = null;
     });
 
-    if (!await Geofencing.instance.isLocationServicesEnabled) {
+    final servicesEnabled = await Geofencing.instance.isLocationServicesEnabled;
+    if (!mounted) return;
+    if (!servicesEnabled) {
       setState(() {
         step = _PermissionStep.denied;
         statusMessage = '위치 서비스가 꺼져 있어요. 기기 설정에서 켜주세요.';
@@ -41,8 +43,10 @@ class _LocationPermissionScreenState extends State<LocationPermissionScreen> {
     }
 
     LocationPermission permission = await Geofencing.instance.getLocationPermission();
+    if (!mounted) return;
     if (permission == LocationPermission.denied) {
       permission = await Geofencing.instance.requestLocationPermission();
+      if (!mounted) return;
     }
 
     if (permission == LocationPermission.denied ||
@@ -58,6 +62,7 @@ class _LocationPermissionScreenState extends State<LocationPermissionScreen> {
 
     // 가치 체감 후 재요청 원칙 — 바로 이어서 묻지 않고 잠깐 텀을 둠
     await Future.delayed(const Duration(milliseconds: 600));
+    if (!mounted) return;
     await _requestBackground(permission);
   }
 
@@ -67,6 +72,7 @@ class _LocationPermissionScreenState extends State<LocationPermissionScreen> {
 
     if (Platform.isAndroid && current == LocationPermission.whileInUse) {
       final upgraded = await Geofencing.instance.requestLocationPermission();
+      if (!mounted) return;
       if (upgraded != LocationPermission.always) {
         setState(() {
           step = _PermissionStep.done;
@@ -77,6 +83,7 @@ class _LocationPermissionScreenState extends State<LocationPermissionScreen> {
     }
     // iOS는 시스템이 알아서 "항상 허용" 업그레이드 다이얼로그를 보여줌
 
+    if (!mounted) return;
     setState(() {
       step = _PermissionStep.done;
       statusMessage = '위치 설정이 완료됐어요';
