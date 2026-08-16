@@ -15,7 +15,14 @@ final appRouter = GoRouter(
     GoRoute(
         path: "/onboarding/intro",
         builder: (c, s) => const PlaceholderScreen(title: "서비스 소개")),
-    GoRoute(path: "/onboarding/auth", builder: (c, s) => const AuthScreen()),
+    GoRoute(
+      path: '/onboarding/auth',
+      builder: (c, s) => AuthScreen(
+        onGoogleLogin: () async {
+          // TODO(fe-auth-onboarding): 실제 Google OAuth 연동
+        },
+      ),
+    ),
     // age_confirm 라우트 삭제됨: 새 API 명세에 연령 확인 개념이 없음 (refactor/models-v2)
     GoRoute(
         path: "/onboarding/consent",
