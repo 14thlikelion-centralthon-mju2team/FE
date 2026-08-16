@@ -1,0 +1,304 @@
+// GENERATED CODE - DO NOT MODIFY BY HAND
+// coverage:ignore-file
+// ignore_for_file: type=lint
+// ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target, unnecessary_question_mark
+
+part of 'daily_wellness_summary.dart';
+
+// **************************************************************************
+// FreezedGenerator
+// **************************************************************************
+
+// dart format off
+T _$identity<T>(T value) => value;
+
+/// @nodoc
+mixin _$DailyWellnessSummary {
+
+ String get summaryDate;// yyyy-MM-dd
+ int get eventCount; int get totalOutdoorMinutes; DwlBand get dwlBand; String get cardScenario;// default|exposure|density|rushed|stable
+ String get message;// 서버 템플릿 문구. 클라이언트가 재구성하지 않는다
+ bool get isViewed; int? get dwlScore;
+/// Create a copy of DailyWellnessSummary
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$DailyWellnessSummaryCopyWith<DailyWellnessSummary> get copyWith => _$DailyWellnessSummaryCopyWithImpl<DailyWellnessSummary>(this as DailyWellnessSummary, _$identity);
+
+  /// Serializes this DailyWellnessSummary to a JSON map.
+  Map<String, dynamic> toJson();
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is DailyWellnessSummary&&(identical(other.summaryDate, summaryDate) || other.summaryDate == summaryDate)&&(identical(other.eventCount, eventCount) || other.eventCount == eventCount)&&(identical(other.totalOutdoorMinutes, totalOutdoorMinutes) || other.totalOutdoorMinutes == totalOutdoorMinutes)&&(identical(other.dwlBand, dwlBand) || other.dwlBand == dwlBand)&&(identical(other.cardScenario, cardScenario) || other.cardScenario == cardScenario)&&(identical(other.message, message) || other.message == message)&&(identical(other.isViewed, isViewed) || other.isViewed == isViewed)&&(identical(other.dwlScore, dwlScore) || other.dwlScore == dwlScore));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode => Object.hash(runtimeType,summaryDate,eventCount,totalOutdoorMinutes,dwlBand,cardScenario,message,isViewed,dwlScore);
+
+@override
+String toString() {
+  return 'DailyWellnessSummary(summaryDate: $summaryDate, eventCount: $eventCount, totalOutdoorMinutes: $totalOutdoorMinutes, dwlBand: $dwlBand, cardScenario: $cardScenario, message: $message, isViewed: $isViewed, dwlScore: $dwlScore)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $DailyWellnessSummaryCopyWith<$Res>  {
+  factory $DailyWellnessSummaryCopyWith(DailyWellnessSummary value, $Res Function(DailyWellnessSummary) _then) = _$DailyWellnessSummaryCopyWithImpl;
+@useResult
+$Res call({
+ String summaryDate, int eventCount, int totalOutdoorMinutes, DwlBand dwlBand, String cardScenario, String message, bool isViewed, int? dwlScore
+});
+
+
+
+
+}
+/// @nodoc
+class _$DailyWellnessSummaryCopyWithImpl<$Res>
+    implements $DailyWellnessSummaryCopyWith<$Res> {
+  _$DailyWellnessSummaryCopyWithImpl(this._self, this._then);
+
+  final DailyWellnessSummary _self;
+  final $Res Function(DailyWellnessSummary) _then;
+
+/// Create a copy of DailyWellnessSummary
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') @override $Res call({Object? summaryDate = null,Object? eventCount = null,Object? totalOutdoorMinutes = null,Object? dwlBand = null,Object? cardScenario = null,Object? message = null,Object? isViewed = null,Object? dwlScore = freezed,}) {
+  return _then(_self.copyWith(
+summaryDate: null == summaryDate ? _self.summaryDate : summaryDate // ignore: cast_nullable_to_non_nullable
+as String,eventCount: null == eventCount ? _self.eventCount : eventCount // ignore: cast_nullable_to_non_nullable
+as int,totalOutdoorMinutes: null == totalOutdoorMinutes ? _self.totalOutdoorMinutes : totalOutdoorMinutes // ignore: cast_nullable_to_non_nullable
+as int,dwlBand: null == dwlBand ? _self.dwlBand : dwlBand // ignore: cast_nullable_to_non_nullable
+as DwlBand,cardScenario: null == cardScenario ? _self.cardScenario : cardScenario // ignore: cast_nullable_to_non_nullable
+as String,message: null == message ? _self.message : message // ignore: cast_nullable_to_non_nullable
+as String,isViewed: null == isViewed ? _self.isViewed : isViewed // ignore: cast_nullable_to_non_nullable
+as bool,dwlScore: freezed == dwlScore ? _self.dwlScore : dwlScore // ignore: cast_nullable_to_non_nullable
+as int?,
+  ));
+}
+
+}
+
+
+/// Adds pattern-matching-related methods to [DailyWellnessSummary].
+extension DailyWellnessSummaryPatterns on DailyWellnessSummary {
+/// A variant of `map` that fallback to returning `orElse`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>(TResult Function( _DailyWellnessSummary value)?  $default,{required TResult orElse(),}){
+final _that = this;
+switch (_that) {
+case _DailyWellnessSummary() when $default != null:
+return $default(_that);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// Callbacks receives the raw object, upcasted.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case final Subclass2 value:
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult map<TResult extends Object?>(TResult Function( _DailyWellnessSummary value)  $default,){
+final _that = this;
+switch (_that) {
+case _DailyWellnessSummary():
+return $default(_that);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `map` that fallback to returning `null`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>(TResult? Function( _DailyWellnessSummary value)?  $default,){
+final _that = this;
+switch (_that) {
+case _DailyWellnessSummary() when $default != null:
+return $default(_that);case _:
+  return null;
+
+}
+}
+/// A variant of `when` that fallback to an `orElse` callback.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String summaryDate,  int eventCount,  int totalOutdoorMinutes,  DwlBand dwlBand,  String cardScenario,  String message,  bool isViewed,  int? dwlScore)?  $default,{required TResult orElse(),}) {final _that = this;
+switch (_that) {
+case _DailyWellnessSummary() when $default != null:
+return $default(_that.summaryDate,_that.eventCount,_that.totalOutdoorMinutes,_that.dwlBand,_that.cardScenario,_that.message,_that.isViewed,_that.dwlScore);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// As opposed to `map`, this offers destructuring.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case Subclass2(:final field2):
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String summaryDate,  int eventCount,  int totalOutdoorMinutes,  DwlBand dwlBand,  String cardScenario,  String message,  bool isViewed,  int? dwlScore)  $default,) {final _that = this;
+switch (_that) {
+case _DailyWellnessSummary():
+return $default(_that.summaryDate,_that.eventCount,_that.totalOutdoorMinutes,_that.dwlBand,_that.cardScenario,_that.message,_that.isViewed,_that.dwlScore);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `when` that fallback to returning `null`
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String summaryDate,  int eventCount,  int totalOutdoorMinutes,  DwlBand dwlBand,  String cardScenario,  String message,  bool isViewed,  int? dwlScore)?  $default,) {final _that = this;
+switch (_that) {
+case _DailyWellnessSummary() when $default != null:
+return $default(_that.summaryDate,_that.eventCount,_that.totalOutdoorMinutes,_that.dwlBand,_that.cardScenario,_that.message,_that.isViewed,_that.dwlScore);case _:
+  return null;
+
+}
+}
+
+}
+
+/// @nodoc
+@JsonSerializable()
+
+class _DailyWellnessSummary implements DailyWellnessSummary {
+  const _DailyWellnessSummary({required this.summaryDate, required this.eventCount, required this.totalOutdoorMinutes, required this.dwlBand, required this.cardScenario, required this.message, this.isViewed = false, this.dwlScore});
+  factory _DailyWellnessSummary.fromJson(Map<String, dynamic> json) => _$DailyWellnessSummaryFromJson(json);
+
+@override final  String summaryDate;
+// yyyy-MM-dd
+@override final  int eventCount;
+@override final  int totalOutdoorMinutes;
+@override final  DwlBand dwlBand;
+@override final  String cardScenario;
+// default|exposure|density|rushed|stable
+@override final  String message;
+// 서버 템플릿 문구. 클라이언트가 재구성하지 않는다
+@override@JsonKey() final  bool isViewed;
+@override final  int? dwlScore;
+
+/// Create a copy of DailyWellnessSummary
+/// with the given fields replaced by the non-null parameter values.
+@override @JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+_$DailyWellnessSummaryCopyWith<_DailyWellnessSummary> get copyWith => __$DailyWellnessSummaryCopyWithImpl<_DailyWellnessSummary>(this, _$identity);
+
+@override
+Map<String, dynamic> toJson() {
+  return _$DailyWellnessSummaryToJson(this, );
+}
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _DailyWellnessSummary&&(identical(other.summaryDate, summaryDate) || other.summaryDate == summaryDate)&&(identical(other.eventCount, eventCount) || other.eventCount == eventCount)&&(identical(other.totalOutdoorMinutes, totalOutdoorMinutes) || other.totalOutdoorMinutes == totalOutdoorMinutes)&&(identical(other.dwlBand, dwlBand) || other.dwlBand == dwlBand)&&(identical(other.cardScenario, cardScenario) || other.cardScenario == cardScenario)&&(identical(other.message, message) || other.message == message)&&(identical(other.isViewed, isViewed) || other.isViewed == isViewed)&&(identical(other.dwlScore, dwlScore) || other.dwlScore == dwlScore));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode => Object.hash(runtimeType,summaryDate,eventCount,totalOutdoorMinutes,dwlBand,cardScenario,message,isViewed,dwlScore);
+
+@override
+String toString() {
+  return 'DailyWellnessSummary(summaryDate: $summaryDate, eventCount: $eventCount, totalOutdoorMinutes: $totalOutdoorMinutes, dwlBand: $dwlBand, cardScenario: $cardScenario, message: $message, isViewed: $isViewed, dwlScore: $dwlScore)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class _$DailyWellnessSummaryCopyWith<$Res> implements $DailyWellnessSummaryCopyWith<$Res> {
+  factory _$DailyWellnessSummaryCopyWith(_DailyWellnessSummary value, $Res Function(_DailyWellnessSummary) _then) = __$DailyWellnessSummaryCopyWithImpl;
+@override @useResult
+$Res call({
+ String summaryDate, int eventCount, int totalOutdoorMinutes, DwlBand dwlBand, String cardScenario, String message, bool isViewed, int? dwlScore
+});
+
+
+
+
+}
+/// @nodoc
+class __$DailyWellnessSummaryCopyWithImpl<$Res>
+    implements _$DailyWellnessSummaryCopyWith<$Res> {
+  __$DailyWellnessSummaryCopyWithImpl(this._self, this._then);
+
+  final _DailyWellnessSummary _self;
+  final $Res Function(_DailyWellnessSummary) _then;
+
+/// Create a copy of DailyWellnessSummary
+/// with the given fields replaced by the non-null parameter values.
+@override @pragma('vm:prefer-inline') $Res call({Object? summaryDate = null,Object? eventCount = null,Object? totalOutdoorMinutes = null,Object? dwlBand = null,Object? cardScenario = null,Object? message = null,Object? isViewed = null,Object? dwlScore = freezed,}) {
+  return _then(_DailyWellnessSummary(
+summaryDate: null == summaryDate ? _self.summaryDate : summaryDate // ignore: cast_nullable_to_non_nullable
+as String,eventCount: null == eventCount ? _self.eventCount : eventCount // ignore: cast_nullable_to_non_nullable
+as int,totalOutdoorMinutes: null == totalOutdoorMinutes ? _self.totalOutdoorMinutes : totalOutdoorMinutes // ignore: cast_nullable_to_non_nullable
+as int,dwlBand: null == dwlBand ? _self.dwlBand : dwlBand // ignore: cast_nullable_to_non_nullable
+as DwlBand,cardScenario: null == cardScenario ? _self.cardScenario : cardScenario // ignore: cast_nullable_to_non_nullable
+as String,message: null == message ? _self.message : message // ignore: cast_nullable_to_non_nullable
+as String,isViewed: null == isViewed ? _self.isViewed : isViewed // ignore: cast_nullable_to_non_nullable
+as bool,dwlScore: freezed == dwlScore ? _self.dwlScore : dwlScore // ignore: cast_nullable_to_non_nullable
+as int?,
+  ));
+}
+
+
+}
+
+// dart format on
