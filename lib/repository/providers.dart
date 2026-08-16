@@ -1,7 +1,8 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'vium_repository.dart';
-import 'mock_vium_repository.dart';
+import "package:flutter_riverpod/flutter_riverpod.dart";
+import "ensom_repository.dart";
+import "mock_ensom_repository.dart";
 
-final viumRepositoryProvider = Provider<ViumRepository>((ref) {
-  return MockViumRepository(); // 나중에 실제 API 붙일 때 이 한 줄만 바꾸면 됨
+final ensomRepositoryProvider = Provider<EnsomRepository>((ref) {
+  // 나중에 실제 API 붙일 때 이 한 줄만 바꾸면 됨
+  return MockEnsomRepository();
 });
