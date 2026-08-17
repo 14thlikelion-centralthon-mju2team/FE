@@ -7,9 +7,9 @@ import "../screens/onboarding/email_verification_screen.dart";
 import "../screens/onboarding/location_permission_screen.dart";
 import "../screens/onboarding/prep_time_entry_screen.dart";
 import "../screens/places/place_registration_screen.dart";
+import "../screens/home/home_screen.dart";
+import "../screens/route/route_selection_screen.dart";
 
-/// 5탭(홈/캘린더/리포트/챗봇/마이) -> 4탭(홈/지도/캘린더/설정) 전환.
-/// 최종 마일스톤 문서 M0 "4탭 스캐폴딩" 반영.
 final appRouter = GoRouter(
   initialLocation: "/onboarding/splash",
   routes: [
@@ -73,6 +73,12 @@ final appRouter = GoRouter(
     GoRoute(
         path: "/places/manage",
         builder: (c, s) => const PlaceRegistrationScreen()),
+    GoRoute(
+      path: "/plans/:planId/routes",
+      builder: (c, s) => RouteSelectionScreen(
+        planId: s.pathParameters["planId"]!,
+      ),
+    ),
 
     // 메인 4탭
     StatefulShellRoute.indexedStack(
@@ -81,7 +87,7 @@ final appRouter = GoRouter(
         StatefulShellBranch(routes: [
           GoRoute(
               path: "/home",
-              builder: (c, s) => const PlaceholderScreen(title: "홈")),
+              builder: (c, s) => const HomeScreen()),
         ]),
         StatefulShellBranch(routes: [
           GoRoute(
