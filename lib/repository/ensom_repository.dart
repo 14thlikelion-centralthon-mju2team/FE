@@ -1,15 +1,14 @@
-import "../models/place.dart";
-import "../models/event.dart";
-import "../models/plan.dart";
-import "../models/prep_item.dart";
-import "../models/notification.dart";
-import "../models/action_log.dart";
-import "../models/daily_wellness_summary.dart";
-import "../models/prep_estimate.dart";
+import '../models/place.dart';
+import '../models/event.dart';
+import '../models/plan.dart';
+import '../models/prep_item.dart';
+import '../models/notification.dart';
+import '../models/action_log.dart';
+import '../models/daily_wellness_summary.dart';
+import '../models/prep_estimate.dart';
 
-/// API v5.0 기준. submitAction(단건) -> submitActions(배치)로 개명,
-/// resolveChecklistItem/resolveWellnessAction 분리(§12.2, 서로 다른
-/// 테이블·enum이라 엔드포인트도 분리됨).
+/// API 명세서 기준 재작성. 기존 루틴/체크인/AAC 연동/챗봇 관련 메서드는
+/// 전부 제거 -- 새 API 명세 어디에도 대응 엔드포인트가 없다.
 abstract class EnsomRepository {
   // 일정 (CAL-01, 03, 04, 05)
   Future<Event?> fetchNextEvent();
@@ -32,6 +31,7 @@ abstract class EnsomRepository {
   Future<Plan> updatePlan(
     String planId, {
     DateTime? prepStartAt,
+    DateTime? departAt,
     String? originPlaceId,
   });
 
@@ -52,28 +52,20 @@ abstract class EnsomRepository {
     WellnessResponseAction action,
   );
 
-  // 웰니스 (WELL-01~06) -- API v5.0 §12.2: 두 경로 분리
+  // 웰니스 (WELL-01~06)
   Future<void> resolveChecklistItem(
     String planId,
-    String planPrepItemId,
-    ChecklistCompletionStatus status,
-  );
-  Future<void> resolveWellnessAction(
-    String planId,
-    String wellnessActionId,
-    WellnessActionCompletionStatus status,
+    String itemId,
+    ChecklistState state,
   );
   Future<DailyWellnessSummary?> fetchDailySummary(String date);
 
-  // 행동 기록 -- API v5.0 §13: 배치 {actions:[...]}, clientEventId로 멱등 보장 (TR-03)
-  Future<ActionBatchResponse> submitActions(
-    String planId,
-    List<ActionLogEntry> actions,
-  );
+  // 행동 기록 -- 오프라인 큐의 최종 도착지, clientEventId로 멱등 보장 (TR-03)
+  Future<ActionLogResponse> submitAction(String planId, ActionLogEntry entry);
 
   // 개인화 (MODEL-01/02)
   Future<List<PrepEstimate>> fetchPrepEstimates();
-  Future<void> revertPersonalization(String eventId);
+  Future<void> revertPersonalization(String planId);
   Future<void> resetPersonalization();
 
   // 장소 (SET-01)
