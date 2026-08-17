@@ -2,27 +2,46 @@ import "package:flutter/material.dart";
 import "package:go_router/go_router.dart";
 import "placeholder_screen.dart";
 import "../screens/onboarding/auth_screen.dart";
+import "../screens/onboarding/consent_screen.dart";
+import "../screens/onboarding/email_verification_screen.dart";
 import "../screens/onboarding/location_permission_screen.dart";
+import "../screens/onboarding/prep_time_entry_screen.dart";
 import "../screens/places/place_registration_screen.dart";
 
+/// 5탭(홈/캘린더/리포트/챗봇/마이) -> 4탭(홈/지도/캘린더/설정) 전환.
+/// 최종 마일스톤 문서 M0 "4탭 스캐폴딩" 반영.
 final appRouter = GoRouter(
   initialLocation: "/onboarding/splash",
   routes: [
-    // 온보딩 16화면 (탭바 없음)
     GoRoute(
         path: "/onboarding/splash",
         builder: (c, s) => const PlaceholderScreen(title: "스플래시")),
     GoRoute(
         path: "/onboarding/intro",
         builder: (c, s) => const PlaceholderScreen(title: "서비스 소개")),
-    GoRoute(path: "/onboarding/auth", builder: (c, s) => const AuthScreen()),
-    // age_confirm 라우트 삭제됨: 새 API 명세에 연령 확인 개념이 없음 (refactor/models-v2)
     GoRoute(
-        path: "/onboarding/consent",
-        builder: (c, s) => const PlaceholderScreen(title: "데이터 수집 동의")),
+      path: "/onboarding/auth",
+      builder: (c, s) => AuthScreen(
+        onGoogleLogin: () async {
+          // TODO(fe-auth-onboarding): 실제 Google OAuth 연동
+        },
+      ),
+    ),
     GoRoute(
-        path: "/onboarding/interest",
-        builder: (c, s) => const PlaceholderScreen(title: "관심 영역 선택")),
+      path: "/onboarding/email-verification",
+      builder: (c, s) {
+        final email = s.uri.queryParameters["email"] ?? "";
+        return EmailVerificationScreen(email: email);
+      },
+    ),
+    GoRoute(
+      path: "/onboarding/consent",
+      builder: (c, s) => const ConsentScreen(),
+    ),
+    GoRoute(
+      path: "/onboarding/interest",
+      builder: (c, s) => const PlaceholderScreen(title: "관심 영역 선택"),
+    ),
     GoRoute(
         path: "/onboarding/survey1",
         builder: (c, s) => const PlaceholderScreen(title: "설문 1/2")),
@@ -48,14 +67,14 @@ final appRouter = GoRouter(
         path: "/onboarding/complete",
         builder: (c, s) => const PlaceholderScreen(title: "온보딩 완료")),
     GoRoute(
-        path: "/onboarding/routine-setup",
-        builder: (c, s) =>
-            const PlaceholderScreen(title: "목표 및 기본 루틴 설정")),
+      path: "/onboarding/prep-time",
+      builder: (c, s) => const PrepTimeEntryScreen(),
+    ),
     GoRoute(
         path: "/places/manage",
         builder: (c, s) => const PlaceRegistrationScreen()),
 
-    // 메인 5탭
+    // 메인 4탭
     StatefulShellRoute.indexedStack(
       builder: (context, state, shell) => MainTabShell(shell: shell),
       branches: [
@@ -66,23 +85,18 @@ final appRouter = GoRouter(
         ]),
         StatefulShellBranch(routes: [
           GoRoute(
+              path: "/map",
+              builder: (c, s) => const PlaceholderScreen(title: "지도")),
+        ]),
+        StatefulShellBranch(routes: [
+          GoRoute(
               path: "/calendar",
               builder: (c, s) => const PlaceholderScreen(title: "캘린더")),
         ]),
         StatefulShellBranch(routes: [
           GoRoute(
-              path: "/report",
-              builder: (c, s) => const PlaceholderScreen(title: "리포트")),
-        ]),
-        StatefulShellBranch(routes: [
-          GoRoute(
-              path: "/chat",
-              builder: (c, s) => const PlaceholderScreen(title: "챗봇")),
-        ]),
-        StatefulShellBranch(routes: [
-          GoRoute(
-              path: "/my",
-              builder: (c, s) => const PlaceholderScreen(title: "마이")),
+              path: "/settings",
+              builder: (c, s) => const PlaceholderScreen(title: "설정")),
         ]),
       ],
     ),
@@ -103,14 +117,15 @@ class MainTabShell extends StatelessWidget {
         type: BottomNavigationBarType.fixed,
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: "홈"),
+          BottomNavigationBarItem(icon: Icon(Icons.map), label: "지도"),
           BottomNavigationBarItem(
               icon: Icon(Icons.calendar_today), label: "캘린더"),
-          BottomNavigationBarItem(icon: Icon(Icons.bar_chart), label: "리포트"),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.chat_bubble), label: "챗봇"),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: "마이"),
+          BottomNavigationBarItem(icon: Icon(Icons.settings), label: "설정"),
         ],
       ),
     );
   }
 }
+
+// TODO(fe-auth-onboarding): 챗봇 탭 완전 제외 여부를 기획(최수민)에게
+// 재확인 필요.
