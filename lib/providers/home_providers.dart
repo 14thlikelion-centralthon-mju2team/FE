@@ -1,5 +1,5 @@
 import "package:flutter_riverpod/flutter_riverpod.dart";
-import "package:flutter_riverpod/legacy.dart"; // StateNotifier(Provider)는 riverpod 3.x에서 이 경로로 이관됨
+import "package:flutter_riverpod/legacy.dart";
 import "../models/event.dart";
 import "../models/plan.dart";
 import "../models/action_log.dart";
@@ -23,13 +23,7 @@ final planControllerProvider = StateNotifierProvider.autoDispose
   return PlanController(repo: repo, eventId: eventId);
 });
 
-/// 계획의 단일 진실원천 (리뷰 High-1 반영).
-///
-/// 행동(submitAction/selectRoute) 실패 시 state를 AsyncError로 바꾸지
-/// 않는다 -- 그냥 예외를 던지고 마지막 성공 상태를 유지한다. 호출부
-/// (화면)가 try/catch로 잡아 스낵바 등으로 알린다. AsyncValue.error(...)
-/// .copyWithPrevious(...)로 "에러이면서 이전 데이터 유지"를 표현하는
-/// 방식은 riverpod 패키지 내부 전용(@internal)이라 쓰지 않는다.
+/// 계획의 단일 진실원천.
 class PlanController extends StateNotifier<AsyncValue<Plan>> {
   PlanController({required this.repo, required this.eventId})
       : super(const AsyncValue.loading()) {
@@ -51,10 +45,13 @@ class PlanController extends StateNotifier<AsyncValue<Plan>> {
 
   Future<void> retry() => _load();
 
-  Future<void> submitAction(ActionLogEntry entry) async {
+  /// API v5.0 §13: 배치 엔드포인트다. 지금은 항상 1건씩 보내지만,
+  /// M2(Drift 큐)가 붙으면 큐에 쌓인 여러 건을 한 번에 실어 보낼 수
+  /// 있도록 시그니처 자체를 리스트로 잡아뒀다.
+  Future<void> submitActions(List<ActionLogEntry> actions) async {
     final plan = state.value;
     if (plan == null) return;
-    final response = await repo.submitAction(plan.planId, entry);
+    final response = await repo.submitActions(plan.planId, actions);
     state = AsyncValue.data(Plan.fromJson(response.plan));
   }
 
@@ -77,7 +74,7 @@ class PlanController extends StateNotifier<AsyncValue<Plan>> {
     final optimistic = plan.copyWith(
       checklist: [
         for (final c in plan.checklist)
-          if (c.itemId == item.itemId)
+          if (c.planPrepItemId == item.planPrepItemId)
             c.copyWith(completionStatus: newStatus)
           else
             c,
@@ -86,9 +83,38 @@ class PlanController extends StateNotifier<AsyncValue<Plan>> {
     state = AsyncValue.data(optimistic);
 
     try {
-      await repo.resolveChecklistItem(plan.planId, item.itemId, newStatus);
+      await repo.resolveChecklistItem(
+          plan.planId, item.planPrepItemId, newStatus);
     } catch (_) {
       state = AsyncValue.data(plan); // 롤백
+    }
+  }
+
+  /// 웰니스 행동은 M3(feat/fe-wellness) 본격 UI 전이지만, 모델이
+  /// Plan에 이미 포함돼 있으므로 데이터 갱신 경로만 미리 만들어둔다.
+  Future<void> resolveWellnessAction(
+    WellnessAction action,
+    WellnessActionCompletionStatus status,
+  ) async {
+    final plan = state.value;
+    if (plan == null) return;
+
+    final optimistic = plan.copyWith(
+      wellnessActions: [
+        for (final w in plan.wellnessActions)
+          if (w.wellnessActionId == action.wellnessActionId)
+            w.copyWith(completionStatus: status)
+          else
+            w,
+      ],
+    );
+    state = AsyncValue.data(optimistic);
+
+    try {
+      await repo.resolveWellnessAction(
+          plan.planId, action.wellnessActionId, status);
+    } catch (_) {
+      state = AsyncValue.data(plan);
     }
   }
 }

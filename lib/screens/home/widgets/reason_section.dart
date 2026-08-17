@@ -1,8 +1,9 @@
 import "package:flutter/material.dart";
 import "../../../models/plan.dart";
 
-/// PLAN-03. Plan.reasons(구 trace) 표시. 서버가 정렬하지 않으므로
-/// 받은 순서 그대로 노출한다.
+/// PLAN-03. API v5.0 §9.1 reasons 배열. 분 단위 값은 여기 없다(원본은
+/// breakdown에 있고, 이건 그 값의 근거 문장만 담는다) -- 지난 라운드의
+/// PlanReason(label/minutes) 구조를 field/source/adjusted/text로 교체.
 class ReasonSection extends StatefulWidget {
   const ReasonSection({super.key, required this.reasons});
 
@@ -54,26 +55,28 @@ class _ReasonRow extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Icon(
+            item.adjusted ? Icons.trending_up : Icons.circle_outlined,
+            size: 14,
+            color: item.adjusted ? Colors.orange[800] : Colors.grey,
+          ),
+          const SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(item.label),
-                if (item.reason != null)
+                Text(
+                  item.text,
+                  style: TextStyle(
+                    fontWeight: item.adjusted ? FontWeight.w600 : FontWeight.normal,
+                  ),
+                ),
+                if (item.sampleCount != null)
                   Text(
-                    item.reason!,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: item.adjusted ? Colors.orange[800] : Colors.grey,
-                    ),
+                    "최근 ${item.sampleCount}회 기록 기준",
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
                   ),
               ],
-            ),
-          ),
-          Text(
-            "${item.minutes}분",
-            style: TextStyle(
-              fontWeight: item.adjusted ? FontWeight.w600 : FontWeight.normal,
             ),
           ),
         ],

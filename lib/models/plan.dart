@@ -3,9 +3,29 @@ import "package:freezed_annotation/freezed_annotation.dart";
 part "plan.freezed.dart";
 part "plan.g.dart";
 
-/// 오케스트레이터 상태 기계(TRD §8.1)의 값. eventStatus(아래)와 서로 다른
-/// 생명주기이므로 절대 하나로 합치지 않는다 -- API 명세 §9 원칙.
+/// 계획 리비전 상태(ERD plan_revision.plan_status). eventStatus와
+/// 완전히 다른 축이다 -- API v5.0 §9.2 "planStatus ≠ eventStatus".
 enum PlanStatus {
+  @JsonValue("draft")
+  draft,
+  @JsonValue("ready")
+  ready,
+  @JsonValue("scheduled")
+  scheduled,
+  @JsonValue("active")
+  active,
+  @JsonValue("completed")
+  completed,
+  @JsonValue("superseded")
+  superseded,
+  @JsonValue("cancelled")
+  cancelled,
+}
+
+/// 일정 생명주기. API v5.0 §9.2가 명시한 값만 쓴다:
+/// planned -> notified -> preparing -> enroute -> arrived -> closed.
+/// (지난 라운드에 이 값들을 planStatus 쪽에 잘못 넣었던 걸 바로잡음)
+enum EventLifecycleStatus {
   @JsonValue("planned")
   planned,
   @JsonValue("notified")
@@ -16,67 +36,51 @@ enum PlanStatus {
   enroute,
   @JsonValue("arrived")
   arrived,
-  @JsonValue("unresolved")
-  unresolved,
   @JsonValue("closed")
   closed,
-  @JsonValue("skipped")
-  skipped,
-  @JsonValue("cancelled")
-  cancelled,
 }
 
-/// 일정(이벤트) 자체의 생명주기. ERD event.status와 대응.
-enum EventLifecycleStatus {
-  @JsonValue("planned")
-  planned,
-  @JsonValue("needs_review")
-  needsReview,
-  @JsonValue("confirmed")
-  confirmed,
-  @JsonValue("skipped")
-  skipped,
-  @JsonValue("ended")
-  ended,
-}
-
-/// 계산 근거 한 줄. 서버가 정렬하지 않으므로 화면 순서는 클라이언트가
-/// 결정한다 (API 명세 §9).
+/// breakdown의 한 필드가 왜 그 값인지 설명하는 근거 한 줄.
+/// 분 단위 값 자체는 여기 없다 -- 실제 값은 PlanBreakdown에 있고,
+/// 이건 그 값의 "이유"만 담는다 (API v5.0 §9.1).
 @freezed
 abstract class PlanReason with _$PlanReason {
   const factory PlanReason({
-    required String label,
-    required int minutes,
-    required String source,
+    required String field, // breakdown 필드명 (estimatedPrepMinutes 등)
+    required String source, // estimate | prepRule | routeProvider | environment
     required bool adjusted,
-    String? reason,
+    required String text,
+    int? sampleCount,
   }) = _PlanReason;
 
   factory PlanReason.fromJson(Map<String, dynamic> json) =>
       _$PlanReasonFromJson(json);
 }
 
-/// 시간 분해값. reasons(사람이 읽는 근거 문장)와 별개로, 정확한 분 단위
-/// 구성 요소를 구조화해서 담는다 -- TRD plan_revision 컬럼과 대응.
 @freezed
 abstract class PlanBreakdown with _$PlanBreakdown {
   const factory PlanBreakdown({
-    required int prepMinutes,
+    required int estimatedPrepMinutes,
     required int extraPrepMinutes,
     required int personalRoutineMinutes,
     required int travelMinutes,
     required int trafficBufferMinutes,
+    required int arrivalBufferMinutes,
   }) = _PlanBreakdown;
 
   factory PlanBreakdown.fromJson(Map<String, dynamic> json) =>
       _$PlanBreakdownFromJson(json);
 }
 
+/// ERD PLAN_PREP_ITEM.source_type 값 (사용자/웰니스 구분이 아니라
+/// 데이터 원천 구분이다 -- rule=사용자 등록 규칙에서 투영, 그 외는 P1).
 enum ChecklistSourceType {
-  @JsonValue("user")
-  user,
-  @JsonValue("wellness")
-  wellness,
+  @JsonValue("rule")
+  rule,
+  @JsonValue("event_item")
+  eventItem,
+  @JsonValue("weather")
+  weather,
 }
 
 enum ChecklistCompletionStatus {
@@ -86,30 +90,77 @@ enum ChecklistCompletionStatus {
   completed,
 }
 
-/// 준비물 체크리스트 항목. itemId가 없으면 서버에 완료 상태를 반영할
-/// 방법이 없어 리뷰에서 지적됨 -- 반드시 포함.
+enum PrepActionType {
+  @JsonValue("carry")
+  carry,
+  @JsonValue("consume")
+  consume,
+  @JsonValue("purchase")
+  purchase,
+  @JsonValue("timed_routine")
+  timedRoutine,
+}
+
 @freezed
 abstract class ChecklistItem with _$ChecklistItem {
   const factory ChecklistItem({
-    required String itemId,
+    required String planPrepItemId,
     required String itemName,
+    required PrepActionType actionType,
     required ChecklistSourceType sourceType,
-    required String actionType, // carry | consume | purchase | routine
     required ChecklistCompletionStatus completionStatus,
+    @Default(false) bool isSensitive,
+    @Default(0) int appliedMinutes,
     String? reason,
-    @Default(false) bool private,
   }) = _ChecklistItem;
 
   factory ChecklistItem.fromJson(Map<String, dynamic> json) =>
       _$ChecklistItemFromJson(json);
 }
 
+/// checklist와 완전히 별도 배열이다 (API v5.0 §9.2 "checklist와
+/// wellnessActions는 별도 배열"). M1에서는 파싱만 하고 UI 상호작용은
+/// M3(feat/fe-wellness) 범위로 남긴다.
+enum WellnessActionCompletionStatus {
+  @JsonValue("proposed")
+  proposed,
+  @JsonValue("completed")
+  completed,
+  @JsonValue("dismissed")
+  dismissed,
+}
+
+@freezed
+abstract class WellnessAction with _$WellnessAction {
+  const factory WellnessAction({
+    required String wellnessActionId,
+    required String wellnessTopic,
+    required String actionCode,
+    required String actionLabel,
+    required int displayRank,
+    String? reasonSnapshot,
+    required WellnessActionCompletionStatus completionStatus,
+  }) = _WellnessAction;
+
+  factory WellnessAction.fromJson(Map<String, dynamic> json) =>
+      _$WellnessActionFromJson(json);
+}
+
+enum WisBand {
+  @JsonValue("low")
+  low,
+  @JsonValue("mid")
+  mid,
+  @JsonValue("high")
+  high,
+}
+
 @freezed
 abstract class WellnessSummary with _$WellnessSummary {
   const factory WellnessSummary({
     required int wisScore,
+    required WisBand wisBand,
     required String weightVersion,
-    required int actionsShown,
     required bool eventArmed,
   }) = _WellnessSummary;
 
@@ -117,9 +168,25 @@ abstract class WellnessSummary with _$WellnessSummary {
       _$WellnessSummaryFromJson(json);
 }
 
-/// GET /plans/{id} 응답 전체. 필드명은 TRD §12.2 계약 그대로 따른다 --
-/// 이전 버전(engineVer/state/departAt/etaAt/trace/wis/wisVer)은 실제
-/// 서버 응답을 파싱하지 못하는 상태였다.
+@freezed
+abstract class PlanContext with _$PlanContext {
+  const factory PlanContext({
+    int? uvIndex,
+    int? pm10,
+    int? pm25,
+    double? feelsLike,
+    int? precipitationProb,
+    required int estimatedOutdoorMinutes,
+    String? weatherProvider,
+    String? airProvider,
+    DateTime? observedAt,
+  }) = _PlanContext;
+
+  factory PlanContext.fromJson(Map<String, dynamic> json) =>
+      _$PlanContextFromJson(json);
+}
+
+/// GET /plans/{planId} 응답 (API v5.0 §9.1) 그대로.
 @freezed
 abstract class Plan with _$Plan {
   const factory Plan({
@@ -130,20 +197,24 @@ abstract class Plan with _$Plan {
     required PlanStatus planStatus,
     required EventLifecycleStatus eventStatus,
     required bool feasible,
+    String? predictionConfidence,
     required DateTime prepStartAt,
     required DateTime recommendedDepartAt,
     required DateTime targetArriveAt,
-    required List<PlanReason> reasons,
     required PlanBreakdown breakdown,
+    required List<PlanReason> reasons,
     required List<ChecklistItem> checklist,
+    @Default([]) List<WellnessAction> wellnessActions,
     WellnessSummary? wellness,
+    PlanContext? context,
+    String? selectedRouteOptionId,
     @Default([]) List<String> degraded,
   }) = _Plan;
 
   factory Plan.fromJson(Map<String, dynamic> json) => _$PlanFromJson(json);
 }
 
-enum RouteRank {
+enum RouteType {
   @JsonValue("fastest")
   fastest,
   @JsonValue("least_walk")
@@ -152,15 +223,19 @@ enum RouteRank {
   leastTransfer,
 }
 
+/// API v5.0 §10.1. 단위는 분(minutes)이다 -- 이전 버전의 초 단위 표기는
+/// 폐기됐다.
 @freezed
 abstract class RouteOption with _$RouteOption {
   const factory RouteOption({
-    required String routeId,
-    required RouteRank rank,
-    required int totalSec,
-    required int walkSec,
-    required int transfers,
-    required int outdoorSec,
+    required String routeOptionId,
+    required int routeRank,
+    required RouteType routeType,
+    required int totalMinutes,
+    required int walkMinutes,
+    required int transferCount,
+    DateTime? departAt,
+    DateTime? arriveAt,
   }) = _RouteOption;
 
   factory RouteOption.fromJson(Map<String, dynamic> json) =>

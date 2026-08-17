@@ -9,51 +9,60 @@ part of 'action_log.dart';
 _ActionLogEntry _$ActionLogEntryFromJson(Map<String, dynamic> json) =>
     _ActionLogEntry(
       clientEventId: json['clientEventId'] as String,
-      type: $enumDecode(_$ActionTypeEnumMap, json['type']),
+      actionType: $enumDecode(_$ActionTypeEnumMap, json['actionType']),
       deviceTs: DateTime.parse(json['deviceTs'] as String),
-      source: $enumDecode(_$ActionSourceEnumMap, json['source']),
+      actionSource: $enumDecode(_$ActionSourceEnumMap, json['actionSource']),
       confidence: (json['confidence'] as num?)?.toDouble(),
     );
 
 Map<String, dynamic> _$ActionLogEntryToJson(_ActionLogEntry instance) =>
     <String, dynamic>{
       'clientEventId': instance.clientEventId,
-      'type': _$ActionTypeEnumMap[instance.type]!,
+      'actionType': _$ActionTypeEnumMap[instance.actionType]!,
       'deviceTs': instance.deviceTs.toIso8601String(),
-      'source': _$ActionSourceEnumMap[instance.source]!,
+      'actionSource': _$ActionSourceEnumMap[instance.actionSource]!,
       'confidence': instance.confidence,
     };
 
 const _$ActionTypeEnumMap = {
   ActionType.prepStarted: 'prep_started',
-  ActionType.preparing: 'preparing',
-  ActionType.departed: 'departed',
-  ActionType.arrived: 'arrived',
   ActionType.snoozed: 'snoozed',
-  ActionType.skipped: 'skipped',
-  ActionType.planEdited: 'plan_edited',
-  ActionType.checklistDone: 'checklist_done',
-  ActionType.wellnessDone: 'wellness_done',
-  ActionType.wellnessLater: 'wellness_later',
-  ActionType.wellnessStop: 'wellness_stop',
+  ActionType.departed: 'departed',
+  ActionType.itemChecked: 'item_checked',
+  ActionType.excluded: 'excluded',
 };
 
 const _$ActionSourceEnumMap = {
-  ActionSource.manual: 'manual',
-  ActionSource.notificationAction: 'notification_action',
-  ActionSource.geofence: 'geofence',
+  ActionSource.user: 'user',
+  ActionSource.geo: 'geo',
+  ActionSource.system: 'system',
 };
 
-_ActionLogResponse _$ActionLogResponseFromJson(Map<String, dynamic> json) =>
-    _ActionLogResponse(
-      accepted: json['accepted'] as bool,
-      duplicated: json['duplicated'] as bool,
+_ActionBatchResponse _$ActionBatchResponseFromJson(Map<String, dynamic> json) =>
+    _ActionBatchResponse(
+      accepted: (json['accepted'] as num).toInt(),
+      duplicated: (json['duplicated'] as num).toInt(),
+      eventStatus: $enumDecode(
+        _$EventLifecycleStatusEnumMap,
+        json['eventStatus'],
+      ),
       plan: json['plan'] as Map<String, dynamic>,
     );
 
-Map<String, dynamic> _$ActionLogResponseToJson(_ActionLogResponse instance) =>
-    <String, dynamic>{
-      'accepted': instance.accepted,
-      'duplicated': instance.duplicated,
-      'plan': instance.plan,
-    };
+Map<String, dynamic> _$ActionBatchResponseToJson(
+  _ActionBatchResponse instance,
+) => <String, dynamic>{
+  'accepted': instance.accepted,
+  'duplicated': instance.duplicated,
+  'eventStatus': _$EventLifecycleStatusEnumMap[instance.eventStatus]!,
+  'plan': instance.plan,
+};
+
+const _$EventLifecycleStatusEnumMap = {
+  EventLifecycleStatus.planned: 'planned',
+  EventLifecycleStatus.notified: 'notified',
+  EventLifecycleStatus.preparing: 'preparing',
+  EventLifecycleStatus.enroute: 'enroute',
+  EventLifecycleStatus.arrived: 'arrived',
+  EventLifecycleStatus.closed: 'closed',
+};

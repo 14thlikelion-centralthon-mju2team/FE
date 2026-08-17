@@ -12,14 +12,11 @@ class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
   ActionLogEntry _buildAction(ActionType type) {
-    // 리뷰 High-3 부분 반영: timestamp 대신 uuid v4. 완전한 해결(오프라인
-    // 큐에 넣는 시점에 한 번 발급해 앱 재시작 후에도 재사용)은
-    // feat/fe-notification-offline(M2)에서 Drift 큐가 붙어야 가능하다.
     return ActionLogEntry(
       clientEventId: _uuid.v4(),
-      type: type,
+      actionType: type,
       deviceTs: DateTime.now(),
-      source: ActionSource.manual,
+      actionSource: ActionSource.user,
     );
   }
 
@@ -61,10 +58,9 @@ class HomeScreen extends ConsumerWidget {
             return const Center(child: Text("다가오는 일정이 없어요."));
           }
 
-          // 리뷰 High-2: 승인된 displayLabel이 없으면 원문 title을
-          // 그대로 보여주지 않는다.
-          final displayTitle = event.displayLabel ?? "다음 일정";
-
+          // API v5.0 §8.3: displayName은 서버가 displayLabel->
+          // destinationName->"오후 2시 일정" 순으로 이미 해석해서
+          // 채워준다. 클라이언트가 자체 폴백을 만들 필요가 없다.
           final planState = ref.watch(planControllerProvider(event.eventId));
           final controller =
               ref.read(planControllerProvider(event.eventId).notifier);
@@ -88,23 +84,27 @@ class HomeScreen extends ConsumerWidget {
               padding: const EdgeInsets.all(16),
               children: [
                 PlanCard(
-                  eventTitle: displayTitle,
+                  eventTitle: event.displayName,
                   plan: plan,
                   onPrepStart: () => _runAction(
                     context,
-                    () => controller.submitAction(_buildAction(ActionType.prepStarted)),
+                    () => controller
+                        .submitActions([_buildAction(ActionType.prepStarted)]),
                   ),
                   onDeparted: () => _runAction(
                     context,
-                    () => controller.submitAction(_buildAction(ActionType.departed)),
+                    () => controller
+                        .submitActions([_buildAction(ActionType.departed)]),
                   ),
                   onSnooze: () => _runAction(
                     context,
-                    () => controller.submitAction(_buildAction(ActionType.snoozed)),
+                    () => controller
+                        .submitActions([_buildAction(ActionType.snoozed)]),
                   ),
                   onSkip: () => _runAction(
                     context,
-                    () => controller.submitAction(_buildAction(ActionType.skipped)),
+                    () => controller
+                        .submitActions([_buildAction(ActionType.excluded)]),
                   ),
                   onSelectRoute: () => context
                       .push("/plans/${plan.planId}/routes?eventId=${event.eventId}"),
