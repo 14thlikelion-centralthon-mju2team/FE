@@ -1,24 +1,23 @@
 import "package:flutter/material.dart";
 import "../../../models/plan.dart";
 
-/// PLAN-03 "계산에 사용된 시간과 요인을 보여줘야 한다".
-/// 서버가 정렬하지 않으므로(API 명세 §9) 받은 순서 그대로 표시한다.
-/// adjusted: true인 항목은 보정 사유(reason)를 강조 표시한다.
-class TraceSection extends StatefulWidget {
-  const TraceSection({super.key, required this.trace});
+/// PLAN-03. Plan.reasons(구 trace) 표시. 서버가 정렬하지 않으므로
+/// 받은 순서 그대로 노출한다.
+class ReasonSection extends StatefulWidget {
+  const ReasonSection({super.key, required this.reasons});
 
-  final List<TraceItem> trace;
+  final List<PlanReason> reasons;
 
   @override
-  State<TraceSection> createState() => _TraceSectionState();
+  State<ReasonSection> createState() => _ReasonSectionState();
 }
 
-class _TraceSectionState extends State<TraceSection> {
+class _ReasonSectionState extends State<ReasonSection> {
   bool _expanded = false;
 
   @override
   Widget build(BuildContext context) {
-    if (widget.trace.isEmpty) return const SizedBox.shrink();
+    if (widget.reasons.isEmpty) return const SizedBox.shrink();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -37,16 +36,16 @@ class _TraceSectionState extends State<TraceSection> {
           ),
         ),
         if (_expanded)
-          ...widget.trace.map((item) => _TraceRow(item: item)),
+          ...widget.reasons.map((item) => _ReasonRow(item: item)),
       ],
     );
   }
 }
 
-class _TraceRow extends StatelessWidget {
-  const _TraceRow({required this.item});
+class _ReasonRow extends StatelessWidget {
+  const _ReasonRow({required this.item});
 
-  final TraceItem item;
+  final PlanReason item;
 
   @override
   Widget build(BuildContext context) {

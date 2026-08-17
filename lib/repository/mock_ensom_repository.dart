@@ -15,7 +15,8 @@ class MockEnsomRepository implements EnsomRepository {
     await Future.delayed(const Duration(milliseconds: 300));
     return Event(
       eventId: "mock-event-1",
-      title: "강남역 미팅",
+      title: "강남역 미팅", // 원문. 화면은 displayLabel을 우선 사용해야 함
+      displayLabel: "강남역 미팅", // 분류 승인된 표시명 (mock에서는 동일값)
       startsAt: DateTime.now().add(const Duration(hours: 3)),
       endsAt: DateTime.now().add(const Duration(hours: 4)),
       placeNeed: PlaceNeed.requiredResolved,
@@ -86,22 +87,24 @@ class MockEnsomRepository implements EnsomRepository {
     final now = DateTime.now();
     return Plan(
       planId: "mock-plan-1",
+      eventId: "mock-event-1",
       revisionNo: 3,
-      engineVer: "2.1.0",
-      state: "NOTIFIED",
+      calcVersion: "2.1.0",
+      planStatus: PlanStatus.notified,
+      eventStatus: EventLifecycleStatus.confirmed,
       feasible: true,
       prepStartAt: now.add(const Duration(hours: 2)),
-      departAt: now.add(const Duration(hours: 2, minutes: 45)),
-      etaAt: now.add(const Duration(hours: 3, minutes: 25)),
-      trace: const [
-        TraceItem(
+      recommendedDepartAt: now.add(const Duration(hours: 2, minutes: 45)),
+      targetArriveAt: now.add(const Duration(hours: 3, minutes: 25)),
+      reasons: const [
+        PlanReason(
           label: "개인 준비 시간",
           minutes: 35,
           source: "model",
           adjusted: true,
           reason: "최근 8회 기록 기준, 초기 설정보다 5분 증가",
         ),
-        TraceItem(
+        PlanReason(
           label: "이동 시간",
           minutes: 42,
           source: "provider",
@@ -109,24 +112,41 @@ class MockEnsomRepository implements EnsomRepository {
           reason: "외부 지도 API 기준",
         ),
       ],
+      breakdown: const PlanBreakdown(
+        prepMinutes: 30,
+        extraPrepMinutes: 5,
+        personalRoutineMinutes: 0,
+        travelMinutes: 42,
+        trafficBufferMinutes: 5,
+      ),
       checklist: const [
         ChecklistItem(
-          label: "영양제",
-          origin: ChecklistOrigin.user,
-          kind: "consume",
-          state: ChecklistState.pending,
+          itemId: "ci1",
+          itemName: "영양제",
+          sourceType: ChecklistSourceType.user,
+          actionType: "consume",
+          completionStatus: ChecklistCompletionStatus.pending,
         ),
         ChecklistItem(
-          label: "선크림",
-          origin: ChecklistOrigin.wellness,
-          kind: "carry",
-          state: ChecklistState.pending,
+          itemId: "ci2",
+          itemName: "선크림",
+          sourceType: ChecklistSourceType.wellness,
+          actionType: "carry",
+          completionStatus: ChecklistCompletionStatus.pending,
           reason: "자외선 높음, 야외 45분",
+        ),
+        ChecklistItem(
+          itemId: "ci3",
+          itemName: "복용약",
+          sourceType: ChecklistSourceType.user,
+          actionType: "consume",
+          completionStatus: ChecklistCompletionStatus.pending,
+          private: true, // 잠금화면 마스킹 검증용 mock 데이터
         ),
       ],
       wellness: const WellnessSummary(
-        wis: 72,
-        wisVer: "w1",
+        wisScore: 72,
+        weightVersion: "w1",
         actionsShown: 2,
         eventArmed: true,
       ),
@@ -236,7 +256,7 @@ class MockEnsomRepository implements EnsomRepository {
   Future<void> resolveChecklistItem(
     String planId,
     String itemId,
-    ChecklistState state,
+    ChecklistCompletionStatus status,
   ) async {
     await Future.delayed(const Duration(milliseconds: 200));
   }

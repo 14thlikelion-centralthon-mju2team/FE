@@ -1,16 +1,17 @@
 import "package:flutter/material.dart";
 import "package:intl/intl.dart";
 import "../../../models/plan.dart";
-import "trace_section.dart";
+import "reason_section.dart";
 import "checklist_section.dart";
 
-/// HOME-01/02. PRD §10.2의 6개 고정 상태 문구를 그대로 쓴다 -- 프론트가
-/// 임의로 문구를 재구성하지 않는다는 원칙(TR-09와 동일 취지).
+/// HOME-01/02.
 ///
-/// 주의: Plan 모델에 서버가 내려주는 statusMessage 필드가 아직 없다.
-/// 지금은 state + feasible로 클라이언트가 문구를 임시 매핑하지만,
-/// 이건 미봉책이다 -- API 응답에 statusMessage/statusMessageKey가
-/// 추가되는 대로 이 매핑 로직을 통째로 걷어내야 한다 (TODO 하단 참고).
+/// 리뷰 Blocker-3 반영: PlanStatus 9개 값을 전부 명시적으로 처리한다
+/// (default로 뭉개지 않음 -- 정상 상태가 조용히 기본 문구로 떨어지는
+/// 걸 막기 위함). 서버가 statusMessage/statusMessageKey를 내려주는
+/// API가 아직 없어서(팀 확인 대기 중, 이슈 트래킹됨) 지금은 enum 값
+/// 기준으로 클라이언트가 문구를 소유한다 -- 이건 임시 조치이며,
+/// 해당 필드가 API에 추가되는 대로 이 switch 전체를 걷어내야 한다.
 class PlanCard extends StatelessWidget {
   const PlanCard({
     super.key,
@@ -35,20 +36,27 @@ class PlanCard extends StatelessWidget {
 
   String get _statusMessage {
     if (!plan.feasible) return "현재 출발하면 약속 시간보다 늦을 수 있습니다.";
-    switch (plan.state) {
-      case "PLANNED":
+    switch (plan.planStatus) {
+      case PlanStatus.planned:
         return "아직 충분한 여유가 있습니다.";
-      case "NOTIFIED":
+      case PlanStatus.notified:
         return "곧 준비를 시작하세요.";
-      case "PREPARING":
+      case PlanStatus.preparing:
         return "지금부터 준비하는 것이 좋습니다.";
-      case "ENROUTE":
-        return "10분 안에 출발해야 합니다.";
-      default:
-        return "일정을 확인해주세요.";
+      case PlanStatus.enroute:
+        return "이동 중이에요. 곧 도착 예정입니다.";
+      case PlanStatus.arrived:
+        return "도착했어요.";
+      case PlanStatus.unresolved:
+        return "도착 여부를 확인해주세요.";
+      case PlanStatus.closed:
+        return "일정이 마무리됐어요.";
+      case PlanStatus.skipped:
+        return "이번 일정은 관리 대상에서 제외됐어요.";
+      case PlanStatus.cancelled:
+        return "일정이 취소됐어요.";
     }
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -65,8 +73,10 @@ class PlanCard extends StatelessWidget {
             Text(_statusMessage, style: const TextStyle(color: Colors.grey)),
             const SizedBox(height: 16),
             _TimeRow(label: "준비 시작", time: timeFormat.format(plan.prepStartAt)),
-            _TimeRow(label: "권장 출발", time: timeFormat.format(plan.departAt)),
-            _TimeRow(label: "도착 예상", time: timeFormat.format(plan.etaAt)),
+            _TimeRow(label: "권장 출발", time: timeFormat.format(plan.recommendedDepartAt)),
+            _TimeRow(label: "도착 예상", time: timeFormat.format(plan.targetArriveAt)),
+            const SizedBox(height: 8),
+            _BreakdownSummary(breakdown: plan.breakdown),
             if (plan.degraded.isNotEmpty) ...[
               const SizedBox(height: 8),
               Text(
@@ -75,7 +85,7 @@ class PlanCard extends StatelessWidget {
               ),
             ],
             const Divider(height: 24),
-            TraceSection(trace: plan.trace),
+            ReasonSection(reasons: plan.reasons),
             const Divider(height: 24),
             ChecklistSection(
               checklist: plan.checklist,
@@ -120,8 +130,21 @@ class _TimeRow extends StatelessWidget {
   }
 }
 
-// TODO(fe-plan-route): 서버 응답에 statusMessage/statusMessageKey가
-// 추가되면 _statusMessage 게터를 지우고 plan.statusMessage를 그대로
-// 쓰도록 교체. 지금처럼 state 문자열을 클라이언트가 해석하면, 서버가
-// 문구를 바꿀 때마다(PRD가 이미 v0.2->v0.4.3 사이 세 번 문구를
-// 바꾼 이력이 있음) 이 파일도 매번 같이 고쳐야 한다.
+class _BreakdownSummary extends StatelessWidget {
+  const _BreakdownSummary({required this.breakdown});
+
+  final PlanBreakdown breakdown;
+
+  @override
+  Widget build(BuildContext context) {
+    final total = breakdown.prepMinutes +
+        breakdown.extraPrepMinutes +
+        breakdown.personalRoutineMinutes +
+        breakdown.travelMinutes +
+        breakdown.trafficBufferMinutes;
+    return Text(
+      "준비 ${breakdown.prepMinutes}분 · 이동 ${breakdown.travelMinutes}분 · 여유 ${breakdown.trafficBufferMinutes}분 (총 $total분)",
+      style: const TextStyle(fontSize: 12, color: Colors.grey),
+    );
+  }
+}

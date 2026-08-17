@@ -77,6 +77,7 @@ final appRouter = GoRouter(
       path: "/plans/:planId/routes",
       builder: (c, s) => RouteSelectionScreen(
         planId: s.pathParameters["planId"]!,
+        eventId: s.uri.queryParameters["eventId"]!,
       ),
     ),
 

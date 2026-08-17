@@ -1,30 +1,40 @@
 import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:go_router/go_router.dart";
+import "package:uuid/uuid.dart";
 import "../../models/action_log.dart";
 import "../../providers/home_providers.dart";
-import "../../repository/providers.dart";
 import "widgets/plan_card.dart";
+
+const _uuid = Uuid();
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
-  Future<void> _sendAction(WidgetRef ref, String planId, ActionType type) async {
-    final repo = ref.read(ensomRepositoryProvider);
-    // TODO(fe-notification-offline): clientEventId는 오프라인 큐에 넣는
-    // 시점에 한 번만 발급해서 재사용해야 한다 (TR-03). 지금은 즉시 전송만
-    // 가정하고 매번 새로 만들지만, Drift 큐가 붙으면 이 부분을 큐 경유로
-    // 바꿔야 한다.
-    await repo.submitAction(
-      planId,
-      ActionLogEntry(
-        clientEventId: DateTime.now().microsecondsSinceEpoch.toString(),
-        type: type,
-        deviceTs: DateTime.now(),
-        source: ActionSource.manual,
-      ),
+  ActionLogEntry _buildAction(ActionType type) {
+    // 리뷰 High-3 부분 반영: timestamp 대신 uuid v4. 완전한 해결(오프라인
+    // 큐에 넣는 시점에 한 번 발급해 앱 재시작 후에도 재사용)은
+    // feat/fe-notification-offline(M2)에서 Drift 큐가 붙어야 가능하다.
+    return ActionLogEntry(
+      clientEventId: _uuid.v4(),
+      type: type,
+      deviceTs: DateTime.now(),
+      source: ActionSource.manual,
     );
-    ref.invalidate(latestPlanProvider);
+  }
+
+  Future<void> _runAction(
+    BuildContext context,
+    Future<void> Function() action,
+  ) async {
+    try {
+      await action();
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("처리하지 못했어요. 다시 시도해주세요.")),
+      );
+    }
   }
 
   @override
@@ -50,29 +60,58 @@ class HomeScreen extends ConsumerWidget {
           if (event == null) {
             return const Center(child: Text("다가오는 일정이 없어요."));
           }
-          final planAsync = ref.watch(latestPlanProvider(event.eventId));
-          return planAsync.when(
+
+          // 리뷰 High-2: 승인된 displayLabel이 없으면 원문 title을
+          // 그대로 보여주지 않는다.
+          final displayTitle = event.displayLabel ?? "다음 일정";
+
+          final planState = ref.watch(planControllerProvider(event.eventId));
+          final controller =
+              ref.read(planControllerProvider(event.eventId).notifier);
+
+          return planState.when(
             loading: () => const Center(child: CircularProgressIndicator()),
-            error: (err, st) => Center(child: Text("계획을 불러오지 못했어요: $err")),
+            error: (err, st) => Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text("계획을 불러오지 못했어요: $err"),
+                  const SizedBox(height: 12),
+                  ElevatedButton(
+                    onPressed: controller.retry,
+                    child: const Text("다시 시도"),
+                  ),
+                ],
+              ),
+            ),
             data: (plan) => ListView(
               padding: const EdgeInsets.all(16),
               children: [
                 PlanCard(
-                  eventTitle: event.title,
+                  eventTitle: displayTitle,
                   plan: plan,
-                  onPrepStart: () =>
-                      _sendAction(ref, plan.planId, ActionType.prepStarted),
-                  onDeparted: () =>
-                      _sendAction(ref, plan.planId, ActionType.departed),
-                  onSnooze: () =>
-                      _sendAction(ref, plan.planId, ActionType.snoozed),
-                  onSkip: () =>
-                      _sendAction(ref, plan.planId, ActionType.skipped),
-                  onSelectRoute: () =>
-                      context.push("/plans/${plan.planId}/routes"),
-                  onToggleChecklistItem: (item, completed) {
-                    // TODO(fe-plan-route): repo.resolveChecklistItem 연결
-                  },
+                  onPrepStart: () => _runAction(
+                    context,
+                    () => controller.submitAction(_buildAction(ActionType.prepStarted)),
+                  ),
+                  onDeparted: () => _runAction(
+                    context,
+                    () => controller.submitAction(_buildAction(ActionType.departed)),
+                  ),
+                  onSnooze: () => _runAction(
+                    context,
+                    () => controller.submitAction(_buildAction(ActionType.snoozed)),
+                  ),
+                  onSkip: () => _runAction(
+                    context,
+                    () => controller.submitAction(_buildAction(ActionType.skipped)),
+                  ),
+                  onSelectRoute: () => context
+                      .push("/plans/${plan.planId}/routes?eventId=${event.eventId}"),
+                  onToggleChecklistItem: (item, completed) => _runAction(
+                    context,
+                    () => controller.toggleChecklistItem(item, completed),
+                  ),
                 ),
               ],
             ),

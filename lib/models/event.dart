@@ -40,6 +40,11 @@ abstract class Event with _$Event {
   const factory Event({
     required String eventId,
     required String title,
+    /// 화면에 노출해도 되는 승인된 표시명. 외부 캘린더 원문 제목은
+    /// 분류 완료 즉시 서버가 폐기하므로(ERD v3 확정 사항), 이 필드가
+    /// null이면 화면은 title을 그대로 보여주지 않고 일반화된 문구로
+    /// 대체해야 한다 (리뷰 High-2 반영).
+    String? displayLabel,
     required DateTime startsAt,
     required DateTime endsAt,
     required PlaceNeed placeNeed,

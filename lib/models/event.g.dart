@@ -9,6 +9,7 @@ part of 'event.dart';
 _Event _$EventFromJson(Map<String, dynamic> json) => _Event(
   eventId: json['eventId'] as String,
   title: json['title'] as String,
+  displayLabel: json['displayLabel'] as String?,
   startsAt: DateTime.parse(json['startsAt'] as String),
   endsAt: DateTime.parse(json['endsAt'] as String),
   placeNeed: $enumDecode(_$PlaceNeedEnumMap, json['placeNeed']),
@@ -28,6 +29,7 @@ _Event _$EventFromJson(Map<String, dynamic> json) => _Event(
 Map<String, dynamic> _$EventToJson(_Event instance) => <String, dynamic>{
   'eventId': instance.eventId,
   'title': instance.title,
+  'displayLabel': instance.displayLabel,
   'startsAt': instance.startsAt.toIso8601String(),
   'endsAt': instance.endsAt.toIso8601String(),
   'placeNeed': _$PlaceNeedEnumMap[instance.placeNeed]!,
