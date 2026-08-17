@@ -1,69 +1,60 @@
-import 'package:freezed_annotation/freezed_annotation.dart';
+import "package:freezed_annotation/freezed_annotation.dart";
+import "plan.dart"; // EventLifecycleStatus
 
-part 'action_log.freezed.dart';
-part 'action_log.g.dart';
+part "action_log.freezed.dart";
+part "action_log.g.dart";
 
+/// API v5.0 §13 "v3.0에서 잘못 포함됐던 것들" 반영:
+/// arrived(→execution으로), wellness_done/later/stop(→wellness resolve로),
+/// checklist_done(→item_checked로 개명), plan_edited(→PATCH plans로) 제거.
 enum ActionType {
-  @JsonValue('prep_started')
+  @JsonValue("prep_started")
   prepStarted,
-  @JsonValue('preparing')
-  preparing,
-  @JsonValue('departed')
-  departed,
-  @JsonValue('arrived')
-  arrived,
-  @JsonValue('snoozed')
+  @JsonValue("snoozed")
   snoozed,
-  @JsonValue('skipped')
-  skipped,
-  @JsonValue('plan_edited')
-  planEdited,
-  @JsonValue('checklist_done')
-  checklistDone,
-  @JsonValue('wellness_done')
-  wellnessDone,
-  @JsonValue('wellness_later')
-  wellnessLater,
-  @JsonValue('wellness_stop')
-  wellnessStop,
+  @JsonValue("departed")
+  departed,
+  @JsonValue("item_checked")
+  itemChecked,
+  @JsonValue("excluded")
+  excluded,
 }
 
 enum ActionSource {
-  @JsonValue('manual')
-  manual,
-  @JsonValue('notification_action')
-  notificationAction,
-  @JsonValue('geofence')
-  geofence,
+  @JsonValue("user")
+  user,
+  @JsonValue("geo")
+  geo,
+  @JsonValue("system")
+  system,
 }
 
-/// POST /plans/{id}/actions 요청 바디.
-/// clientEventId는 오프라인 큐에 넣는 시점에 한 번만 생성해서 저장해야 한다.
-/// 재전송마다 새로 발급하면 서버의 (user_id, client_event_id) UNIQUE
-/// 멱등성 보장이 무력화된다 (TR-03).
+/// POST /plans/{id}/actions 배치 요청의 원소 하나.
 @freezed
 abstract class ActionLogEntry with _$ActionLogEntry {
   const factory ActionLogEntry({
     required String clientEventId,
-    required ActionType type,
+    required ActionType actionType,
     required DateTime deviceTs,
-    required ActionSource source,
-    double? confidence, // source: geofence일 때만 사용. 좌표는 절대 포함하지 않는다.
+    required ActionSource actionSource,
+    double? confidence, // actionSource: geo일 때만. 좌표는 포함하지 않는다.
   }) = _ActionLogEntry;
 
   factory ActionLogEntry.fromJson(Map<String, dynamic> json) =>
       _$ActionLogEntryFromJson(json);
 }
 
-/// POST /plans/{id}/actions 응답.
+/// POST /plans/{id}/actions 응답. 배치이므로 accepted/duplicated가
+/// 정수 카운트다 (API v5.0 §13).
 @freezed
-abstract class ActionLogResponse with _$ActionLogResponse {
-  const factory ActionLogResponse({
-    required bool accepted,
-    required bool duplicated, // true면 재전송이 흡수된 것 — 오류 아님
-    required Map<String, dynamic> plan, // 갱신된 계획 (Plan.fromJson으로 재파싱)
-  }) = _ActionLogResponse;
+abstract class ActionBatchResponse with _$ActionBatchResponse {
+  const factory ActionBatchResponse({
+    required int accepted,
+    required int duplicated,
+    required EventLifecycleStatus eventStatus,
+    required Map<String, dynamic> plan,
+  }) = _ActionBatchResponse;
 
-  factory ActionLogResponse.fromJson(Map<String, dynamic> json) =>
-      _$ActionLogResponseFromJson(json);
+  factory ActionBatchResponse.fromJson(Map<String, dynamic> json) =>
+      _$ActionBatchResponseFromJson(json);
 }

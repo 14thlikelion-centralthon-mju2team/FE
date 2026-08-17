@@ -36,7 +36,9 @@ class _EmailSignupScreenState extends State<EmailSignupScreen> {
 
   String? _validatePassword(String? value) {
     if (value == null || value.isEmpty) return "비밀번호를 입력해주세요.";
-    if (value.length < 8) return "비밀번호는 8자 이상이어야 해요.";
+    // TRD §10.2 서버 정책과 일치 -- 클라이언트 검증이 서버보다 느슨하면
+    // 사용자가 통과했다고 믿은 입력이 서버에서 거부되는 불일치가 생긴다.
+    if (value.length < 10) return "비밀번호는 10자 이상이어야 해요.";
     return null;
   }
 

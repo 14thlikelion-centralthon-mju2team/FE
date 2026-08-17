@@ -23,9 +23,12 @@ class _PrepTimeEntryScreenState extends State<PrepTimeEntryScreen> {
   int? _selectedPreset;
   bool _unknownSelected = false;
 
+  // 복용약 등 민감 항목은 추천 칩에 노출하지 않는다 (TR-10, PRD §11.3/§14.8).
+  // 사용자가 "직접 추가"로 입력한 경우에만 준비 항목으로 받고, 그 항목이
+  // 민감한지 여부는 서버가 판단해서 sensitive 플래그를 내려준다 -- 클라이언트가
+  // 텍스트를 보고 미리 추측하거나 저장 시점에만 마스킹하지 않는다.
   final List<_QuickAddItem> _quickItems = [
     _QuickAddItem(label: "영양제", kind: "consume"),
-    _QuickAddItem(label: "복용약", kind: "consume"), // sensitive -- 추천 칩엔 노출하되 저장 시 sensitive=true로 처리
     _QuickAddItem(label: "물 텀블러", kind: "carry"),
     _QuickAddItem(label: "선크림", kind: "carry"),
     _QuickAddItem(label: "마스크", kind: "carry"),
@@ -66,6 +69,10 @@ class _PrepTimeEntryScreenState extends State<PrepTimeEntryScreen> {
       //   각 항목 kind는 carry/consume/purchase만 이 화면에서 다루고,
       //   routine(시간 소요 루틴)은 이 화면 범위 밖 -- 설정에서 추가하도록
       //   API 명세 §6 참고
+      //   직접 입력 항목(_customItemController)은 fromChip=false로 전송하고,
+      //   sensitive 여부는 클라이언트가 정하지 않는다 -- 서버 응답의
+      //   sensitive 플래그를 그대로 받아 잠금화면 마스킹에만 사용한다
+      //   (TR-10 3중 경계: 표시/추천/집계 경계 중 "추천 경계"에 해당).
       if (!mounted) return;
       context.go("/onboarding/interest");
     } finally {

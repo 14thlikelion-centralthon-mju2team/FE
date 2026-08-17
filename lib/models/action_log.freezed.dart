@@ -15,7 +15,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$ActionLogEntry {
 
- String get clientEventId; ActionType get type; DateTime get deviceTs; ActionSource get source; double? get confidence;
+ String get clientEventId; ActionType get actionType; DateTime get deviceTs; ActionSource get actionSource; double? get confidence;
 /// Create a copy of ActionLogEntry
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -28,16 +28,16 @@ $ActionLogEntryCopyWith<ActionLogEntry> get copyWith => _$ActionLogEntryCopyWith
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is ActionLogEntry&&(identical(other.clientEventId, clientEventId) || other.clientEventId == clientEventId)&&(identical(other.type, type) || other.type == type)&&(identical(other.deviceTs, deviceTs) || other.deviceTs == deviceTs)&&(identical(other.source, source) || other.source == source)&&(identical(other.confidence, confidence) || other.confidence == confidence));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ActionLogEntry&&(identical(other.clientEventId, clientEventId) || other.clientEventId == clientEventId)&&(identical(other.actionType, actionType) || other.actionType == actionType)&&(identical(other.deviceTs, deviceTs) || other.deviceTs == deviceTs)&&(identical(other.actionSource, actionSource) || other.actionSource == actionSource)&&(identical(other.confidence, confidence) || other.confidence == confidence));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,clientEventId,type,deviceTs,source,confidence);
+int get hashCode => Object.hash(runtimeType,clientEventId,actionType,deviceTs,actionSource,confidence);
 
 @override
 String toString() {
-  return 'ActionLogEntry(clientEventId: $clientEventId, type: $type, deviceTs: $deviceTs, source: $source, confidence: $confidence)';
+  return 'ActionLogEntry(clientEventId: $clientEventId, actionType: $actionType, deviceTs: $deviceTs, actionSource: $actionSource, confidence: $confidence)';
 }
 
 
@@ -48,7 +48,7 @@ abstract mixin class $ActionLogEntryCopyWith<$Res>  {
   factory $ActionLogEntryCopyWith(ActionLogEntry value, $Res Function(ActionLogEntry) _then) = _$ActionLogEntryCopyWithImpl;
 @useResult
 $Res call({
- String clientEventId, ActionType type, DateTime deviceTs, ActionSource source, double? confidence
+ String clientEventId, ActionType actionType, DateTime deviceTs, ActionSource actionSource, double? confidence
 });
 
 
@@ -65,12 +65,12 @@ class _$ActionLogEntryCopyWithImpl<$Res>
 
 /// Create a copy of ActionLogEntry
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? clientEventId = null,Object? type = null,Object? deviceTs = null,Object? source = null,Object? confidence = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? clientEventId = null,Object? actionType = null,Object? deviceTs = null,Object? actionSource = null,Object? confidence = freezed,}) {
   return _then(_self.copyWith(
 clientEventId: null == clientEventId ? _self.clientEventId : clientEventId // ignore: cast_nullable_to_non_nullable
-as String,type: null == type ? _self.type : type // ignore: cast_nullable_to_non_nullable
+as String,actionType: null == actionType ? _self.actionType : actionType // ignore: cast_nullable_to_non_nullable
 as ActionType,deviceTs: null == deviceTs ? _self.deviceTs : deviceTs // ignore: cast_nullable_to_non_nullable
-as DateTime,source: null == source ? _self.source : source // ignore: cast_nullable_to_non_nullable
+as DateTime,actionSource: null == actionSource ? _self.actionSource : actionSource // ignore: cast_nullable_to_non_nullable
 as ActionSource,confidence: freezed == confidence ? _self.confidence : confidence // ignore: cast_nullable_to_non_nullable
 as double?,
   ));
@@ -157,10 +157,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String clientEventId,  ActionType type,  DateTime deviceTs,  ActionSource source,  double? confidence)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String clientEventId,  ActionType actionType,  DateTime deviceTs,  ActionSource actionSource,  double? confidence)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _ActionLogEntry() when $default != null:
-return $default(_that.clientEventId,_that.type,_that.deviceTs,_that.source,_that.confidence);case _:
+return $default(_that.clientEventId,_that.actionType,_that.deviceTs,_that.actionSource,_that.confidence);case _:
   return orElse();
 
 }
@@ -178,10 +178,10 @@ return $default(_that.clientEventId,_that.type,_that.deviceTs,_that.source,_that
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String clientEventId,  ActionType type,  DateTime deviceTs,  ActionSource source,  double? confidence)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String clientEventId,  ActionType actionType,  DateTime deviceTs,  ActionSource actionSource,  double? confidence)  $default,) {final _that = this;
 switch (_that) {
 case _ActionLogEntry():
-return $default(_that.clientEventId,_that.type,_that.deviceTs,_that.source,_that.confidence);case _:
+return $default(_that.clientEventId,_that.actionType,_that.deviceTs,_that.actionSource,_that.confidence);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -198,10 +198,10 @@ return $default(_that.clientEventId,_that.type,_that.deviceTs,_that.source,_that
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String clientEventId,  ActionType type,  DateTime deviceTs,  ActionSource source,  double? confidence)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String clientEventId,  ActionType actionType,  DateTime deviceTs,  ActionSource actionSource,  double? confidence)?  $default,) {final _that = this;
 switch (_that) {
 case _ActionLogEntry() when $default != null:
-return $default(_that.clientEventId,_that.type,_that.deviceTs,_that.source,_that.confidence);case _:
+return $default(_that.clientEventId,_that.actionType,_that.deviceTs,_that.actionSource,_that.confidence);case _:
   return null;
 
 }
@@ -213,13 +213,13 @@ return $default(_that.clientEventId,_that.type,_that.deviceTs,_that.source,_that
 @JsonSerializable()
 
 class _ActionLogEntry implements ActionLogEntry {
-  const _ActionLogEntry({required this.clientEventId, required this.type, required this.deviceTs, required this.source, this.confidence});
+  const _ActionLogEntry({required this.clientEventId, required this.actionType, required this.deviceTs, required this.actionSource, this.confidence});
   factory _ActionLogEntry.fromJson(Map<String, dynamic> json) => _$ActionLogEntryFromJson(json);
 
 @override final  String clientEventId;
-@override final  ActionType type;
+@override final  ActionType actionType;
 @override final  DateTime deviceTs;
-@override final  ActionSource source;
+@override final  ActionSource actionSource;
 @override final  double? confidence;
 
 /// Create a copy of ActionLogEntry
@@ -235,16 +235,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ActionLogEntry&&(identical(other.clientEventId, clientEventId) || other.clientEventId == clientEventId)&&(identical(other.type, type) || other.type == type)&&(identical(other.deviceTs, deviceTs) || other.deviceTs == deviceTs)&&(identical(other.source, source) || other.source == source)&&(identical(other.confidence, confidence) || other.confidence == confidence));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ActionLogEntry&&(identical(other.clientEventId, clientEventId) || other.clientEventId == clientEventId)&&(identical(other.actionType, actionType) || other.actionType == actionType)&&(identical(other.deviceTs, deviceTs) || other.deviceTs == deviceTs)&&(identical(other.actionSource, actionSource) || other.actionSource == actionSource)&&(identical(other.confidence, confidence) || other.confidence == confidence));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,clientEventId,type,deviceTs,source,confidence);
+int get hashCode => Object.hash(runtimeType,clientEventId,actionType,deviceTs,actionSource,confidence);
 
 @override
 String toString() {
-  return 'ActionLogEntry(clientEventId: $clientEventId, type: $type, deviceTs: $deviceTs, source: $source, confidence: $confidence)';
+  return 'ActionLogEntry(clientEventId: $clientEventId, actionType: $actionType, deviceTs: $deviceTs, actionSource: $actionSource, confidence: $confidence)';
 }
 
 
@@ -255,7 +255,7 @@ abstract mixin class _$ActionLogEntryCopyWith<$Res> implements $ActionLogEntryCo
   factory _$ActionLogEntryCopyWith(_ActionLogEntry value, $Res Function(_ActionLogEntry) _then) = __$ActionLogEntryCopyWithImpl;
 @override @useResult
 $Res call({
- String clientEventId, ActionType type, DateTime deviceTs, ActionSource source, double? confidence
+ String clientEventId, ActionType actionType, DateTime deviceTs, ActionSource actionSource, double? confidence
 });
 
 
@@ -272,12 +272,12 @@ class __$ActionLogEntryCopyWithImpl<$Res>
 
 /// Create a copy of ActionLogEntry
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? clientEventId = null,Object? type = null,Object? deviceTs = null,Object? source = null,Object? confidence = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? clientEventId = null,Object? actionType = null,Object? deviceTs = null,Object? actionSource = null,Object? confidence = freezed,}) {
   return _then(_ActionLogEntry(
 clientEventId: null == clientEventId ? _self.clientEventId : clientEventId // ignore: cast_nullable_to_non_nullable
-as String,type: null == type ? _self.type : type // ignore: cast_nullable_to_non_nullable
+as String,actionType: null == actionType ? _self.actionType : actionType // ignore: cast_nullable_to_non_nullable
 as ActionType,deviceTs: null == deviceTs ? _self.deviceTs : deviceTs // ignore: cast_nullable_to_non_nullable
-as DateTime,source: null == source ? _self.source : source // ignore: cast_nullable_to_non_nullable
+as DateTime,actionSource: null == actionSource ? _self.actionSource : actionSource // ignore: cast_nullable_to_non_nullable
 as ActionSource,confidence: freezed == confidence ? _self.confidence : confidence // ignore: cast_nullable_to_non_nullable
 as double?,
   ));
@@ -288,43 +288,42 @@ as double?,
 
 
 /// @nodoc
-mixin _$ActionLogResponse {
+mixin _$ActionBatchResponse {
 
- bool get accepted; bool get duplicated;// true면 재전송이 흡수된 것 — 오류 아님
- Map<String, dynamic> get plan;
-/// Create a copy of ActionLogResponse
+ int get accepted; int get duplicated; EventLifecycleStatus get eventStatus; Map<String, dynamic> get plan;
+/// Create a copy of ActionBatchResponse
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
 @pragma('vm:prefer-inline')
-$ActionLogResponseCopyWith<ActionLogResponse> get copyWith => _$ActionLogResponseCopyWithImpl<ActionLogResponse>(this as ActionLogResponse, _$identity);
+$ActionBatchResponseCopyWith<ActionBatchResponse> get copyWith => _$ActionBatchResponseCopyWithImpl<ActionBatchResponse>(this as ActionBatchResponse, _$identity);
 
-  /// Serializes this ActionLogResponse to a JSON map.
+  /// Serializes this ActionBatchResponse to a JSON map.
   Map<String, dynamic> toJson();
 
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is ActionLogResponse&&(identical(other.accepted, accepted) || other.accepted == accepted)&&(identical(other.duplicated, duplicated) || other.duplicated == duplicated)&&const DeepCollectionEquality().equals(other.plan, plan));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ActionBatchResponse&&(identical(other.accepted, accepted) || other.accepted == accepted)&&(identical(other.duplicated, duplicated) || other.duplicated == duplicated)&&(identical(other.eventStatus, eventStatus) || other.eventStatus == eventStatus)&&const DeepCollectionEquality().equals(other.plan, plan));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,accepted,duplicated,const DeepCollectionEquality().hash(plan));
+int get hashCode => Object.hash(runtimeType,accepted,duplicated,eventStatus,const DeepCollectionEquality().hash(plan));
 
 @override
 String toString() {
-  return 'ActionLogResponse(accepted: $accepted, duplicated: $duplicated, plan: $plan)';
+  return 'ActionBatchResponse(accepted: $accepted, duplicated: $duplicated, eventStatus: $eventStatus, plan: $plan)';
 }
 
 
 }
 
 /// @nodoc
-abstract mixin class $ActionLogResponseCopyWith<$Res>  {
-  factory $ActionLogResponseCopyWith(ActionLogResponse value, $Res Function(ActionLogResponse) _then) = _$ActionLogResponseCopyWithImpl;
+abstract mixin class $ActionBatchResponseCopyWith<$Res>  {
+  factory $ActionBatchResponseCopyWith(ActionBatchResponse value, $Res Function(ActionBatchResponse) _then) = _$ActionBatchResponseCopyWithImpl;
 @useResult
 $Res call({
- bool accepted, bool duplicated, Map<String, dynamic> plan
+ int accepted, int duplicated, EventLifecycleStatus eventStatus, Map<String, dynamic> plan
 });
 
 
@@ -332,20 +331,21 @@ $Res call({
 
 }
 /// @nodoc
-class _$ActionLogResponseCopyWithImpl<$Res>
-    implements $ActionLogResponseCopyWith<$Res> {
-  _$ActionLogResponseCopyWithImpl(this._self, this._then);
+class _$ActionBatchResponseCopyWithImpl<$Res>
+    implements $ActionBatchResponseCopyWith<$Res> {
+  _$ActionBatchResponseCopyWithImpl(this._self, this._then);
 
-  final ActionLogResponse _self;
-  final $Res Function(ActionLogResponse) _then;
+  final ActionBatchResponse _self;
+  final $Res Function(ActionBatchResponse) _then;
 
-/// Create a copy of ActionLogResponse
+/// Create a copy of ActionBatchResponse
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? accepted = null,Object? duplicated = null,Object? plan = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? accepted = null,Object? duplicated = null,Object? eventStatus = null,Object? plan = null,}) {
   return _then(_self.copyWith(
 accepted: null == accepted ? _self.accepted : accepted // ignore: cast_nullable_to_non_nullable
-as bool,duplicated: null == duplicated ? _self.duplicated : duplicated // ignore: cast_nullable_to_non_nullable
-as bool,plan: null == plan ? _self.plan : plan // ignore: cast_nullable_to_non_nullable
+as int,duplicated: null == duplicated ? _self.duplicated : duplicated // ignore: cast_nullable_to_non_nullable
+as int,eventStatus: null == eventStatus ? _self.eventStatus : eventStatus // ignore: cast_nullable_to_non_nullable
+as EventLifecycleStatus,plan: null == plan ? _self.plan : plan // ignore: cast_nullable_to_non_nullable
 as Map<String, dynamic>,
   ));
 }
@@ -353,8 +353,8 @@ as Map<String, dynamic>,
 }
 
 
-/// Adds pattern-matching-related methods to [ActionLogResponse].
-extension ActionLogResponsePatterns on ActionLogResponse {
+/// Adds pattern-matching-related methods to [ActionBatchResponse].
+extension ActionBatchResponsePatterns on ActionBatchResponse {
 /// A variant of `map` that fallback to returning `orElse`.
 ///
 /// It is equivalent to doing:
@@ -367,10 +367,10 @@ extension ActionLogResponsePatterns on ActionLogResponse {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>(TResult Function( _ActionLogResponse value)?  $default,{required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>(TResult Function( _ActionBatchResponse value)?  $default,{required TResult orElse(),}){
 final _that = this;
 switch (_that) {
-case _ActionLogResponse() when $default != null:
+case _ActionBatchResponse() when $default != null:
 return $default(_that);case _:
   return orElse();
 
@@ -389,10 +389,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>(TResult Function( _ActionLogResponse value)  $default,){
+@optionalTypeArgs TResult map<TResult extends Object?>(TResult Function( _ActionBatchResponse value)  $default,){
 final _that = this;
 switch (_that) {
-case _ActionLogResponse():
+case _ActionBatchResponse():
 return $default(_that);case _:
   throw StateError('Unexpected subclass');
 
@@ -410,10 +410,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>(TResult? Function( _ActionLogResponse value)?  $default,){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>(TResult? Function( _ActionBatchResponse value)?  $default,){
 final _that = this;
 switch (_that) {
-case _ActionLogResponse() when $default != null:
+case _ActionBatchResponse() when $default != null:
 return $default(_that);case _:
   return null;
 
@@ -431,10 +431,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( bool accepted,  bool duplicated,  Map<String, dynamic> plan)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int accepted,  int duplicated,  EventLifecycleStatus eventStatus,  Map<String, dynamic> plan)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
-case _ActionLogResponse() when $default != null:
-return $default(_that.accepted,_that.duplicated,_that.plan);case _:
+case _ActionBatchResponse() when $default != null:
+return $default(_that.accepted,_that.duplicated,_that.eventStatus,_that.plan);case _:
   return orElse();
 
 }
@@ -452,10 +452,10 @@ return $default(_that.accepted,_that.duplicated,_that.plan);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( bool accepted,  bool duplicated,  Map<String, dynamic> plan)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int accepted,  int duplicated,  EventLifecycleStatus eventStatus,  Map<String, dynamic> plan)  $default,) {final _that = this;
 switch (_that) {
-case _ActionLogResponse():
-return $default(_that.accepted,_that.duplicated,_that.plan);case _:
+case _ActionBatchResponse():
+return $default(_that.accepted,_that.duplicated,_that.eventStatus,_that.plan);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -472,10 +472,10 @@ return $default(_that.accepted,_that.duplicated,_that.plan);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( bool accepted,  bool duplicated,  Map<String, dynamic> plan)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int accepted,  int duplicated,  EventLifecycleStatus eventStatus,  Map<String, dynamic> plan)?  $default,) {final _that = this;
 switch (_that) {
-case _ActionLogResponse() when $default != null:
-return $default(_that.accepted,_that.duplicated,_that.plan);case _:
+case _ActionBatchResponse() when $default != null:
+return $default(_that.accepted,_that.duplicated,_that.eventStatus,_that.plan);case _:
   return null;
 
 }
@@ -486,15 +486,14 @@ return $default(_that.accepted,_that.duplicated,_that.plan);case _:
 /// @nodoc
 @JsonSerializable()
 
-class _ActionLogResponse implements ActionLogResponse {
-  const _ActionLogResponse({required this.accepted, required this.duplicated, required final  Map<String, dynamic> plan}): _plan = plan;
-  factory _ActionLogResponse.fromJson(Map<String, dynamic> json) => _$ActionLogResponseFromJson(json);
+class _ActionBatchResponse implements ActionBatchResponse {
+  const _ActionBatchResponse({required this.accepted, required this.duplicated, required this.eventStatus, required final  Map<String, dynamic> plan}): _plan = plan;
+  factory _ActionBatchResponse.fromJson(Map<String, dynamic> json) => _$ActionBatchResponseFromJson(json);
 
-@override final  bool accepted;
-@override final  bool duplicated;
-// true면 재전송이 흡수된 것 — 오류 아님
+@override final  int accepted;
+@override final  int duplicated;
+@override final  EventLifecycleStatus eventStatus;
  final  Map<String, dynamic> _plan;
-// true면 재전송이 흡수된 것 — 오류 아님
 @override Map<String, dynamic> get plan {
   if (_plan is EqualUnmodifiableMapView) return _plan;
   // ignore: implicit_dynamic_type
@@ -502,40 +501,40 @@ class _ActionLogResponse implements ActionLogResponse {
 }
 
 
-/// Create a copy of ActionLogResponse
+/// Create a copy of ActionBatchResponse
 /// with the given fields replaced by the non-null parameter values.
 @override @JsonKey(includeFromJson: false, includeToJson: false)
 @pragma('vm:prefer-inline')
-_$ActionLogResponseCopyWith<_ActionLogResponse> get copyWith => __$ActionLogResponseCopyWithImpl<_ActionLogResponse>(this, _$identity);
+_$ActionBatchResponseCopyWith<_ActionBatchResponse> get copyWith => __$ActionBatchResponseCopyWithImpl<_ActionBatchResponse>(this, _$identity);
 
 @override
 Map<String, dynamic> toJson() {
-  return _$ActionLogResponseToJson(this, );
+  return _$ActionBatchResponseToJson(this, );
 }
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ActionLogResponse&&(identical(other.accepted, accepted) || other.accepted == accepted)&&(identical(other.duplicated, duplicated) || other.duplicated == duplicated)&&const DeepCollectionEquality().equals(other._plan, _plan));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ActionBatchResponse&&(identical(other.accepted, accepted) || other.accepted == accepted)&&(identical(other.duplicated, duplicated) || other.duplicated == duplicated)&&(identical(other.eventStatus, eventStatus) || other.eventStatus == eventStatus)&&const DeepCollectionEquality().equals(other._plan, _plan));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,accepted,duplicated,const DeepCollectionEquality().hash(_plan));
+int get hashCode => Object.hash(runtimeType,accepted,duplicated,eventStatus,const DeepCollectionEquality().hash(_plan));
 
 @override
 String toString() {
-  return 'ActionLogResponse(accepted: $accepted, duplicated: $duplicated, plan: $plan)';
+  return 'ActionBatchResponse(accepted: $accepted, duplicated: $duplicated, eventStatus: $eventStatus, plan: $plan)';
 }
 
 
 }
 
 /// @nodoc
-abstract mixin class _$ActionLogResponseCopyWith<$Res> implements $ActionLogResponseCopyWith<$Res> {
-  factory _$ActionLogResponseCopyWith(_ActionLogResponse value, $Res Function(_ActionLogResponse) _then) = __$ActionLogResponseCopyWithImpl;
+abstract mixin class _$ActionBatchResponseCopyWith<$Res> implements $ActionBatchResponseCopyWith<$Res> {
+  factory _$ActionBatchResponseCopyWith(_ActionBatchResponse value, $Res Function(_ActionBatchResponse) _then) = __$ActionBatchResponseCopyWithImpl;
 @override @useResult
 $Res call({
- bool accepted, bool duplicated, Map<String, dynamic> plan
+ int accepted, int duplicated, EventLifecycleStatus eventStatus, Map<String, dynamic> plan
 });
 
 
@@ -543,20 +542,21 @@ $Res call({
 
 }
 /// @nodoc
-class __$ActionLogResponseCopyWithImpl<$Res>
-    implements _$ActionLogResponseCopyWith<$Res> {
-  __$ActionLogResponseCopyWithImpl(this._self, this._then);
+class __$ActionBatchResponseCopyWithImpl<$Res>
+    implements _$ActionBatchResponseCopyWith<$Res> {
+  __$ActionBatchResponseCopyWithImpl(this._self, this._then);
 
-  final _ActionLogResponse _self;
-  final $Res Function(_ActionLogResponse) _then;
+  final _ActionBatchResponse _self;
+  final $Res Function(_ActionBatchResponse) _then;
 
-/// Create a copy of ActionLogResponse
+/// Create a copy of ActionBatchResponse
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? accepted = null,Object? duplicated = null,Object? plan = null,}) {
-  return _then(_ActionLogResponse(
+@override @pragma('vm:prefer-inline') $Res call({Object? accepted = null,Object? duplicated = null,Object? eventStatus = null,Object? plan = null,}) {
+  return _then(_ActionBatchResponse(
 accepted: null == accepted ? _self.accepted : accepted // ignore: cast_nullable_to_non_nullable
-as bool,duplicated: null == duplicated ? _self.duplicated : duplicated // ignore: cast_nullable_to_non_nullable
-as bool,plan: null == plan ? _self._plan : plan // ignore: cast_nullable_to_non_nullable
+as int,duplicated: null == duplicated ? _self.duplicated : duplicated // ignore: cast_nullable_to_non_nullable
+as int,eventStatus: null == eventStatus ? _self.eventStatus : eventStatus // ignore: cast_nullable_to_non_nullable
+as EventLifecycleStatus,plan: null == plan ? _self._plan : plan // ignore: cast_nullable_to_non_nullable
 as Map<String, dynamic>,
   ));
 }

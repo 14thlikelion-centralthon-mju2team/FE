@@ -15,16 +15,18 @@ class MockEnsomRepository implements EnsomRepository {
     await Future.delayed(const Duration(milliseconds: 300));
     return Event(
       eventId: "mock-event-1",
-      title: "강남역 미팅",
+      title: "강남역 미팅", // 내부 참고용. 화면은 displayName만 사용
+      displayLabel: "강남역 미팅",
+      displayName: "강남역 미팅", // 서버가 이미 해석해서 채워준 값이라고 가정
       startsAt: DateTime.now().add(const Duration(hours: 3)),
       endsAt: DateTime.now().add(const Duration(hours: 4)),
-      placeNeed: PlaceNeed.requiredResolved,
+      locationState: LocationState.requiredResolved,
       destinationName: "강남역",
       destinationLat: 37.498,
       destinationLng: 127.027,
       anchor: EventAnchor.arriveBy,
       sourceType: EventSourceType.internal,
-      status: "confirmed",
+      status: EventLifecycleStatus.notified,
     );
   }
 
@@ -77,7 +79,6 @@ class MockEnsomRepository implements EnsomRepository {
   Future<Plan> updatePlan(
     String planId, {
     DateTime? prepStartAt,
-    DateTime? departAt,
     String? originPlaceId,
   }) => _mockPlan();
 
@@ -86,50 +87,121 @@ class MockEnsomRepository implements EnsomRepository {
     final now = DateTime.now();
     return Plan(
       planId: "mock-plan-1",
+      eventId: "mock-event-1",
       revisionNo: 3,
-      engineVer: "2.1.0",
-      state: "NOTIFIED",
+      calcVersion: "3.1.0",
+      planStatus: PlanStatus.active,
+      eventStatus: EventLifecycleStatus.notified,
       feasible: true,
+      predictionConfidence: "high",
       prepStartAt: now.add(const Duration(hours: 2)),
-      departAt: now.add(const Duration(hours: 2, minutes: 45)),
-      etaAt: now.add(const Duration(hours: 3, minutes: 25)),
-      trace: const [
-        TraceItem(
-          label: "개인 준비 시간",
-          minutes: 35,
-          source: "model",
+      recommendedDepartAt: now.add(const Duration(hours: 2, minutes: 45)),
+      targetArriveAt: now.add(const Duration(hours: 3, minutes: 25)),
+      breakdown: const PlanBreakdown(
+        estimatedPrepMinutes: 35,
+        extraPrepMinutes: 5,
+        personalRoutineMinutes: 10,
+        travelMinutes: 42,
+        trafficBufferMinutes: 7,
+        arrivalBufferMinutes: 10,
+      ),
+      reasons: const [
+        PlanReason(
+          field: "estimatedPrepMinutes",
+          source: "estimate",
           adjusted: true,
-          reason: "최근 8회 기록 기준, 초기 설정보다 5분 증가",
+          text: "최근 8회 기록 기준, 초기 설정보다 +5분",
+          sampleCount: 8,
         ),
-        TraceItem(
-          label: "이동 시간",
-          minutes: 42,
-          source: "provider",
+        PlanReason(
+          field: "personalRoutineMinutes",
+          source: "prepRule",
           adjusted: false,
-          reason: "외부 지도 API 기준",
+          text: "렌즈·화장 (등록한 루틴)",
+        ),
+        PlanReason(
+          field: "travelMinutes",
+          source: "routeProvider",
+          adjusted: false,
+          text: "외부 지도 API 기준",
+        ),
+        PlanReason(
+          field: "extraPrepMinutes",
+          source: "environment",
+          adjusted: false,
+          text: "출발 시간 강수 확률 70%",
         ),
       ],
       checklist: const [
         ChecklistItem(
-          label: "영양제",
-          origin: ChecklistOrigin.user,
-          kind: "consume",
-          state: ChecklistState.pending,
+          planPrepItemId: "ppi1",
+          itemName: "영양제",
+          actionType: PrepActionType.consume,
+          sourceType: ChecklistSourceType.rule,
+          completionStatus: ChecklistCompletionStatus.pending,
         ),
         ChecklistItem(
-          label: "선크림",
-          origin: ChecklistOrigin.wellness,
-          kind: "carry",
-          state: ChecklistState.pending,
-          reason: "자외선 높음, 야외 45분",
+          planPrepItemId: "ppi2",
+          itemName: "선크림",
+          actionType: PrepActionType.carry,
+          sourceType: ChecklistSourceType.rule,
+          completionStatus: ChecklistCompletionStatus.pending,
+          reason: "자외선 높음 · 야외 45분",
+        ),
+        ChecklistItem(
+          planPrepItemId: "ppi3",
+          itemName: "렌즈·화장",
+          actionType: PrepActionType.timedRoutine,
+          sourceType: ChecklistSourceType.rule,
+          completionStatus: ChecklistCompletionStatus.pending,
+          appliedMinutes: 10,
+        ),
+        ChecklistItem(
+          planPrepItemId: "ppi4",
+          itemName: "복용약",
+          actionType: PrepActionType.consume,
+          sourceType: ChecklistSourceType.rule,
+          completionStatus: ChecklistCompletionStatus.pending,
+          isSensitive: true,
+        ),
+      ],
+      wellnessActions: const [
+        WellnessAction(
+          wellnessActionId: "wa1",
+          wellnessTopic: "uv",
+          actionCode: "sunscreen",
+          actionLabel: "출발 전 선크림 확인",
+          displayRank: 1,
+          reasonSnapshot: "자외선 높음 · 예상 야외 이동 45분",
+          completionStatus: WellnessActionCompletionStatus.proposed,
+        ),
+        WellnessAction(
+          wellnessActionId: "wa2",
+          wellnessTopic: "hydration",
+          actionCode: "hydration",
+          actionLabel: "물 챙기기",
+          displayRank: 2,
+          reasonSnapshot: "체감온도 31℃",
+          completionStatus: WellnessActionCompletionStatus.proposed,
         ),
       ],
       wellness: const WellnessSummary(
-        wis: 72,
-        wisVer: "w1",
-        actionsShown: 2,
+        wisScore: 72,
+        wisBand: WisBand.high,
+        weightVersion: "w1",
         eventArmed: true,
       ),
+      context: const PlanContext(
+        uvIndex: 8,
+        pm10: 45,
+        pm25: 22,
+        feelsLike: 31.2,
+        precipitationProb: 70,
+        estimatedOutdoorMinutes: 45,
+        weatherProvider: "kma",
+        airProvider: "airkorea",
+      ),
+      selectedRouteOptionId: "r1",
       degraded: const [],
     );
   }
@@ -138,30 +210,37 @@ class MockEnsomRepository implements EnsomRepository {
   @override
   Future<List<RouteOption>> fetchRouteOptions(String planId) async {
     await Future.delayed(const Duration(milliseconds: 400));
-    return const [
+    final base = DateTime.now();
+    return [
       RouteOption(
-        routeId: "r1",
-        rank: RouteRank.fastest,
-        totalSec: 2520,
-        walkSec: 660,
-        transfers: 1,
-        outdoorSec: 480,
+        routeOptionId: "r1",
+        routeRank: 1,
+        routeType: RouteType.fastest,
+        totalMinutes: 42,
+        walkMinutes: 11,
+        transferCount: 1,
+        departAt: base,
+        arriveAt: base.add(const Duration(minutes: 42)),
       ),
       RouteOption(
-        routeId: "r2",
-        rank: RouteRank.leastWalk,
-        totalSec: 2820,
-        walkSec: 240,
-        transfers: 2,
-        outdoorSec: 200,
+        routeOptionId: "r2",
+        routeRank: 2,
+        routeType: RouteType.leastWalk,
+        totalMinutes: 47,
+        walkMinutes: 4,
+        transferCount: 2,
+        departAt: base,
+        arriveAt: base.add(const Duration(minutes: 47)),
       ),
       RouteOption(
-        routeId: "r3",
-        rank: RouteRank.leastTransfer,
-        totalSec: 3060,
-        walkSec: 540,
-        transfers: 0,
-        outdoorSec: 420,
+        routeOptionId: "r3",
+        routeRank: 3,
+        routeType: RouteType.leastTransfer,
+        totalMinutes: 51,
+        walkMinutes: 9,
+        transferCount: 0,
+        departAt: base,
+        arriveAt: base.add(const Duration(minutes: 51)),
       ),
     ];
   }
@@ -175,18 +254,8 @@ class MockEnsomRepository implements EnsomRepository {
   Future<List<PrepItem>> fetchPrepItems() async {
     await Future.delayed(const Duration(milliseconds: 300));
     return const [
-      PrepItem(
-        id: "pi1",
-        label: "영양제",
-        kind: PrepKind.consume,
-        fromChip: true,
-      ),
-      PrepItem(
-        id: "pi2",
-        label: "물 텀블러",
-        kind: PrepKind.carry,
-        fromChip: true,
-      ),
+      PrepItem(id: "pi1", label: "영양제", kind: PrepKind.consume, fromChip: true),
+      PrepItem(id: "pi2", label: "물 텀블러", kind: PrepKind.carry, fromChip: true),
     ];
   }
 
@@ -235,8 +304,17 @@ class MockEnsomRepository implements EnsomRepository {
   @override
   Future<void> resolveChecklistItem(
     String planId,
-    String itemId,
-    ChecklistState state,
+    String planPrepItemId,
+    ChecklistCompletionStatus status,
+  ) async {
+    await Future.delayed(const Duration(milliseconds: 200));
+  }
+
+  @override
+  Future<void> resolveWellnessAction(
+    String planId,
+    String wellnessActionId,
+    WellnessActionCompletionStatus status,
   ) async {
     await Future.delayed(const Duration(milliseconds: 200));
   }
@@ -256,15 +334,16 @@ class MockEnsomRepository implements EnsomRepository {
 
   // -- 행동 기록 -----------------------------------------------------
   @override
-  Future<ActionLogResponse> submitAction(
+  Future<ActionBatchResponse> submitActions(
     String planId,
-    ActionLogEntry entry,
+    List<ActionLogEntry> actions,
   ) async {
     await Future.delayed(const Duration(milliseconds: 300));
     final plan = await _mockPlan();
-    return ActionLogResponse(
-      accepted: true,
-      duplicated: false,
+    return ActionBatchResponse(
+      accepted: actions.length,
+      duplicated: 0,
+      eventStatus: EventLifecycleStatus.preparing,
       plan: plan.toJson(),
     );
   }
@@ -274,11 +353,7 @@ class MockEnsomRepository implements EnsomRepository {
   Future<List<PrepEstimate>> fetchPrepEstimates() async {
     await Future.delayed(const Duration(milliseconds: 300));
     return const [
-      PrepEstimate(
-        scopeType: "global",
-        estimatedMinutes: 35,
-        sampleCount: 12,
-      ),
+      PrepEstimate(scopeType: "global", estimatedMinutes: 35, sampleCount: 12),
       PrepEstimate(
         scopeType: "event_kind",
         scopeValue: "저녁 약속",
@@ -289,7 +364,7 @@ class MockEnsomRepository implements EnsomRepository {
   }
 
   @override
-  Future<void> revertPersonalization(String planId) async {
+  Future<void> revertPersonalization(String eventId) async {
     await Future.delayed(const Duration(milliseconds: 300));
   }
 
