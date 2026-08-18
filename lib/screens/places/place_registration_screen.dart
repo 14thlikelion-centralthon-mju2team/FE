@@ -1,6 +1,5 @@
 import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
-import "package:geofencing_api/geofencing_api.dart";
 import "package:geolocator/geolocator.dart";
 import "package:hive_ce_flutter/hive_ce_flutter.dart";
 import "package:uuid/uuid.dart";
@@ -99,16 +98,10 @@ class _PlaceRegistrationScreenState
         ),
       );
 
-      // 3. 지오펜스 등록
-      // 참고: addRegion이 Future를 반환하면 앞에 await 추가할 것 (확인 필요)
-      Geofencing.instance.addRegion(
-        GeofenceRegion.circular(
-          id: placeId,
-          data: {"label": label},
-          center: LatLng(lat!, lng!),
-          radius: radiusM,
-        ),
-      );
+      // 지오펜스는 여기서 등록하지 않는다. TR-08("활성 계획 1건·리전
+      // 2개")에 따라 GeofenceManager(lib/services/geofence_manager.dart)가
+      // 활성 계획의 출발지·목적지에 대해서만 등록하는 유일한 주체다.
+      // 여기서 등록한 장소는 "자주 가는 장소" 목록(USER_PLACE)일 뿐이다.
 
       if (!mounted) return;
       setState(() {
@@ -128,8 +121,6 @@ class _PlaceRegistrationScreenState
       final repo = ref.read(ensomRepositoryProvider);
       await repo.deletePlace(entry.placeId);
       await _placeBox.delete(entry.placeId);
-      // 참고: removeRegionById도 위와 동일하게 Future 여부 확인 필요
-      Geofencing.instance.removeRegionById(entry.placeId);
       if (mounted) setState(() {});
     } catch (e) {
       _showError("장소 삭제에 실패했어요. 다시 시도해주세요.");

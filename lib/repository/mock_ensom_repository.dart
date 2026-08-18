@@ -8,6 +8,7 @@ import "../models/action_log.dart";
 import "../models/daily_wellness_summary.dart";
 import "../models/prep_estimate.dart";
 import "../models/wellness_pref.dart";
+import "../models/execution.dart";
 
 class MockEnsomRepository implements EnsomRepository {
   // -- 일정 --------------------------------------------------------
@@ -42,7 +43,12 @@ class MockEnsomRepository implements EnsomRepository {
   }
 
   @override
-  Future<Event> createEvent(Event event) async {
+  Future<Event> createEvent(
+    Event event, {
+    String? originPlaceId,
+    String? selectedRouteOptionId,
+    String? writeToCalendarSourceId,
+  }) async {
     await Future.delayed(const Duration(milliseconds: 300));
     return event;
   }
@@ -250,6 +256,19 @@ class MockEnsomRepository implements EnsomRepository {
   Future<Plan> selectRoute(String planId, String routeOptionId) =>
       _mockPlan();
 
+  @override
+  Future<List<RouteOption>> fetchRouteSearch({
+    double? originLat,
+    double? originLng,
+    String? originPlaceId,
+    required double destLat,
+    required double destLng,
+    required String destName,
+    required EventAnchor anchorMode,
+    required DateTime at,
+  }) =>
+      fetchRouteOptions("search");
+
   // -- 설정 ---------------------------------------------------------
   @override
   Future<void> updateSettings(Map<String, dynamic> patch) async {
@@ -404,6 +423,43 @@ class MockEnsomRepository implements EnsomRepository {
       eventStatus: EventLifecycleStatus.preparing,
       plan: plan.toJson(),
     );
+  }
+
+  @override
+  Future<void> reportArrival(
+    String eventId,
+    String planId, {
+    required String clientEventId,
+    required ActionSource source,
+    double? confidence,
+  }) async {
+    await Future.delayed(const Duration(milliseconds: 300));
+  }
+
+  // -- 도착 결과·사후 평가 ---------------------------------------------
+  @override
+  Future<EventExecution> fetchExecution(String eventId) async {
+    await Future.delayed(const Duration(milliseconds: 300));
+    final now = DateTime.now();
+    return EventExecution(
+      actualPrepStartedAt: now.subtract(const Duration(minutes: 40)),
+      actualDepartedAt: now.subtract(const Duration(minutes: 25)),
+      actualArrivedAt: now,
+      arrivalResult: ArrivalResult.onTime,
+      resultSource: "geo",
+      actualOutdoorMinutes: 12,
+      rushLoadScore: 20,
+    );
+  }
+
+  @override
+  Future<void> submitFeedback(
+    String eventId, {
+    required PrepTimingAssessment prepTimingAssessment,
+    required ArrivalResult arrivalResult,
+    required RushAssessment rushAssessment,
+  }) async {
+    await Future.delayed(const Duration(milliseconds: 200));
   }
 
   // -- 개인화 ------------------------------------------------------
