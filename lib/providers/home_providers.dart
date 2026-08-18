@@ -74,6 +74,8 @@ class PlanController extends StateNotifier<AsyncValue<Plan>> {
   }
 
   /// 낙관적 갱신 + 실패 시 롤백.
+  /// clientEventId는 오프라인 큐(enqueueResolve) 내부에서 발급·영속 저장된다.
+  /// 네트워크 유실 후 재시도에서도 동일 ID가 재사용된다 (TR-03).
   Future<void> toggleChecklistItem(ChecklistItem item, bool completed) async {
     final plan = state.value;
     if (plan == null) return;
@@ -102,8 +104,7 @@ class PlanController extends StateNotifier<AsyncValue<Plan>> {
     }
   }
 
-  /// 웰니스 행동은 M3(feat/fe-wellness) 본격 UI 전이지만, 모델이
-  /// Plan에 이미 포함돼 있으므로 데이터 갱신 경로만 미리 만들어둔다.
+  /// 웰니스 행동 resolve — 동일하게 clientEventId를 호출 시점에 발급.
   Future<void> resolveWellnessAction(
     WellnessAction action,
     WellnessActionCompletionStatus status,

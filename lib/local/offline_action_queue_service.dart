@@ -2,6 +2,7 @@ import "dart:convert";
 import "package:uuid/uuid.dart";
 import "app_database.dart";
 import "../models/action_log.dart";
+import "../models/plan.dart";
 import "../repository/ensom_repository.dart";
 
 /// TR-03 멱등성의 핵심 조각. clientEventId는 **여기, enqueue 시점에
@@ -111,5 +112,90 @@ class OfflineActionQueueService {
   Future<int> pendingCount() async {
     final rows = await _db.select(_db.offlineActionQueue).get();
     return rows.length;
+  }
+
+  /// 체크리스트/웰니스 resolve 호출도 큐를 경유한다.
+  /// clientEventId를 enqueue 시점에 발급·영속 저장하므로
+  /// 네트워크 유실 후 재시도에서도 동일 ID가 재사용된다 (TR-03).
+  ///
+  /// [resolveType]: "checklist" 또는 "wellness"
+  /// [itemId]: planPrepItemId 또는 wellnessActionId
+  /// [status]: completionStatus 문자열 (pending/completed/dismissed)
+  Future<bool> enqueueResolve({
+    required String planId,
+    required String resolveType,
+    required String itemId,
+    required String status,
+  }) async {
+    final clientEventId = _uuid.v4();
+
+    final payload = {
+      "resolveType": resolveType,
+      "itemId": itemId,
+      "status": status,
+      "clientEventId": clientEventId,
+    };
+
+    await _db.into(_db.offlineActionQueue).insert(
+          OfflineActionQueueCompanion.insert(
+            clientEventId: clientEventId,
+            planId: planId,
+            payloadJson: jsonEncode(payload),
+            queuedAt: DateTime.now(),
+          ),
+        );
+
+    return _flushResolve(planId, clientEventId, payload);
+  }
+
+  /// resolve 항목 즉시 전송 시도. 실패하면 큐에 남는다.
+  Future<bool> _flushResolve(
+    String planId,
+    String clientEventId,
+    Map<String, dynamic> payload,
+  ) async {
+    try {
+      final resolveType = payload["resolveType"] as String;
+      final itemId = payload["itemId"] as String;
+      final status = payload["status"] as String;
+      final ceid = payload["clientEventId"] as String;
+
+      if (resolveType == "checklist") {
+        await _repo.resolveChecklistItem(
+          planId, itemId, _parseChecklistStatus(status),
+          clientEventId: ceid,
+        );
+      } else {
+        await _repo.resolveWellnessAction(
+          planId, itemId, _parseWellnessStatus(status),
+          clientEventId: ceid,
+        );
+      }
+
+      // 성공 → 큐에서 삭제
+      await (_db.delete(_db.offlineActionQueue)
+            ..where((t) => t.clientEventId.equals(clientEventId)))
+          .go();
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  ChecklistCompletionStatus _parseChecklistStatus(String s) {
+    return s == "completed"
+        ? ChecklistCompletionStatus.completed
+        : ChecklistCompletionStatus.pending;
+  }
+
+  WellnessActionCompletionStatus _parseWellnessStatus(String s) {
+    switch (s) {
+      case "completed":
+        return WellnessActionCompletionStatus.completed;
+      case "dismissed":
+        return WellnessActionCompletionStatus.dismissed;
+      default:
+        return WellnessActionCompletionStatus.proposed;
+    }
   }
 }
