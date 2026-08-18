@@ -338,8 +338,9 @@ class MockEnsomRepository implements EnsomRepository {
   Future<void> resolveChecklistItem(
     String planId,
     String planPrepItemId,
-    ChecklistCompletionStatus status,
-  ) async {
+    ChecklistCompletionStatus status, {
+    required String clientEventId,
+  }) async {
     await Future.delayed(const Duration(milliseconds: 200));
   }
 
@@ -347,8 +348,9 @@ class MockEnsomRepository implements EnsomRepository {
   Future<void> resolveWellnessAction(
     String planId,
     String wellnessActionId,
-    WellnessActionCompletionStatus status,
-  ) async {
+    WellnessActionCompletionStatus status, {
+    required String clientEventId,
+  }) async {
     await Future.delayed(const Duration(milliseconds: 200));
   }
 

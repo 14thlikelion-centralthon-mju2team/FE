@@ -15,7 +15,8 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$DailyWellnessSummary {
 
- String get summaryId; String get summaryDate;// yyyy-MM-dd
+ String get summaryId;// POST /summary/daily/{summaryId}/viewed 에 필요
+ String get summaryDate;// yyyy-MM-dd
  int get eventCount; int get totalOutdoorMinutes; DwlBand get dwlBand; String get cardScenario;// default|exposure|density|rushed|stable
  String get message;// 서버 템플릿 문구. 클라이언트가 재구성하지 않는다
  bool get isViewed; int? get dwlScore;
@@ -51,7 +52,7 @@ abstract mixin class $DailyWellnessSummaryCopyWith<$Res>  {
   factory $DailyWellnessSummaryCopyWith(DailyWellnessSummary value, $Res Function(DailyWellnessSummary) _then) = _$DailyWellnessSummaryCopyWithImpl;
 @useResult
 $Res call({
- String summaryDate, int eventCount, int totalOutdoorMinutes, DwlBand dwlBand, String cardScenario, String message, bool isViewed, int? dwlScore
+ String summaryId, String summaryDate, int eventCount, int totalOutdoorMinutes, DwlBand dwlBand, String cardScenario, String message, bool isViewed, int? dwlScore
 });
 
 
@@ -68,9 +69,10 @@ class _$DailyWellnessSummaryCopyWithImpl<$Res>
 
 /// Create a copy of DailyWellnessSummary
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? summaryDate = null,Object? eventCount = null,Object? totalOutdoorMinutes = null,Object? dwlBand = null,Object? cardScenario = null,Object? message = null,Object? isViewed = null,Object? dwlScore = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? summaryId = null,Object? summaryDate = null,Object? eventCount = null,Object? totalOutdoorMinutes = null,Object? dwlBand = null,Object? cardScenario = null,Object? message = null,Object? isViewed = null,Object? dwlScore = freezed,}) {
   return _then(_self.copyWith(
-summaryDate: null == summaryDate ? _self.summaryDate : summaryDate // ignore: cast_nullable_to_non_nullable
+summaryId: null == summaryId ? _self.summaryId : summaryId // ignore: cast_nullable_to_non_nullable
+as String,summaryDate: null == summaryDate ? _self.summaryDate : summaryDate // ignore: cast_nullable_to_non_nullable
 as String,eventCount: null == eventCount ? _self.eventCount : eventCount // ignore: cast_nullable_to_non_nullable
 as int,totalOutdoorMinutes: null == totalOutdoorMinutes ? _self.totalOutdoorMinutes : totalOutdoorMinutes // ignore: cast_nullable_to_non_nullable
 as int,dwlBand: null == dwlBand ? _self.dwlBand : dwlBand // ignore: cast_nullable_to_non_nullable
@@ -163,10 +165,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String summaryDate,  int eventCount,  int totalOutdoorMinutes,  DwlBand dwlBand,  String cardScenario,  String message,  bool isViewed,  int? dwlScore)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String summaryId,  String summaryDate,  int eventCount,  int totalOutdoorMinutes,  DwlBand dwlBand,  String cardScenario,  String message,  bool isViewed,  int? dwlScore)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _DailyWellnessSummary() when $default != null:
-return $default(_that.summaryDate,_that.eventCount,_that.totalOutdoorMinutes,_that.dwlBand,_that.cardScenario,_that.message,_that.isViewed,_that.dwlScore);case _:
+return $default(_that.summaryId,_that.summaryDate,_that.eventCount,_that.totalOutdoorMinutes,_that.dwlBand,_that.cardScenario,_that.message,_that.isViewed,_that.dwlScore);case _:
   return orElse();
 
 }
@@ -184,10 +186,10 @@ return $default(_that.summaryDate,_that.eventCount,_that.totalOutdoorMinutes,_th
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String summaryDate,  int eventCount,  int totalOutdoorMinutes,  DwlBand dwlBand,  String cardScenario,  String message,  bool isViewed,  int? dwlScore)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String summaryId,  String summaryDate,  int eventCount,  int totalOutdoorMinutes,  DwlBand dwlBand,  String cardScenario,  String message,  bool isViewed,  int? dwlScore)  $default,) {final _that = this;
 switch (_that) {
 case _DailyWellnessSummary():
-return $default(_that.summaryDate,_that.eventCount,_that.totalOutdoorMinutes,_that.dwlBand,_that.cardScenario,_that.message,_that.isViewed,_that.dwlScore);case _:
+return $default(_that.summaryId,_that.summaryDate,_that.eventCount,_that.totalOutdoorMinutes,_that.dwlBand,_that.cardScenario,_that.message,_that.isViewed,_that.dwlScore);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -204,10 +206,10 @@ return $default(_that.summaryDate,_that.eventCount,_that.totalOutdoorMinutes,_th
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String summaryDate,  int eventCount,  int totalOutdoorMinutes,  DwlBand dwlBand,  String cardScenario,  String message,  bool isViewed,  int? dwlScore)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String summaryId,  String summaryDate,  int eventCount,  int totalOutdoorMinutes,  DwlBand dwlBand,  String cardScenario,  String message,  bool isViewed,  int? dwlScore)?  $default,) {final _that = this;
 switch (_that) {
 case _DailyWellnessSummary() when $default != null:
-return $default(_that.summaryDate,_that.eventCount,_that.totalOutdoorMinutes,_that.dwlBand,_that.cardScenario,_that.message,_that.isViewed,_that.dwlScore);case _:
+return $default(_that.summaryId,_that.summaryDate,_that.eventCount,_that.totalOutdoorMinutes,_that.dwlBand,_that.cardScenario,_that.message,_that.isViewed,_that.dwlScore);case _:
   return null;
 
 }
@@ -223,6 +225,7 @@ class _DailyWellnessSummary implements DailyWellnessSummary {
   factory _DailyWellnessSummary.fromJson(Map<String, dynamic> json) => _$DailyWellnessSummaryFromJson(json);
 
 @override final  String summaryId;
+// POST /summary/daily/{summaryId}/viewed 에 필요
 @override final  String summaryDate;
 // yyyy-MM-dd
 @override final  int eventCount;
@@ -268,7 +271,7 @@ abstract mixin class _$DailyWellnessSummaryCopyWith<$Res> implements $DailyWelln
   factory _$DailyWellnessSummaryCopyWith(_DailyWellnessSummary value, $Res Function(_DailyWellnessSummary) _then) = __$DailyWellnessSummaryCopyWithImpl;
 @override @useResult
 $Res call({
- String summaryDate, int eventCount, int totalOutdoorMinutes, DwlBand dwlBand, String cardScenario, String message, bool isViewed, int? dwlScore
+ String summaryId, String summaryDate, int eventCount, int totalOutdoorMinutes, DwlBand dwlBand, String cardScenario, String message, bool isViewed, int? dwlScore
 });
 
 
@@ -285,9 +288,10 @@ class __$DailyWellnessSummaryCopyWithImpl<$Res>
 
 /// Create a copy of DailyWellnessSummary
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? summaryDate = null,Object? eventCount = null,Object? totalOutdoorMinutes = null,Object? dwlBand = null,Object? cardScenario = null,Object? message = null,Object? isViewed = null,Object? dwlScore = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? summaryId = null,Object? summaryDate = null,Object? eventCount = null,Object? totalOutdoorMinutes = null,Object? dwlBand = null,Object? cardScenario = null,Object? message = null,Object? isViewed = null,Object? dwlScore = freezed,}) {
   return _then(_DailyWellnessSummary(
-summaryDate: null == summaryDate ? _self.summaryDate : summaryDate // ignore: cast_nullable_to_non_nullable
+summaryId: null == summaryId ? _self.summaryId : summaryId // ignore: cast_nullable_to_non_nullable
+as String,summaryDate: null == summaryDate ? _self.summaryDate : summaryDate // ignore: cast_nullable_to_non_nullable
 as String,eventCount: null == eventCount ? _self.eventCount : eventCount // ignore: cast_nullable_to_non_nullable
 as int,totalOutdoorMinutes: null == totalOutdoorMinutes ? _self.totalOutdoorMinutes : totalOutdoorMinutes // ignore: cast_nullable_to_non_nullable
 as int,dwlBand: null == dwlBand ? _self.dwlBand : dwlBand // ignore: cast_nullable_to_non_nullable

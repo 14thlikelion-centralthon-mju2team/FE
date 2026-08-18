@@ -48,7 +48,7 @@ class LocalNotificationService {
     );
 
     await _plugin.initialize(
-      settings,
+      settings: settings,
       onDidReceiveNotificationResponse: _onNotificationTapped,
     );
 
@@ -114,7 +114,7 @@ class LocalNotificationService {
   /// 서버 푸시가 먼저 도착했을 때 동일 dedupKey의 로컬 알림 취소.
   Future<void> cancelByDedupKey(String dedupKey) async {
     final id = _fnv1a32(dedupKey);
-    await _plugin.cancel(id);
+    await _plugin.cancel(id: id);
   }
 
   /// 특정 일정의 모든 로컬 알림 취소 (리비전 무관).
@@ -125,7 +125,7 @@ class LocalNotificationService {
         try {
           final data = jsonDecode(request.payload!) as Map<String, dynamic>;
           if (data["eventId"] == eventId) {
-            await _plugin.cancel(request.id);
+            await _plugin.cancel(id: request.id);
           }
         } catch (_) {
           // payload 파싱 실패면 무시
@@ -209,11 +209,11 @@ class LocalNotificationService {
     );
 
     await _plugin.zonedSchedule(
-      id,
-      title,
-      body,
-      tzScheduledAt,
-      details,
+      id: id,
+      title: title,
+      body: body,
+      scheduledDate: tzScheduledAt,
+      notificationDetails: details,
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       payload: payload,
       matchDateTimeComponents: null,

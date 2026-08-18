@@ -1,4 +1,3 @@
-import "dart:convert";
 import "dart:io" show Platform;
 
 import "package:firebase_messaging/firebase_messaging.dart";
@@ -133,7 +132,6 @@ class FcmService {
   Future<void> _showForegroundNotification(Map<String, dynamic> data) async {
     final title = data["title"] as String? ?? "Ensom";
     final body = data["body"] as String? ?? "";
-    final bodyMasked = data["bodyMasked"] as String?;
 
     // 잠금화면 설정에 따라 표시할 본문 결정
     // 앱이 포그라운드(잠금 해제 상태)이므로 원문을 보여주되,
@@ -148,17 +146,6 @@ class FcmService {
       visibility: _lockscreenHideSensitive
           ? NotificationVisibility.private
           : NotificationVisibility.public,
-      // publicVersion: 잠금화면에서 보이는 대체 알림
-      publicNotification: _lockscreenHideSensitive && bodyMasked != null
-          ? AndroidNotificationDetails(
-              "ensom_push",
-              "Ensom 알림",
-              channelDescription: "서버에서 발송된 알림",
-              importance: Importance.high,
-              priority: Priority.high,
-              visibility: NotificationVisibility.public,
-            )
-          : null,
     );
 
     const iosDetails = DarwinNotificationDetails(
@@ -179,11 +166,10 @@ class FcmService {
         : DateTime.now().millisecondsSinceEpoch & 0x7FFFFFFF;
 
     await _localPlugin.show(
-      notificationId,
-      title,
-      // 포그라운드(잠금 해제)에서는 원문 표시
-      body,
-      details,
+      id: notificationId,
+      title: title,
+      body: body,
+      notificationDetails: details,
     );
   }
 
@@ -233,7 +219,7 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     // 백그라운드에서는 LocalNotificationService 상태에 접근 불가(isolate)
     // FlutterLocalNotificationsPlugin을 직접 생성해 취소한다.
     final plugin = FlutterLocalNotificationsPlugin();
-    await plugin.cancel(_fnv1a32Background(dedupKey));
+    await plugin.cancel(id: _fnv1a32Background(dedupKey));
   }
 }
 

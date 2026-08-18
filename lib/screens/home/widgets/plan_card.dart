@@ -4,6 +4,7 @@ import "../../../models/plan.dart";
 import "reason_section.dart";
 import "checklist_section.dart";
 import "wellness_actions_section.dart";
+import "plan_change_banner.dart";
 
 /// HOME-01/02. 상태 문구는 eventStatus 기준(API v5.0 §9.2).
 class PlanCard extends StatelessWidget {

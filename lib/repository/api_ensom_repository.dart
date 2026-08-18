@@ -102,13 +102,14 @@ class ApiEnsomRepository implements EnsomRepository {
   Future<void> resolveChecklistItem(
     String planId,
     String planPrepItemId,
-    ChecklistCompletionStatus status,
-  ) async {
+    ChecklistCompletionStatus status, {
+    required String clientEventId,
+  }) async {
     await _client.post<Map<String, dynamic>>(
       "/plans/$planId/prep-items/$planPrepItemId/resolve",
       body: {
-        "completionStatus": status.name, // pending|completed, JsonValue와 동일 문자열
-        "clientEventId": _uuid.v4(),
+        "completionStatus": status.name,
+        "clientEventId": clientEventId,
       },
     );
   }
@@ -117,13 +118,14 @@ class ApiEnsomRepository implements EnsomRepository {
   Future<void> resolveWellnessAction(
     String planId,
     String wellnessActionId,
-    WellnessActionCompletionStatus status,
-  ) async {
+    WellnessActionCompletionStatus status, {
+    required String clientEventId,
+  }) async {
     await _client.post<Map<String, dynamic>>(
       "/plans/$planId/wellness-actions/$wellnessActionId/resolve",
       body: {
-        "completionStatus": status.name, // proposed|completed|dismissed
-        "clientEventId": _uuid.v4(),
+        "completionStatus": status.name,
+        "clientEventId": clientEventId,
       },
     );
   }
@@ -253,23 +255,6 @@ class ApiEnsomRepository implements EnsomRepository {
     String? originPlaceId,
   }) =>
       throw UnimplementedError("계획 수동 수정 UI는 M1 이후 범위");
-
-  @override
-  @override
-  Future<List<AppNotification>> fetchTodayNotifications() async {
-    final json = await _client.get<List<dynamic>>("/notifications/today");
-    return json
-        .map((e) => AppNotification.fromJson(e as Map<String, dynamic>))
-        .toList();
-  }
-
-  @override
-  Future<PrepItem> updatePrepItem(String id, PrepItem item) =>
-      throw UnimplementedError("feat/fe-auth-onboarding 범위");
-
-  @override
-  Future<void> deletePrepItem(String id) =>
-      throw UnimplementedError("feat/fe-auth-onboarding 범위");
 
   @override
   Future<List<AppNotification>> fetchTodayNotifications() async {

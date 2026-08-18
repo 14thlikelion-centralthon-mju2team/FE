@@ -15,8 +15,9 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$WellnessPref {
 
- String get topic;// uv | pm | heat | precipitation | hydration
- bool get isEnabled; int? get remindIntervalMinutes; int get dailyEventCap;
+/// API 명세 §4.2 필드명: "wellnessTopic"
+@JsonKey(name: "wellnessTopic") String get topic; bool get isEnabled;/// null 허용 — API 응답에서 설정하지 않은 항목은 null로 내려올 수 있음.
+ int? get remindIntervalMinutes; int get dailyEventCap;
 /// Create a copy of WellnessPref
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -49,7 +50,7 @@ abstract mixin class $WellnessPrefCopyWith<$Res>  {
   factory $WellnessPrefCopyWith(WellnessPref value, $Res Function(WellnessPref) _then) = _$WellnessPrefCopyWithImpl;
 @useResult
 $Res call({
- String topic, bool isEnabled, int? remindIntervalMinutes, int dailyEventCap
+@JsonKey(name: "wellnessTopic") String topic, bool isEnabled, int? remindIntervalMinutes, int dailyEventCap
 });
 
 
@@ -66,12 +67,12 @@ class _$WellnessPrefCopyWithImpl<$Res>
 
 /// Create a copy of WellnessPref
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? topic = null,Object? isEnabled = null,Object? remindIntervalMinutes = null,Object? dailyEventCap = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? topic = null,Object? isEnabled = null,Object? remindIntervalMinutes = freezed,Object? dailyEventCap = null,}) {
   return _then(_self.copyWith(
 topic: null == topic ? _self.topic : topic // ignore: cast_nullable_to_non_nullable
 as String,isEnabled: null == isEnabled ? _self.isEnabled : isEnabled // ignore: cast_nullable_to_non_nullable
-as bool,remindIntervalMinutes: null == remindIntervalMinutes ? _self.remindIntervalMinutes : remindIntervalMinutes // ignore: cast_nullable_to_non_nullable
-as int,dailyEventCap: null == dailyEventCap ? _self.dailyEventCap : dailyEventCap // ignore: cast_nullable_to_non_nullable
+as bool,remindIntervalMinutes: freezed == remindIntervalMinutes ? _self.remindIntervalMinutes : remindIntervalMinutes // ignore: cast_nullable_to_non_nullable
+as int?,dailyEventCap: null == dailyEventCap ? _self.dailyEventCap : dailyEventCap // ignore: cast_nullable_to_non_nullable
 as int,
   ));
 }
@@ -157,7 +158,7 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String topic,  bool isEnabled,  int? remindIntervalMinutes,  int dailyEventCap)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function(@JsonKey(name: "wellnessTopic")  String topic,  bool isEnabled,  int? remindIntervalMinutes,  int dailyEventCap)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _WellnessPref() when $default != null:
 return $default(_that.topic,_that.isEnabled,_that.remindIntervalMinutes,_that.dailyEventCap);case _:
@@ -178,7 +179,7 @@ return $default(_that.topic,_that.isEnabled,_that.remindIntervalMinutes,_that.da
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String topic,  bool isEnabled,  int? remindIntervalMinutes,  int dailyEventCap)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function(@JsonKey(name: "wellnessTopic")  String topic,  bool isEnabled,  int? remindIntervalMinutes,  int dailyEventCap)  $default,) {final _that = this;
 switch (_that) {
 case _WellnessPref():
 return $default(_that.topic,_that.isEnabled,_that.remindIntervalMinutes,_that.dailyEventCap);case _:
@@ -198,7 +199,7 @@ return $default(_that.topic,_that.isEnabled,_that.remindIntervalMinutes,_that.da
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String topic,  bool isEnabled,  int? remindIntervalMinutes,  int dailyEventCap)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function(@JsonKey(name: "wellnessTopic")  String topic,  bool isEnabled,  int? remindIntervalMinutes,  int dailyEventCap)?  $default,) {final _that = this;
 switch (_that) {
 case _WellnessPref() when $default != null:
 return $default(_that.topic,_that.isEnabled,_that.remindIntervalMinutes,_that.dailyEventCap);case _:
@@ -213,13 +214,14 @@ return $default(_that.topic,_that.isEnabled,_that.remindIntervalMinutes,_that.da
 @JsonSerializable()
 
 class _WellnessPref implements WellnessPref {
-  const _WellnessPref({required this.topic, required this.isEnabled, required this.remindIntervalMinutes, this.dailyEventCap = 1});
+  const _WellnessPref({@JsonKey(name: "wellnessTopic") required this.topic, required this.isEnabled, this.remindIntervalMinutes, this.dailyEventCap = 1});
   factory _WellnessPref.fromJson(Map<String, dynamic> json) => _$WellnessPrefFromJson(json);
 
-@override final  String topic;
-// uv | pm | heat | precipitation | hydration
+/// API 명세 §4.2 필드명: "wellnessTopic"
+@override@JsonKey(name: "wellnessTopic") final  String topic;
 @override final  bool isEnabled;
-@override final  int remindIntervalMinutes;
+/// null 허용 — API 응답에서 설정하지 않은 항목은 null로 내려올 수 있음.
+@override final  int? remindIntervalMinutes;
 @override@JsonKey() final  int dailyEventCap;
 
 /// Create a copy of WellnessPref
@@ -255,7 +257,7 @@ abstract mixin class _$WellnessPrefCopyWith<$Res> implements $WellnessPrefCopyWi
   factory _$WellnessPrefCopyWith(_WellnessPref value, $Res Function(_WellnessPref) _then) = __$WellnessPrefCopyWithImpl;
 @override @useResult
 $Res call({
- String topic, bool isEnabled, int? remindIntervalMinutes, int dailyEventCap
+@JsonKey(name: "wellnessTopic") String topic, bool isEnabled, int? remindIntervalMinutes, int dailyEventCap
 });
 
 
@@ -272,12 +274,12 @@ class __$WellnessPrefCopyWithImpl<$Res>
 
 /// Create a copy of WellnessPref
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? topic = null,Object? isEnabled = null,Object? remindIntervalMinutes = null,Object? dailyEventCap = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? topic = null,Object? isEnabled = null,Object? remindIntervalMinutes = freezed,Object? dailyEventCap = null,}) {
   return _then(_WellnessPref(
 topic: null == topic ? _self.topic : topic // ignore: cast_nullable_to_non_nullable
 as String,isEnabled: null == isEnabled ? _self.isEnabled : isEnabled // ignore: cast_nullable_to_non_nullable
-as bool,remindIntervalMinutes: null == remindIntervalMinutes ? _self.remindIntervalMinutes : remindIntervalMinutes // ignore: cast_nullable_to_non_nullable
-as int,dailyEventCap: null == dailyEventCap ? _self.dailyEventCap : dailyEventCap // ignore: cast_nullable_to_non_nullable
+as bool,remindIntervalMinutes: freezed == remindIntervalMinutes ? _self.remindIntervalMinutes : remindIntervalMinutes // ignore: cast_nullable_to_non_nullable
+as int?,dailyEventCap: null == dailyEventCap ? _self.dailyEventCap : dailyEventCap // ignore: cast_nullable_to_non_nullable
 as int,
   ));
 }

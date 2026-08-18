@@ -2,6 +2,7 @@ import "dart:convert";
 import "package:uuid/uuid.dart";
 import "app_database.dart";
 import "../models/action_log.dart";
+import "../models/plan.dart";
 import "../repository/ensom_repository.dart";
 
 /// TR-03 멱등성의 핵심 조각. clientEventId는 **여기, enqueue 시점에
@@ -77,18 +78,32 @@ class OfflineActionQueueService {
             jsonDecode(r.payloadJson) as Map<String, dynamic>))
         .toList();
 
+    // API v5.0 §1.7: 행동 배치 최대 100건. chunk 단위로 전송하고
+    // 각 chunk 성공 시 해당 행만 삭제한다.
+    const chunkSize = 100;
     try {
-      // API v5.0 §13 배치 엔드포인트. duplicated로 돌아와도 정상 --
-      // 서버가 (userId, clientEventId)로 이미 알아서 흡수한다 (TR-03).
-      await _repo.submitActions(planId, actions);
-      for (final row in rows) {
-        await (_db.delete(_db.offlineActionQueue)
-              ..where((t) => t.clientEventId.equals(row.clientEventId)))
-            .go();
+      for (int i = 0; i < actions.length; i += chunkSize) {
+        final chunk = actions.sublist(
+          i,
+          (i + chunkSize > actions.length) ? actions.length : i + chunkSize,
+        );
+        final chunkRows = rows.sublist(
+          i,
+          (i + chunkSize > rows.length) ? rows.length : i + chunkSize,
+        );
+
+        await _repo.submitActions(planId, chunk);
+
+        // chunk 성공 → 해당 행 삭제
+        for (final row in chunkRows) {
+          await (_db.delete(_db.offlineActionQueue)
+                ..where((t) => t.clientEventId.equals(row.clientEventId)))
+              .go();
+        }
       }
       return true;
     } catch (_) {
-      // 실패(주로 오프라인)면 큐에 그대로 남겨 다음 flush를 기다린다.
+      // 실패(주로 오프라인)면 남은 행은 큐에 유지. 다음 flush를 기다린다.
       return false;
     }
   }
@@ -97,5 +112,90 @@ class OfflineActionQueueService {
   Future<int> pendingCount() async {
     final rows = await _db.select(_db.offlineActionQueue).get();
     return rows.length;
+  }
+
+  /// 체크리스트/웰니스 resolve 호출도 큐를 경유한다.
+  /// clientEventId를 enqueue 시점에 발급·영속 저장하므로
+  /// 네트워크 유실 후 재시도에서도 동일 ID가 재사용된다 (TR-03).
+  ///
+  /// [resolveType]: "checklist" 또는 "wellness"
+  /// [itemId]: planPrepItemId 또는 wellnessActionId
+  /// [status]: completionStatus 문자열 (pending/completed/dismissed)
+  Future<bool> enqueueResolve({
+    required String planId,
+    required String resolveType,
+    required String itemId,
+    required String status,
+  }) async {
+    final clientEventId = _uuid.v4();
+
+    final payload = {
+      "resolveType": resolveType,
+      "itemId": itemId,
+      "status": status,
+      "clientEventId": clientEventId,
+    };
+
+    await _db.into(_db.offlineActionQueue).insert(
+          OfflineActionQueueCompanion.insert(
+            clientEventId: clientEventId,
+            planId: planId,
+            payloadJson: jsonEncode(payload),
+            queuedAt: DateTime.now(),
+          ),
+        );
+
+    return _flushResolve(planId, clientEventId, payload);
+  }
+
+  /// resolve 항목 즉시 전송 시도. 실패하면 큐에 남는다.
+  Future<bool> _flushResolve(
+    String planId,
+    String clientEventId,
+    Map<String, dynamic> payload,
+  ) async {
+    try {
+      final resolveType = payload["resolveType"] as String;
+      final itemId = payload["itemId"] as String;
+      final status = payload["status"] as String;
+      final ceid = payload["clientEventId"] as String;
+
+      if (resolveType == "checklist") {
+        await _repo.resolveChecklistItem(
+          planId, itemId, _parseChecklistStatus(status),
+          clientEventId: ceid,
+        );
+      } else {
+        await _repo.resolveWellnessAction(
+          planId, itemId, _parseWellnessStatus(status),
+          clientEventId: ceid,
+        );
+      }
+
+      // 성공 → 큐에서 삭제
+      await (_db.delete(_db.offlineActionQueue)
+            ..where((t) => t.clientEventId.equals(clientEventId)))
+          .go();
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  ChecklistCompletionStatus _parseChecklistStatus(String s) {
+    return s == "completed"
+        ? ChecklistCompletionStatus.completed
+        : ChecklistCompletionStatus.pending;
+  }
+
+  WellnessActionCompletionStatus _parseWellnessStatus(String s) {
+    switch (s) {
+      case "completed":
+        return WellnessActionCompletionStatus.completed;
+      case "dismissed":
+        return WellnessActionCompletionStatus.dismissed;
+      default:
+        return WellnessActionCompletionStatus.proposed;
+    }
   }
 }

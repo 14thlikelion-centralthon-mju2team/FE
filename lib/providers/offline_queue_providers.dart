@@ -16,3 +16,12 @@ final offlineActionQueueServiceProvider =
   final repo = ref.watch(ensomRepositoryProvider);
   return OfflineActionQueueService(db: db, repo: repo);
 });
+
+/// 앱 시작 시 1회 호출하여 큐에 남아 있는 미전송 행동을 자동 재전송한다.
+/// main.dart 또는 홈 화면 진입 시 ref.read(offlineQueueFlushProvider)로 트리거.
+///
+/// connectivity 변경 시에도 이 provider를 invalidate하면 재실행된다.
+final offlineQueueFlushProvider = FutureProvider<void>((ref) async {
+  final queue = ref.watch(offlineActionQueueServiceProvider);
+  await queue.flushAll();
+});
