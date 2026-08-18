@@ -8,6 +8,7 @@ import "../models/notification.dart";
 import "../models/action_log.dart";
 import "../models/daily_wellness_summary.dart";
 import "../models/prep_estimate.dart";
+import "../models/wellness_pref.dart";
 import "../network/api_client.dart";
 
 /// API v5.0 기준 실제 구현체. 이번 PR(M1)이 화면에서 실제로 쓰는
@@ -254,19 +255,66 @@ class ApiEnsomRepository implements EnsomRepository {
       throw UnimplementedError("계획 수동 수정 UI는 M1 이후 범위");
 
   @override
-  Future<List<AppNotification>> fetchTodayNotifications() =>
-      throw UnimplementedError("알림 로그 화면은 feat/fe-notification-offline(M2) 범위");
+  @override
+  Future<List<AppNotification>> fetchTodayNotifications() async {
+    final json = await _client.get<List<dynamic>>("/notifications/today");
+    return json
+        .map((e) => AppNotification.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  static const Map<WellnessResponseAction, String> _responseActionValues = {
+    WellnessResponseAction.completed: "completed",
+    WellnessResponseAction.snoozed: "snoozed",
+    WellnessResponseAction.stopToday: "stop_today",
+    WellnessResponseAction.ignored: "ignored",
+  };
 
   @override
   Future<void> respondToNotification(
     String notificationId,
     WellnessResponseAction action,
-  ) =>
-      throw UnimplementedError("feat/fe-notification-offline(M2) 범위");
+  ) async {
+    await _client.post<Map<String, dynamic>>(
+      "/notifications/$notificationId/respond",
+      body: {
+        "action": _responseActionValues[action],
+        "clientEventId": _uuid.v4(),
+      },
+    );
+  }
 
   @override
-  Future<DailyWellnessSummary?> fetchDailySummary(String date) =>
-      throw UnimplementedError("일일 마무리 카드는 feat/fe-wellness(M3) 범위");
+  Future<DailyWellnessSummary?> fetchDailySummary(String date) async {
+    try {
+      final json = await _client
+          .get<Map<String, dynamic>>("/summary/daily", query: {"date": date});
+      return DailyWellnessSummary.fromJson(json);
+    } on ApiException catch (e) {
+      // 관리 일정 0건이면 카드를 만들지 않는다 (숫자를 지어내지 않음, PRD §14.8)
+      if (e.code == "SUMMARY_NOT_GENERATED" || e.code == "NOT_FOUND") {
+        return null;
+      }
+      rethrow;
+    }
+  }
+
+  @override
+  Future<List<WellnessPref>> fetchWellnessPrefs() async {
+    final json = await _client.get<Map<String, dynamic>>("/me/wellness-prefs");
+    final list = json["prefs"] as List<dynamic>? ?? [];
+    return list
+        .map((e) => WellnessPref.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  @override
+  Future<void> updateWellnessPrefs(List<WellnessPref> prefs) async {
+    await _client.patch<Map<String, dynamic>>(
+      "/me/wellness-prefs",
+      body: {"prefs": prefs.map((p) => p.toJson()).toList()},
+    );
+  }
 
   @override
   Future<List<PrepEstimate>> fetchPrepEstimates() =>

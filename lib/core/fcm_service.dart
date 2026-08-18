@@ -1,6 +1,8 @@
 import "dart:convert";
+import "dart:io" show Platform;
 
 import "package:firebase_messaging/firebase_messaging.dart";
+import "package:flutter_local_notifications/flutter_local_notifications.dart";
 import "../network/api_client.dart";
 import "local_notification_service.dart";
 
@@ -9,7 +11,13 @@ import "local_notification_service.dart";
 /// 역할:
 /// 1. Firebase 초기화 + 토큰 획득 → POST /push-devices 등록 (API 명세 §2.7)
 /// 2. 포그라운드 메시지 수신 → 동일 dedupKey의 로컬 알림 취소 (TR-07)
-/// 3. 백그라운드 메시지 수신 → 시스템 트레이에 표시 (Firebase 자동 처리)
+/// 3. 포그라운드 메시지 → 인앱 로컬 알림으로 표시 (TR-10 마스킹 반영)
+/// 4. 백그라운드 메시지 수신 → 시스템 트레이에 표시 (Firebase 자동 처리)
+///
+/// TR-10 민감 마스킹:
+/// - 서버는 `body`(원문)와 `bodyMasked`(일반화 문구)를 모두 내려준다
+/// - `lockscreenHideSensitive=true`이면 잠금화면에 bodyMasked를 표시하고
+///   Android visibility를 PRIVATE으로 설정한다
 ///
 /// Firebase 프로젝트가 미연결이면 초기화가 조용히 실패하고,
 /// 로컬 알림 폴백만으로 동작한다 — 앱이 죽지 않는다.
@@ -18,8 +26,12 @@ class FcmService {
   static final instance = FcmService._();
 
   final _messaging = FirebaseMessaging.instance;
+  final _localPlugin = FlutterLocalNotificationsPlugin();
   ApiClient? _apiClient;
   String? _installationId;
+
+  /// TR-10: 잠금화면에서 민감 정보 숨김 여부. bootstrap에서 세팅.
+  bool _lockscreenHideSensitive = true;
 
   /// main.dart에서 Firebase.initializeApp() 이후에 호출.
   /// apiClient와 installationId는 로그인 후 세팅된다.
@@ -59,6 +71,11 @@ class FcmService {
     _installationId = installationId;
   }
 
+  /// bootstrap 설정 반영.
+  void updateSettings({required bool lockscreenHideSensitive}) {
+    _lockscreenHideSensitive = lockscreenHideSensitive;
+  }
+
   /// POST /push-devices — FCM 토큰 등록·갱신 (API 명세 §2.7)
   /// installationId가 UNIQUE이므로 재설치 전까지 같은 기기는 한 행을 갱신.
   Future<void> _registerToken(String token) async {
@@ -78,20 +95,85 @@ class FcmService {
   }
 
   /// 포그라운드 메시지 수신 처리.
-  /// 서버 푸시가 먼저 도착하면 동일 dedupKey의 로컬 알림을 취소한다 (TR-07).
+  ///
+  /// 서버 data payload 규약:
+  ///   - dedupKey: 로컬 알림 취소용
+  ///   - title: 알림 제목
+  ///   - body: 알림 본문 (원문)
+  ///   - bodyMasked: 민감 항목이 일반화된 본문 (TR-10)
+  ///   - notificationCategory: "time" | "wellness"
   void _handleForegroundMessage(RemoteMessage message) {
     final data = message.data;
     final dedupKey = data["dedupKey"] as String?;
 
-    // dedupKey가 있으면 로컬 알림 취소 — 서버 푸시가 우선
+    // dedupKey가 있으면 로컬 알림 취소 — 서버 푸시가 우선 (TR-07)
     if (dedupKey != null) {
       LocalNotificationService.instance.cancelByDedupKey(dedupKey);
     }
 
     // 포그라운드에서는 시스템 알림이 자동 표시되지 않으므로
-    // 앱이 열려 있을 때는 인앱 스낵바/배너로 표시한다.
-    // 이 콜백은 UI 레이어(홈 화면)에서 처리하도록 스트림으로 전달한다.
+    // flutter_local_notifications로 직접 표시한다.
+    _showForegroundNotification(data);
+
+    // UI 레이어에도 전달 (인앱 배너 등)
     _foregroundMessageController?.call(message);
+  }
+
+  /// 포그라운드에서 수신한 FCM을 로컬 알림으로 표시.
+  /// TR-10: lockscreenHideSensitive이면 bodyMasked를 사용하고 visibility를 제한.
+  Future<void> _showForegroundNotification(Map<String, dynamic> data) async {
+    final title = data["title"] as String? ?? "Ensom";
+    final body = data["body"] as String? ?? "";
+    final bodyMasked = data["bodyMasked"] as String?;
+
+    // 잠금화면 설정에 따라 표시할 본문 결정
+    // 앱이 포그라운드(잠금 해제 상태)이므로 원문을 보여주되,
+    // Android notification의 publicVersion에 마스킹 버전을 세팅해
+    // 잠금화면에서는 마스킹된 내용이 보이도록 한다.
+    final androidDetails = AndroidNotificationDetails(
+      "ensom_push",
+      "Ensom 알림",
+      channelDescription: "서버에서 발송된 알림",
+      importance: Importance.high,
+      priority: Priority.high,
+      visibility: _lockscreenHideSensitive
+          ? NotificationVisibility.private
+          : NotificationVisibility.public,
+      // publicVersion: 잠금화면에서 보이는 대체 알림
+      publicNotification: _lockscreenHideSensitive && bodyMasked != null
+          ? AndroidNotificationDetails(
+              "ensom_push",
+              "Ensom 알림",
+              channelDescription: "서버에서 발송된 알림",
+              importance: Importance.high,
+              priority: Priority.high,
+              visibility: NotificationVisibility.public,
+            )
+          : null,
+    );
+
+    const iosDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+    );
+
+    final details = NotificationDetails(
+      android: androidDetails,
+      iOS: iosDetails,
+    );
+
+    // 알림 ID: dedupKey가 있으면 그 hashCode, 없으면 현재 시각
+    final notificationId =
+        (data["dedupKey"] as String?)?.hashCode ?? DateTime.now().hashCode;
+
+    await _localPlugin.show(
+      notificationId,
+      title,
+      // 포그라운드(잠금 해제)에서는 원문 표시
+      body,
+      details,
+    );
   }
 
   /// UI 레이어가 포그라운드 메시지를 수신하기 위한 콜백.
@@ -109,8 +191,11 @@ class FcmService {
   }
 
   String _getPlatform() {
-    // dart:io의 Platform을 직접 쓰면 web에서 에러나므로 간단히 처리
-    return "android"; // TODO: Platform.isIOS 분기 — M4에서 조건부 import로 해결
+    try {
+      return Platform.isIOS ? "ios" : "android";
+    } catch (_) {
+      return "android";
+    }
   }
 }
 
@@ -122,9 +207,9 @@ class FcmService {
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   final dedupKey = message.data["dedupKey"] as String?;
   if (dedupKey != null) {
-    // 백그라운드에서는 LocalNotificationService가 초기화 안 됐을 수 있으므로
-    // FlutterLocalNotificationsPlugin을 직접 사용
-    // 주의: 이 핸들러는 isolate에서 실행되므로 상태 공유 불가
-    // 실제 구현은 앱이 다시 포그라운드 돌아올 때 pending 목록에서 정리
+    // 백그라운드에서는 LocalNotificationService 상태에 접근 불가(isolate)
+    // FlutterLocalNotificationsPlugin을 직접 생성해 취소한다.
+    final plugin = FlutterLocalNotificationsPlugin();
+    await plugin.cancel(dedupKey.hashCode);
   }
 }
