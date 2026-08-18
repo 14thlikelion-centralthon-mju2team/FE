@@ -15,9 +15,8 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$AppNotification {
 
- String get notificationId; NotificationClass get notificationClass; String get slot;// time: A|B|C, wellness: W
- DateTime get sentAt; String get message;// 서버가 내려주는 최종 문자열. 클라이언트가 변형하지 않는다 (TR-09)
- String? get reaction;
+ String get notificationId; NotificationCategory get notificationCategory; NotificationType get notificationType; String get slot;// time: A|B|C, wellness: W
+ DateTime? get scheduledAt; DateTime? get sentAt; DeliveryStatus? get deliveryStatus; String get body; String? get triggerReason; String? get reaction;
 /// Create a copy of AppNotification
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -30,16 +29,16 @@ $AppNotificationCopyWith<AppNotification> get copyWith => _$AppNotificationCopyW
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is AppNotification&&(identical(other.notificationId, notificationId) || other.notificationId == notificationId)&&(identical(other.notificationClass, notificationClass) || other.notificationClass == notificationClass)&&(identical(other.slot, slot) || other.slot == slot)&&(identical(other.sentAt, sentAt) || other.sentAt == sentAt)&&(identical(other.message, message) || other.message == message)&&(identical(other.reaction, reaction) || other.reaction == reaction));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is AppNotification&&(identical(other.notificationId, notificationId) || other.notificationId == notificationId)&&(identical(other.notificationCategory, notificationCategory) || other.notificationCategory == notificationCategory)&&(identical(other.notificationType, notificationType) || other.notificationType == notificationType)&&(identical(other.slot, slot) || other.slot == slot)&&(identical(other.scheduledAt, scheduledAt) || other.scheduledAt == scheduledAt)&&(identical(other.sentAt, sentAt) || other.sentAt == sentAt)&&(identical(other.deliveryStatus, deliveryStatus) || other.deliveryStatus == deliveryStatus)&&(identical(other.body, body) || other.body == body)&&(identical(other.triggerReason, triggerReason) || other.triggerReason == triggerReason)&&(identical(other.reaction, reaction) || other.reaction == reaction));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,notificationId,notificationClass,slot,sentAt,message,reaction);
+int get hashCode => Object.hash(runtimeType,notificationId,notificationCategory,notificationType,slot,scheduledAt,sentAt,deliveryStatus,body,triggerReason,reaction);
 
 @override
 String toString() {
-  return 'AppNotification(notificationId: $notificationId, notificationClass: $notificationClass, slot: $slot, sentAt: $sentAt, message: $message, reaction: $reaction)';
+  return 'AppNotification(notificationId: $notificationId, notificationCategory: $notificationCategory, notificationType: $notificationType, slot: $slot, scheduledAt: $scheduledAt, sentAt: $sentAt, deliveryStatus: $deliveryStatus, body: $body, triggerReason: $triggerReason, reaction: $reaction)';
 }
 
 
@@ -50,7 +49,7 @@ abstract mixin class $AppNotificationCopyWith<$Res>  {
   factory $AppNotificationCopyWith(AppNotification value, $Res Function(AppNotification) _then) = _$AppNotificationCopyWithImpl;
 @useResult
 $Res call({
- String notificationId, NotificationClass notificationClass, String slot, DateTime sentAt, String message, String? reaction
+ String notificationId, NotificationCategory notificationCategory, NotificationType notificationType, String slot, DateTime? scheduledAt, DateTime? sentAt, DeliveryStatus? deliveryStatus, String body, String? triggerReason, String? reaction
 });
 
 
@@ -67,14 +66,18 @@ class _$AppNotificationCopyWithImpl<$Res>
 
 /// Create a copy of AppNotification
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? notificationId = null,Object? notificationClass = null,Object? slot = null,Object? sentAt = null,Object? message = null,Object? reaction = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? notificationId = null,Object? notificationCategory = null,Object? notificationType = null,Object? slot = null,Object? scheduledAt = freezed,Object? sentAt = freezed,Object? deliveryStatus = freezed,Object? body = null,Object? triggerReason = freezed,Object? reaction = freezed,}) {
   return _then(_self.copyWith(
 notificationId: null == notificationId ? _self.notificationId : notificationId // ignore: cast_nullable_to_non_nullable
-as String,notificationClass: null == notificationClass ? _self.notificationClass : notificationClass // ignore: cast_nullable_to_non_nullable
-as NotificationClass,slot: null == slot ? _self.slot : slot // ignore: cast_nullable_to_non_nullable
-as String,sentAt: null == sentAt ? _self.sentAt : sentAt // ignore: cast_nullable_to_non_nullable
-as DateTime,message: null == message ? _self.message : message // ignore: cast_nullable_to_non_nullable
-as String,reaction: freezed == reaction ? _self.reaction : reaction // ignore: cast_nullable_to_non_nullable
+as String,notificationCategory: null == notificationCategory ? _self.notificationCategory : notificationCategory // ignore: cast_nullable_to_non_nullable
+as NotificationCategory,notificationType: null == notificationType ? _self.notificationType : notificationType // ignore: cast_nullable_to_non_nullable
+as NotificationType,slot: null == slot ? _self.slot : slot // ignore: cast_nullable_to_non_nullable
+as String,scheduledAt: freezed == scheduledAt ? _self.scheduledAt : scheduledAt // ignore: cast_nullable_to_non_nullable
+as DateTime?,sentAt: freezed == sentAt ? _self.sentAt : sentAt // ignore: cast_nullable_to_non_nullable
+as DateTime?,deliveryStatus: freezed == deliveryStatus ? _self.deliveryStatus : deliveryStatus // ignore: cast_nullable_to_non_nullable
+as DeliveryStatus?,body: null == body ? _self.body : body // ignore: cast_nullable_to_non_nullable
+as String,triggerReason: freezed == triggerReason ? _self.triggerReason : triggerReason // ignore: cast_nullable_to_non_nullable
+as String?,reaction: freezed == reaction ? _self.reaction : reaction // ignore: cast_nullable_to_non_nullable
 as String?,
   ));
 }
@@ -160,10 +163,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String notificationId,  NotificationClass notificationClass,  String slot,  DateTime sentAt,  String message,  String? reaction)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String notificationId,  NotificationCategory notificationCategory,  NotificationType notificationType,  String slot,  DateTime? scheduledAt,  DateTime? sentAt,  DeliveryStatus? deliveryStatus,  String body,  String? triggerReason,  String? reaction)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _AppNotification() when $default != null:
-return $default(_that.notificationId,_that.notificationClass,_that.slot,_that.sentAt,_that.message,_that.reaction);case _:
+return $default(_that.notificationId,_that.notificationCategory,_that.notificationType,_that.slot,_that.scheduledAt,_that.sentAt,_that.deliveryStatus,_that.body,_that.triggerReason,_that.reaction);case _:
   return orElse();
 
 }
@@ -181,10 +184,10 @@ return $default(_that.notificationId,_that.notificationClass,_that.slot,_that.se
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String notificationId,  NotificationClass notificationClass,  String slot,  DateTime sentAt,  String message,  String? reaction)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String notificationId,  NotificationCategory notificationCategory,  NotificationType notificationType,  String slot,  DateTime? scheduledAt,  DateTime? sentAt,  DeliveryStatus? deliveryStatus,  String body,  String? triggerReason,  String? reaction)  $default,) {final _that = this;
 switch (_that) {
 case _AppNotification():
-return $default(_that.notificationId,_that.notificationClass,_that.slot,_that.sentAt,_that.message,_that.reaction);case _:
+return $default(_that.notificationId,_that.notificationCategory,_that.notificationType,_that.slot,_that.scheduledAt,_that.sentAt,_that.deliveryStatus,_that.body,_that.triggerReason,_that.reaction);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -201,10 +204,10 @@ return $default(_that.notificationId,_that.notificationClass,_that.slot,_that.se
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String notificationId,  NotificationClass notificationClass,  String slot,  DateTime sentAt,  String message,  String? reaction)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String notificationId,  NotificationCategory notificationCategory,  NotificationType notificationType,  String slot,  DateTime? scheduledAt,  DateTime? sentAt,  DeliveryStatus? deliveryStatus,  String body,  String? triggerReason,  String? reaction)?  $default,) {final _that = this;
 switch (_that) {
 case _AppNotification() when $default != null:
-return $default(_that.notificationId,_that.notificationClass,_that.slot,_that.sentAt,_that.message,_that.reaction);case _:
+return $default(_that.notificationId,_that.notificationCategory,_that.notificationType,_that.slot,_that.scheduledAt,_that.sentAt,_that.deliveryStatus,_that.body,_that.triggerReason,_that.reaction);case _:
   return null;
 
 }
@@ -216,16 +219,19 @@ return $default(_that.notificationId,_that.notificationClass,_that.slot,_that.se
 @JsonSerializable()
 
 class _AppNotification implements AppNotification {
-  const _AppNotification({required this.notificationId, required this.notificationClass, required this.slot, required this.sentAt, required this.message, this.reaction});
+  const _AppNotification({required this.notificationId, required this.notificationCategory, required this.notificationType, required this.slot, this.scheduledAt, this.sentAt, this.deliveryStatus, required this.body, this.triggerReason, this.reaction});
   factory _AppNotification.fromJson(Map<String, dynamic> json) => _$AppNotificationFromJson(json);
 
 @override final  String notificationId;
-@override final  NotificationClass notificationClass;
+@override final  NotificationCategory notificationCategory;
+@override final  NotificationType notificationType;
 @override final  String slot;
 // time: A|B|C, wellness: W
-@override final  DateTime sentAt;
-@override final  String message;
-// 서버가 내려주는 최종 문자열. 클라이언트가 변형하지 않는다 (TR-09)
+@override final  DateTime? scheduledAt;
+@override final  DateTime? sentAt;
+@override final  DeliveryStatus? deliveryStatus;
+@override final  String body;
+@override final  String? triggerReason;
 @override final  String? reaction;
 
 /// Create a copy of AppNotification
@@ -241,16 +247,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _AppNotification&&(identical(other.notificationId, notificationId) || other.notificationId == notificationId)&&(identical(other.notificationClass, notificationClass) || other.notificationClass == notificationClass)&&(identical(other.slot, slot) || other.slot == slot)&&(identical(other.sentAt, sentAt) || other.sentAt == sentAt)&&(identical(other.message, message) || other.message == message)&&(identical(other.reaction, reaction) || other.reaction == reaction));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _AppNotification&&(identical(other.notificationId, notificationId) || other.notificationId == notificationId)&&(identical(other.notificationCategory, notificationCategory) || other.notificationCategory == notificationCategory)&&(identical(other.notificationType, notificationType) || other.notificationType == notificationType)&&(identical(other.slot, slot) || other.slot == slot)&&(identical(other.scheduledAt, scheduledAt) || other.scheduledAt == scheduledAt)&&(identical(other.sentAt, sentAt) || other.sentAt == sentAt)&&(identical(other.deliveryStatus, deliveryStatus) || other.deliveryStatus == deliveryStatus)&&(identical(other.body, body) || other.body == body)&&(identical(other.triggerReason, triggerReason) || other.triggerReason == triggerReason)&&(identical(other.reaction, reaction) || other.reaction == reaction));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,notificationId,notificationClass,slot,sentAt,message,reaction);
+int get hashCode => Object.hash(runtimeType,notificationId,notificationCategory,notificationType,slot,scheduledAt,sentAt,deliveryStatus,body,triggerReason,reaction);
 
 @override
 String toString() {
-  return 'AppNotification(notificationId: $notificationId, notificationClass: $notificationClass, slot: $slot, sentAt: $sentAt, message: $message, reaction: $reaction)';
+  return 'AppNotification(notificationId: $notificationId, notificationCategory: $notificationCategory, notificationType: $notificationType, slot: $slot, scheduledAt: $scheduledAt, sentAt: $sentAt, deliveryStatus: $deliveryStatus, body: $body, triggerReason: $triggerReason, reaction: $reaction)';
 }
 
 
@@ -261,7 +267,7 @@ abstract mixin class _$AppNotificationCopyWith<$Res> implements $AppNotification
   factory _$AppNotificationCopyWith(_AppNotification value, $Res Function(_AppNotification) _then) = __$AppNotificationCopyWithImpl;
 @override @useResult
 $Res call({
- String notificationId, NotificationClass notificationClass, String slot, DateTime sentAt, String message, String? reaction
+ String notificationId, NotificationCategory notificationCategory, NotificationType notificationType, String slot, DateTime? scheduledAt, DateTime? sentAt, DeliveryStatus? deliveryStatus, String body, String? triggerReason, String? reaction
 });
 
 
@@ -278,14 +284,18 @@ class __$AppNotificationCopyWithImpl<$Res>
 
 /// Create a copy of AppNotification
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? notificationId = null,Object? notificationClass = null,Object? slot = null,Object? sentAt = null,Object? message = null,Object? reaction = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? notificationId = null,Object? notificationCategory = null,Object? notificationType = null,Object? slot = null,Object? scheduledAt = freezed,Object? sentAt = freezed,Object? deliveryStatus = freezed,Object? body = null,Object? triggerReason = freezed,Object? reaction = freezed,}) {
   return _then(_AppNotification(
 notificationId: null == notificationId ? _self.notificationId : notificationId // ignore: cast_nullable_to_non_nullable
-as String,notificationClass: null == notificationClass ? _self.notificationClass : notificationClass // ignore: cast_nullable_to_non_nullable
-as NotificationClass,slot: null == slot ? _self.slot : slot // ignore: cast_nullable_to_non_nullable
-as String,sentAt: null == sentAt ? _self.sentAt : sentAt // ignore: cast_nullable_to_non_nullable
-as DateTime,message: null == message ? _self.message : message // ignore: cast_nullable_to_non_nullable
-as String,reaction: freezed == reaction ? _self.reaction : reaction // ignore: cast_nullable_to_non_nullable
+as String,notificationCategory: null == notificationCategory ? _self.notificationCategory : notificationCategory // ignore: cast_nullable_to_non_nullable
+as NotificationCategory,notificationType: null == notificationType ? _self.notificationType : notificationType // ignore: cast_nullable_to_non_nullable
+as NotificationType,slot: null == slot ? _self.slot : slot // ignore: cast_nullable_to_non_nullable
+as String,scheduledAt: freezed == scheduledAt ? _self.scheduledAt : scheduledAt // ignore: cast_nullable_to_non_nullable
+as DateTime?,sentAt: freezed == sentAt ? _self.sentAt : sentAt // ignore: cast_nullable_to_non_nullable
+as DateTime?,deliveryStatus: freezed == deliveryStatus ? _self.deliveryStatus : deliveryStatus // ignore: cast_nullable_to_non_nullable
+as DeliveryStatus?,body: null == body ? _self.body : body // ignore: cast_nullable_to_non_nullable
+as String,triggerReason: freezed == triggerReason ? _self.triggerReason : triggerReason // ignore: cast_nullable_to_non_nullable
+as String?,reaction: freezed == reaction ? _self.reaction : reaction // ignore: cast_nullable_to_non_nullable
 as String?,
   ));
 }

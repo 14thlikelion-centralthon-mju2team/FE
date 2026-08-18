@@ -15,7 +15,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$DailyWellnessSummary {
 
- String get summaryDate;// yyyy-MM-dd
+ String get summaryId; String get summaryDate;// yyyy-MM-dd
  int get eventCount; int get totalOutdoorMinutes; DwlBand get dwlBand; String get cardScenario;// default|exposure|density|rushed|stable
  String get message;// 서버 템플릿 문구. 클라이언트가 재구성하지 않는다
  bool get isViewed; int? get dwlScore;
@@ -31,16 +31,16 @@ $DailyWellnessSummaryCopyWith<DailyWellnessSummary> get copyWith => _$DailyWelln
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is DailyWellnessSummary&&(identical(other.summaryDate, summaryDate) || other.summaryDate == summaryDate)&&(identical(other.eventCount, eventCount) || other.eventCount == eventCount)&&(identical(other.totalOutdoorMinutes, totalOutdoorMinutes) || other.totalOutdoorMinutes == totalOutdoorMinutes)&&(identical(other.dwlBand, dwlBand) || other.dwlBand == dwlBand)&&(identical(other.cardScenario, cardScenario) || other.cardScenario == cardScenario)&&(identical(other.message, message) || other.message == message)&&(identical(other.isViewed, isViewed) || other.isViewed == isViewed)&&(identical(other.dwlScore, dwlScore) || other.dwlScore == dwlScore));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is DailyWellnessSummary&&(identical(other.summaryId, summaryId) || other.summaryId == summaryId)&&(identical(other.summaryDate, summaryDate) || other.summaryDate == summaryDate)&&(identical(other.eventCount, eventCount) || other.eventCount == eventCount)&&(identical(other.totalOutdoorMinutes, totalOutdoorMinutes) || other.totalOutdoorMinutes == totalOutdoorMinutes)&&(identical(other.dwlBand, dwlBand) || other.dwlBand == dwlBand)&&(identical(other.cardScenario, cardScenario) || other.cardScenario == cardScenario)&&(identical(other.message, message) || other.message == message)&&(identical(other.isViewed, isViewed) || other.isViewed == isViewed)&&(identical(other.dwlScore, dwlScore) || other.dwlScore == dwlScore));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,summaryDate,eventCount,totalOutdoorMinutes,dwlBand,cardScenario,message,isViewed,dwlScore);
+int get hashCode => Object.hash(runtimeType,summaryId,summaryDate,eventCount,totalOutdoorMinutes,dwlBand,cardScenario,message,isViewed,dwlScore);
 
 @override
 String toString() {
-  return 'DailyWellnessSummary(summaryDate: $summaryDate, eventCount: $eventCount, totalOutdoorMinutes: $totalOutdoorMinutes, dwlBand: $dwlBand, cardScenario: $cardScenario, message: $message, isViewed: $isViewed, dwlScore: $dwlScore)';
+  return 'DailyWellnessSummary(summaryId: $summaryId, summaryDate: $summaryDate, eventCount: $eventCount, totalOutdoorMinutes: $totalOutdoorMinutes, dwlBand: $dwlBand, cardScenario: $cardScenario, message: $message, isViewed: $isViewed, dwlScore: $dwlScore)';
 }
 
 
@@ -219,9 +219,10 @@ return $default(_that.summaryDate,_that.eventCount,_that.totalOutdoorMinutes,_th
 @JsonSerializable()
 
 class _DailyWellnessSummary implements DailyWellnessSummary {
-  const _DailyWellnessSummary({required this.summaryDate, required this.eventCount, required this.totalOutdoorMinutes, required this.dwlBand, required this.cardScenario, required this.message, this.isViewed = false, this.dwlScore});
+  const _DailyWellnessSummary({required this.summaryId, required this.summaryDate, required this.eventCount, required this.totalOutdoorMinutes, required this.dwlBand, required this.cardScenario, required this.message, this.isViewed = false, this.dwlScore});
   factory _DailyWellnessSummary.fromJson(Map<String, dynamic> json) => _$DailyWellnessSummaryFromJson(json);
 
+@override final  String summaryId;
 @override final  String summaryDate;
 // yyyy-MM-dd
 @override final  int eventCount;
@@ -247,16 +248,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _DailyWellnessSummary&&(identical(other.summaryDate, summaryDate) || other.summaryDate == summaryDate)&&(identical(other.eventCount, eventCount) || other.eventCount == eventCount)&&(identical(other.totalOutdoorMinutes, totalOutdoorMinutes) || other.totalOutdoorMinutes == totalOutdoorMinutes)&&(identical(other.dwlBand, dwlBand) || other.dwlBand == dwlBand)&&(identical(other.cardScenario, cardScenario) || other.cardScenario == cardScenario)&&(identical(other.message, message) || other.message == message)&&(identical(other.isViewed, isViewed) || other.isViewed == isViewed)&&(identical(other.dwlScore, dwlScore) || other.dwlScore == dwlScore));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _DailyWellnessSummary&&(identical(other.summaryId, summaryId) || other.summaryId == summaryId)&&(identical(other.summaryDate, summaryDate) || other.summaryDate == summaryDate)&&(identical(other.eventCount, eventCount) || other.eventCount == eventCount)&&(identical(other.totalOutdoorMinutes, totalOutdoorMinutes) || other.totalOutdoorMinutes == totalOutdoorMinutes)&&(identical(other.dwlBand, dwlBand) || other.dwlBand == dwlBand)&&(identical(other.cardScenario, cardScenario) || other.cardScenario == cardScenario)&&(identical(other.message, message) || other.message == message)&&(identical(other.isViewed, isViewed) || other.isViewed == isViewed)&&(identical(other.dwlScore, dwlScore) || other.dwlScore == dwlScore));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,summaryDate,eventCount,totalOutdoorMinutes,dwlBand,cardScenario,message,isViewed,dwlScore);
+int get hashCode => Object.hash(runtimeType,summaryId,summaryDate,eventCount,totalOutdoorMinutes,dwlBand,cardScenario,message,isViewed,dwlScore);
 
 @override
 String toString() {
-  return 'DailyWellnessSummary(summaryDate: $summaryDate, eventCount: $eventCount, totalOutdoorMinutes: $totalOutdoorMinutes, dwlBand: $dwlBand, cardScenario: $cardScenario, message: $message, isViewed: $isViewed, dwlScore: $dwlScore)';
+  return 'DailyWellnessSummary(summaryId: $summaryId, summaryDate: $summaryDate, eventCount: $eventCount, totalOutdoorMinutes: $totalOutdoorMinutes, dwlBand: $dwlBand, cardScenario: $cardScenario, message: $message, isViewed: $isViewed, dwlScore: $dwlScore)';
 }
 
 

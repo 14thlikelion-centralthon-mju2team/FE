@@ -14,8 +14,6 @@ enum PlanStatus {
 }
 
 /// 일정 생명주기(ERD event.status). BE ck_event_status 제약 9개 값 전부.
-/// planned → notified → preparing → enroute → arrived → closed 가 정상 흐름이고,
-/// skipped/cancelled/unresolved는 비정상 종료 경로다.
 enum EventLifecycleStatus {
   @JsonValue("planned")
   planned,

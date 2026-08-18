@@ -17,6 +17,7 @@ enum DwlBand {
 @freezed
 abstract class DailyWellnessSummary with _$DailyWellnessSummary {
   const factory DailyWellnessSummary({
+    required String summaryId, // POST /summary/daily/{summaryId}/viewed 에 필요
     required String summaryDate, // yyyy-MM-dd
     required int eventCount,
     required int totalOutdoorMinutes,

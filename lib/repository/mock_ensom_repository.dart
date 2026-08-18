@@ -287,14 +287,40 @@ class MockEnsomRepository implements EnsomRepository {
   @override
   Future<List<AppNotification>> fetchTodayNotifications() async {
     await Future.delayed(const Duration(milliseconds: 300));
+    final now = DateTime.now();
     return [
       AppNotification(
         notificationId: "n1",
-        notificationClass: NotificationClass.time,
+        notificationCategory: NotificationCategory.time,
+        notificationType: NotificationType.relaxed,
         slot: "A",
-        sentAt: DateTime.now().subtract(const Duration(minutes: 20)),
-        message: "20분 뒤 준비를 시작할 예정입니다.",
+        scheduledAt: now.subtract(const Duration(minutes: 20)),
+        sentAt: now.subtract(const Duration(minutes: 20)),
+        deliveryStatus: DeliveryStatus.delivered,
+        body: "20분 뒤 준비를 시작할 예정입니다.",
+        triggerReason: "준비 시작 20분 전",
         reaction: "prep_started",
+      ),
+      AppNotification(
+        notificationId: "n2",
+        notificationCategory: NotificationCategory.time,
+        notificationType: NotificationType.disruption,
+        slot: "C",
+        sentAt: now.subtract(const Duration(minutes: 5)),
+        deliveryStatus: DeliveryStatus.delivered,
+        body: "지하철 지연으로 출발 권장 시각이 7분 빨라졌습니다.",
+        triggerReason: "교통 지연 +8분",
+      ),
+      AppNotification(
+        notificationId: "n3",
+        notificationCategory: NotificationCategory.wellness,
+        notificationType: NotificationType.wellnessEvent,
+        slot: "W",
+        sentAt: now.subtract(const Duration(minutes: 90)),
+        deliveryStatus: DeliveryStatus.delivered,
+        body: "야외 이동이 계속되고 있어요. 설정한 시간이 지났다면 선크림을 다시 확인해 보세요.",
+        triggerReason: "자외선 높음 · 설정 주기 120분 도달",
+        reaction: "completed",
       ),
     ];
   }
@@ -330,6 +356,7 @@ class MockEnsomRepository implements EnsomRepository {
   Future<DailyWellnessSummary?> fetchDailySummary(String date) async {
     await Future.delayed(const Duration(milliseconds: 300));
     return DailyWellnessSummary(
+      summaryId: "mock-summary-1",
       summaryDate: date,
       eventCount: 3,
       totalOutdoorMinutes: 43,
@@ -339,27 +366,26 @@ class MockEnsomRepository implements EnsomRepository {
     );
   }
 
-  // -- 웰니스 설정 (WELL-06) -----------------------------------------
+  @override
+  Future<void> markDailySummaryViewed(String summaryId) async {
+    await Future.delayed(const Duration(milliseconds: 100));
+  }
+
   @override
   Future<List<WellnessPref>> fetchWellnessPrefs() async {
-    await Future.delayed(const Duration(milliseconds: 200));
+    await Future.delayed(const Duration(milliseconds: 300));
     return const [
       WellnessPref(topic: "uv", isEnabled: true, remindIntervalMinutes: 120),
       WellnessPref(topic: "pm", isEnabled: true, remindIntervalMinutes: 180),
-      WellnessPref(topic: "temp", isEnabled: false, remindIntervalMinutes: 120),
-      WellnessPref(topic: "rain", isEnabled: false, remindIntervalMinutes: 120),
-      WellnessPref(topic: "hydration", isEnabled: false, remindIntervalMinutes: 90),
+      WellnessPref(topic: "heat", isEnabled: false, remindIntervalMinutes: 90),
+      WellnessPref(topic: "precipitation", isEnabled: true, remindIntervalMinutes: 60),
+      WellnessPref(topic: "hydration", isEnabled: true, remindIntervalMinutes: 120),
     ];
   }
 
   @override
   Future<void> updateWellnessPrefs(List<WellnessPref> prefs) async {
-    await Future.delayed(const Duration(milliseconds: 200));
-  }
-
-  @override
-  Future<void> markDailySummaryViewed(String summaryId) async {
-    await Future.delayed(const Duration(milliseconds: 100));
+    await Future.delayed(const Duration(milliseconds: 300));
   }
 
   // -- 행동 기록 -----------------------------------------------------

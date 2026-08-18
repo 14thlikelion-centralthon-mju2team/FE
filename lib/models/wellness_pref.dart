@@ -11,11 +11,10 @@ part "wellness_pref.g.dart";
 abstract class WellnessPref with _$WellnessPref {
   const factory WellnessPref({
     /// API 명세 §4.2 필드명: "wellnessTopic"
-    /// Dart에서는 topic으로 사용하되 JSON 직렬화 시 wellnessTopic으로 매핑.
     @JsonKey(name: "wellnessTopic") required String topic,
     required bool isEnabled,
     /// null 허용 — API 응답에서 설정하지 않은 항목은 null로 내려올 수 있음.
-    @JsonKey(name: "remindIntervalMinutes") int? remindIntervalMinutes,
+    int? remindIntervalMinutes,
     @Default(1) int dailyEventCap,
   }) = _WellnessPref;
 

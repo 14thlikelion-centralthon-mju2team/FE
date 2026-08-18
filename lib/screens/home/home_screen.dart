@@ -1,46 +1,42 @@
 import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:go_router/go_router.dart";
-import "package:uuid/uuid.dart";
-import "../../core/local_notification_service.dart";
 import "../../models/action_log.dart";
 import "../../models/plan.dart";
 import "../../providers/home_providers.dart";
+import "../../providers/offline_queue_providers.dart";
 import "widgets/plan_card.dart";
 
-const _uuid = Uuid();
-
-/// 홈 화면. 다음 일정과 활성 계획을 표시하고,
-/// 계획이 로드/갱신될 때마다 로컬 알림을 자동 예약한다 (TR-07).
-class HomeScreen extends ConsumerStatefulWidget {
+class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
-  @override
-  ConsumerState<HomeScreen> createState() => _HomeScreenState();
-}
-
-class _HomeScreenState extends ConsumerState<HomeScreen> {
-  /// 마지막으로 로컬 알림을 예약한 리비전 — 중복 예약 방지
-  int? _lastScheduledRevision;
-
-  ActionLogEntry _buildAction(ActionType type) {
-    return ActionLogEntry(
-      clientEventId: _uuid.v4(),
+  /// 큐에 넣고, 온라인이라 즉시 반영됐으면(true) 계획을 새로고침한다.
+  /// 오프라인이면(false) 마지막으로 보여주던 정상 상태를 그대로 두고
+  /// 스낵바로만 안내한다 -- 무작정 새로고침하면 좋은 캐시가 에러
+  /// 화면으로 바뀔 수 있다.
+  Future<void> _enqueueAndMaybeRefresh(
+    BuildContext context,
+    WidgetRef ref,
+    String eventId,
+    String planId,
+    ActionType type,
+  ) async {
+    final queue = ref.read(offlineActionQueueServiceProvider);
+    final sent = await queue.enqueue(
+      planId: planId,
       actionType: type,
-      deviceTs: DateTime.now(),
       actionSource: ActionSource.user,
     );
-  }
 
-  Future<void> _runAction(Future<void> Function() action) async {
-    try {
-      await action();
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("처리하지 못했어요. 다시 시도해주세요.")),
-      );
+    if (sent) {
+      ref.read(planControllerProvider(eventId).notifier).retry();
+      return;
     }
+
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("오프라인 상태예요. 연결되면 자동으로 반영돼요.")),
+    );
   }
 
   /// 계획이 로드/갱신되면 로컬 알림을 (재)예약한다.
@@ -121,42 +117,49 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ],
               ),
             ),
-            data: (plan) {
-              // 계획이 로드될 때마다 로컬 알림 예약 (TR-07)
-              _scheduleLocalNotifications(plan, event.displayName);
-
-              return ListView(
-                padding: const EdgeInsets.all(16),
-                children: [
-                  PlanCard(
-                    eventTitle: event.displayName,
-                    plan: plan,
-                    previousPlan: controller.previousPlan,
-                    onPrepStart: () => _runAction(
-                      () => controller
-                          .submitActions([_buildAction(ActionType.prepStarted)]),
-                    ),
-                    onDeparted: () => _runAction(
-                      () => controller
-                          .submitActions([_buildAction(ActionType.departed)]),
-                    ),
-                    onSnooze: () => _runAction(
-                      () => controller
-                          .submitActions([_buildAction(ActionType.snoozed)]),
-                    ),
-                    onSkip: () => _runAction(
-                      () => controller
-                          .submitActions([_buildAction(ActionType.excluded)]),
-                    ),
-                    onSelectRoute: () => context.push(
-                        "/plans/${plan.planId}/routes?eventId=${event.eventId}"),
-                    onToggleChecklistItem: (item, completed) => _runAction(
-                      () => controller.toggleChecklistItem(item, completed),
-                    ),
+            data: (plan) => ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                PlanCard(
+                  eventTitle: event.displayName,
+                  plan: plan,
+                  onPrepStart: () => _enqueueAndMaybeRefresh(
+                    context, ref, event.eventId, plan.planId, ActionType.prepStarted,
                   ),
-                ],
-              );
-            },
+                  onDeparted: () => _enqueueAndMaybeRefresh(
+                    context, ref, event.eventId, plan.planId, ActionType.departed,
+                  ),
+                  onSnooze: () => _enqueueAndMaybeRefresh(
+                    context, ref, event.eventId, plan.planId, ActionType.snoozed,
+                  ),
+                  onSkip: () => _enqueueAndMaybeRefresh(
+                    context, ref, event.eventId, plan.planId, ActionType.excluded,
+                  ),
+                  onSelectRoute: () => context
+                      .push("/plans/${plan.planId}/routes?eventId=${event.eventId}"),
+                  onToggleChecklistItem: (item, completed) async {
+                    try {
+                      await controller.toggleChecklistItem(item, completed);
+                    } catch (e) {
+                      if (!context.mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text("처리하지 못했어요. 다시 시도해주세요.")),
+                      );
+                    }
+                  },
+                  onResolveWellnessAction: (action, status) async {
+                    try {
+                      await controller.resolveWellnessAction(action, status);
+                    } catch (e) {
+                      if (!context.mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text("처리하지 못했어요. 다시 시도해주세요.")),
+                      );
+                    }
+                  },
+                ),
+              ],
+            ),
           );
         },
       ),

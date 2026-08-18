@@ -68,6 +68,11 @@ abstract class EnsomRepository {
     WellnessActionCompletionStatus status,
   );
   Future<DailyWellnessSummary?> fetchDailySummary(String date);
+  Future<void> markDailySummaryViewed(String summaryId);
+
+  // 웰니스 관심 항목 설정 (WELL-06)
+  Future<List<WellnessPref>> fetchWellnessPrefs();
+  Future<void> updateWellnessPrefs(List<WellnessPref> prefs);
 
   // 웰니스 설정 (WELL-06) — GET/PATCH /me/wellness-prefs
   Future<List<WellnessPref>> fetchWellnessPrefs();

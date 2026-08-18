@@ -11,72 +11,25 @@ import "../screens/onboarding/prep_time_entry_screen.dart";
 import "../screens/places/place_registration_screen.dart";
 import "../screens/home/home_screen.dart";
 import "../screens/route/route_selection_screen.dart";
+import "../screens/notifications/notification_log_screen.dart";
+import "../screens/settings/wellness_prefs_screen.dart";
+import "../screens/summary/daily_summary_screen.dart";
 
-/// go_router + Riverpod 연동.
-/// AuthState를 구독해서 인증 상태 변화 시 자동 리다이렉트.
-final appRouterProvider = Provider<GoRouter>((ref) {
-  final authState = ref.watch(authNotifierProvider);
-
-  return GoRouter(
-    initialLocation: "/splash",
-    redirect: (context, state) {
-      final path = state.uri.path;
-      final isOnboarding = path.startsWith("/onboarding") || path == "/splash";
-      final isAuth = path.startsWith("/onboarding/auth") ||
-          path.startsWith("/onboarding/email");
-
-      switch (authState.status) {
-        case AuthStatus.unknown:
-          // 세션 확인 중 — 스플래시에 머문다
-          if (path != "/splash") return "/splash";
-          return null;
-
-        case AuthStatus.unauthenticated:
-          // 로그인 필요 — 인증 화면으로
-          if (isAuth || path == "/onboarding/auth") return null;
-          return "/onboarding/auth";
-
-        case AuthStatus.emailVerificationRequired:
-          // 이메일 미인증 — 인증 화면으로
-          if (path.startsWith("/onboarding/email-verification")) return null;
-          if (path == "/onboarding/auth") return null; // "다른 방법으로 로그인" 허용
-          final email = authState.email ?? "";
-          return "/onboarding/email-verification?email=${Uri.encodeComponent(email)}";
-
-        case AuthStatus.consentRequired:
-          // 약관 미동의 — 약관 화면으로
-          if (path == "/onboarding/consent") return null;
-          return "/onboarding/consent";
-
-        case AuthStatus.authenticated:
-          // 인증 완료 — 온보딩 페이지에 있으면 홈으로
-          // 단, prep-time/location 등 초기 설정 화면은 허용
-          if (path == "/splash") return "/home";
-          if (path == "/onboarding/auth" ||
-              path == "/onboarding/consent" ||
-              path.startsWith("/onboarding/email-verification")) {
-            return "/home";
-          }
-          return null;
-      }
-    },
-    routes: [
-      // ─── 스플래시 (세션 확인 중) ───────────────────────────────
-      GoRoute(
-        path: "/splash",
-        builder: (c, s) => const _SplashScreen(),
-      ),
-
-      // ─── 온보딩 ────────────────────────────────────────────────
-      GoRoute(
-        path: "/onboarding/auth",
-        builder: (c, s) => const AuthScreen(),
-      ),
-      GoRoute(
-        path: "/onboarding/email-verification",
-        builder: (c, s) {
-          final email = s.uri.queryParameters["email"] ?? "";
-          return EmailVerificationScreen(email: email);
+final appRouter = GoRouter(
+  initialLocation: "/onboarding/splash",
+  routes: [
+    // 온보딩 (탭바 없음)
+    GoRoute(
+        path: "/onboarding/splash",
+        builder: (c, s) => const PlaceholderScreen(title: "스플래시")),
+    GoRoute(
+        path: "/onboarding/intro",
+        builder: (c, s) => const PlaceholderScreen(title: "서비스 소개")),
+    GoRoute(
+      path: "/onboarding/auth",
+      builder: (c, s) => AuthScreen(
+        onGoogleLogin: () async {
+          // TODO(fe-auth-onboarding): 실제 Google OAuth 연동
         },
       ),
       GoRoute(
@@ -103,44 +56,29 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: "/onboarding/password-reset",
         builder: (c, s) => const PlaceholderScreen(title: "비밀번호 재설정"),
       ),
+    ),
+    GoRoute(
+      path: "/notifications/today",
+      builder: (c, s) => const NotificationLogScreen(),
+    ),
+    GoRoute(
+      path: "/settings/wellness-prefs",
+      builder: (c, s) => const WellnessPrefsScreen(),
+    ),
+    GoRoute(
+      path: "/summary/daily",
+      builder: (c, s) => const DailySummaryScreen(),
+    ),
 
-      // ─── 기능 화면 (인증 필요) ─────────────────────────────────
-      GoRoute(
-        path: "/places/manage",
-        builder: (c, s) => const PlaceRegistrationScreen(),
-      ),
-      GoRoute(
-        path: "/plans/:planId/routes",
-        builder: (c, s) => RouteSelectionScreen(
-          planId: s.pathParameters["planId"]!,
-          eventId: s.uri.queryParameters["eventId"]!,
-        ),
-      ),
-      GoRoute(
-        path: "/notifications/today",
-        builder: (c, s) => const PlaceholderScreen(title: "알림 로그"),
-      ),
-      GoRoute(
-        path: "/settings/wellness-prefs",
-        builder: (c, s) => const PlaceholderScreen(title: "웰니스 설정"),
-      ),
-      GoRoute(
-        path: "/summary/daily",
-        builder: (c, s) => const PlaceholderScreen(title: "일일 마무리"),
-      ),
-
-      // ─── 메인 4탭 ─────────────────────────────────────────────
-      StatefulShellRoute.indexedStack(
-        builder: (context, state, shell) => MainTabShell(shell: shell),
-        branches: [
-          StatefulShellBranch(routes: [
-            GoRoute(
-              path: "/home",
-              builder: (c, s) => const HomeScreen(),
-            ),
-          ]),
-          StatefulShellBranch(routes: [
-            GoRoute(
+    // 메인 4탭 (홈/지도/캘린더/설정)
+    StatefulShellRoute.indexedStack(
+      builder: (context, state, shell) => MainTabShell(shell: shell),
+      branches: [
+        StatefulShellBranch(routes: [
+          GoRoute(path: "/home", builder: (c, s) => const HomeScreen()),
+        ]),
+        StatefulShellBranch(routes: [
+          GoRoute(
               path: "/map",
               builder: (c, s) => const PlaceholderScreen(title: "지도"),
             ),

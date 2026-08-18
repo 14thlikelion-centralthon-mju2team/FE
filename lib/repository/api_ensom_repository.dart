@@ -263,7 +263,23 @@ class ApiEnsomRepository implements EnsomRepository {
         .toList();
   }
 
-  static const Map<WellnessResponseAction, String> _responseActionValues = {
+  @override
+  Future<PrepItem> updatePrepItem(String id, PrepItem item) =>
+      throw UnimplementedError("feat/fe-auth-onboarding 범위");
+
+  @override
+  Future<void> deletePrepItem(String id) =>
+      throw UnimplementedError("feat/fe-auth-onboarding 범위");
+
+  @override
+  Future<List<AppNotification>> fetchTodayNotifications() async {
+    final json = await _client.get<List<dynamic>>("/notifications/today");
+    return json
+        .map((e) => AppNotification.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  static const Map<WellnessResponseAction, String> _actionJsonValues = {
     WellnessResponseAction.completed: "completed",
     WellnessResponseAction.snoozed: "snoozed",
     WellnessResponseAction.stopToday: "stop_today",
@@ -278,8 +294,9 @@ class ApiEnsomRepository implements EnsomRepository {
     await _client.post<Map<String, dynamic>>(
       "/notifications/$notificationId/respond",
       body: {
-        "action": _responseActionValues[action],
+        "action": _actionJsonValues[action],
         "clientEventId": _uuid.v4(),
+        "deviceTs": DateTime.now().toIso8601String(),
       },
     );
   }
@@ -291,8 +308,8 @@ class ApiEnsomRepository implements EnsomRepository {
           .get<Map<String, dynamic>>("/summary/daily", query: {"date": date});
       return DailyWellnessSummary.fromJson(json);
     } on ApiException catch (e) {
-      // 관리 일정 0건이면 카드를 만들지 않는다 (숫자를 지어내지 않음, PRD §14.8)
-      if (e.code == "SUMMARY_NOT_GENERATED" || e.code == "NOT_FOUND") {
+      // 관리 일정 0건이면 카드를 만들지 않는다 (숫자를 지어내지 않음)
+      if (e.code == "NOT_FOUND" || e.code == "SUMMARY_NOT_GENERATED") {
         return null;
       }
       rethrow;
@@ -300,12 +317,17 @@ class ApiEnsomRepository implements EnsomRepository {
   }
 
   @override
+  Future<void> markDailySummaryViewed(String summaryId) async {
+    await _client.post<Map<String, dynamic>>(
+      "/summary/daily/$summaryId/viewed",
+    );
+  }
+
+  @override
   Future<List<WellnessPref>> fetchWellnessPrefs() async {
     final json = await _client.get<Map<String, dynamic>>("/me/wellness-prefs");
-    final list = json["prefs"] as List<dynamic>? ?? [];
-    return list
-        .map((e) => WellnessPref.fromJson(e as Map<String, dynamic>))
-        .toList();
+    final list = json["prefs"] as List<dynamic>;
+    return list.map((e) => WellnessPref.fromJson(e as Map<String, dynamic>)).toList();
   }
 
   @override
@@ -313,13 +335,6 @@ class ApiEnsomRepository implements EnsomRepository {
     await _client.patch<Map<String, dynamic>>(
       "/me/wellness-prefs",
       body: {"prefs": prefs.map((p) => p.toJson()).toList()},
-    );
-  }
-
-  @override
-  Future<void> markDailySummaryViewed(String summaryId) async {
-    await _client.post<Map<String, dynamic>>(
-      "/summary/daily/$summaryId/viewed",
     );
   }
 
