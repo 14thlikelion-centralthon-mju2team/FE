@@ -1,8 +1,12 @@
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "ensom_repository.dart";
-import "mock_ensom_repository.dart";
+import "api_ensom_repository.dart";
+import "../providers/auth_providers.dart";
 
+/// 실제 API 연동 리포지토리.
+/// auth_providers.dart의 apiClientProvider를 의존해서
+/// 동일한 ApiClient(동일한 SecureStorage 세션)를 공유한다.
 final ensomRepositoryProvider = Provider<EnsomRepository>((ref) {
-  // 나중에 실제 API 붙일 때 이 한 줄만 바꾸면 됨
-  return MockEnsomRepository();
+  final apiClient = ref.watch(apiClientProvider);
+  return ApiEnsomRepository(apiClient);
 });

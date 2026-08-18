@@ -8,6 +8,7 @@ import "../models/notification.dart";
 import "../models/action_log.dart";
 import "../models/daily_wellness_summary.dart";
 import "../models/prep_estimate.dart";
+import "../models/wellness_pref.dart";
 import "../network/api_client.dart";
 
 /// API v5.0 기준 실제 구현체. 이번 PR(M1)이 화면에서 실제로 쓰는
@@ -128,7 +129,95 @@ class ApiEnsomRepository implements EnsomRepository {
   }
 
   // ================================================================
-  // 아래부터는 이번 PR(M1) 범위 밖. 호출 시 즉시 예외를 던진다.
+  // 설정 (SET-03, ONB-01) — PATCH /me/settings
+  // ================================================================
+
+  @override
+  Future<void> updateSettings(Map<String, dynamic> patch) async {
+    await _client.patch<Map<String, dynamic>>(
+      "/me/settings",
+      body: patch,
+    );
+  }
+
+  // ================================================================
+  // 맞춤 준비 항목 (ONB-01, SET-02, PLAN-05)
+  // API 명세 §6: POST /prep-items
+  // ================================================================
+
+  @override
+  Future<List<PrepItem>> fetchPrepItems() async {
+    final json = await _client.get<List<dynamic>>("/prep-items");
+    return json
+        .map((e) => PrepItem.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  @override
+  Future<PrepItem> createPrepItem(PrepItem item) async {
+    final json = await _client.post<Map<String, dynamic>>(
+      "/prep-items",
+      body: _prepItemToRequestBody(item),
+    );
+    return PrepItem.fromJson(json);
+  }
+
+  @override
+  Future<PrepItem> updatePrepItem(String id, PrepItem item) async {
+    final json = await _client.patch<Map<String, dynamic>>(
+      "/prep-items/$id",
+      body: _prepItemToRequestBody(item),
+    );
+    return PrepItem.fromJson(json);
+  }
+
+  @override
+  Future<void> deletePrepItem(String id) async {
+    await _client.delete<Map<String, dynamic>>("/prep-items/$id");
+  }
+
+  /// API 명세 §6.1의 요청 바디 구성.
+  /// PrepItem 모델의 필드를 서버가 기대하는 camelCase 필드로 변환한다.
+  Map<String, dynamic> _prepItemToRequestBody(PrepItem item) {
+    // PrepKind → (ruleCategory, actionType) 매핑
+    // API 명세 §6: ruleCategory × actionType 2축 구조
+    String ruleCategory;
+    String actionType;
+
+    switch (item.kind) {
+      case PrepKind.carry:
+        ruleCategory = "general_item";
+        actionType = "carry";
+      case PrepKind.consume:
+        // sensitive가 medication 판별 기준 (§6.2: medication → isSensitive 강제)
+        ruleCategory = item.sensitive ? "medication" : "supplement";
+        actionType = "consume";
+      case PrepKind.purchase:
+        ruleCategory = "personal_item";
+        actionType = "purchase";
+      case PrepKind.routine:
+        ruleCategory = "routine";
+        actionType = "timed_routine";
+    }
+
+    return {
+      "ruleName": item.label,
+      "ruleCategory": ruleCategory,
+      "actionType": actionType,
+      "ruleTiming": "pre_departure",
+      "defaultMinutes": item.kind == PrepKind.routine ? item.extraMin : null,
+      "applyEventKind": null,
+      "applyTimeBand": null,
+      "applyPlaceId": null,
+      "applyWeather": null,
+      "isRequired": false,
+      "isSensitive": item.sensitive,
+      "fromChip": item.fromChip,
+    };
+  }
+
+  // ================================================================
+  // 아래부터는 이번 PR 범위 밖. 호출 시 즉시 예외를 던진다.
   // ================================================================
 
   @override
@@ -166,35 +255,73 @@ class ApiEnsomRepository implements EnsomRepository {
       throw UnimplementedError("계획 수동 수정 UI는 M1 이후 범위");
 
   @override
-  Future<List<PrepItem>> fetchPrepItems() =>
-      throw UnimplementedError("맞춤 준비 항목 목록은 feat/fe-auth-onboarding(온보딩) 범위");
-
   @override
-  Future<PrepItem> createPrepItem(PrepItem item) =>
-      throw UnimplementedError("feat/fe-auth-onboarding 범위");
+  Future<List<AppNotification>> fetchTodayNotifications() async {
+    final json = await _client.get<List<dynamic>>("/notifications/today");
+    return json
+        .map((e) => AppNotification.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
 
-  @override
-  Future<PrepItem> updatePrepItem(String id, PrepItem item) =>
-      throw UnimplementedError("feat/fe-auth-onboarding 범위");
-
-  @override
-  Future<void> deletePrepItem(String id) =>
-      throw UnimplementedError("feat/fe-auth-onboarding 범위");
-
-  @override
-  Future<List<AppNotification>> fetchTodayNotifications() =>
-      throw UnimplementedError("알림 로그 화면은 feat/fe-notification-offline(M2) 범위");
+  static const Map<WellnessResponseAction, String> _responseActionValues = {
+    WellnessResponseAction.completed: "completed",
+    WellnessResponseAction.snoozed: "snoozed",
+    WellnessResponseAction.stopToday: "stop_today",
+    WellnessResponseAction.ignored: "ignored",
+  };
 
   @override
   Future<void> respondToNotification(
     String notificationId,
     WellnessResponseAction action,
-  ) =>
-      throw UnimplementedError("feat/fe-notification-offline(M2) 범위");
+  ) async {
+    await _client.post<Map<String, dynamic>>(
+      "/notifications/$notificationId/respond",
+      body: {
+        "action": _responseActionValues[action],
+        "clientEventId": _uuid.v4(),
+      },
+    );
+  }
 
   @override
-  Future<DailyWellnessSummary?> fetchDailySummary(String date) =>
-      throw UnimplementedError("일일 마무리 카드는 feat/fe-wellness(M3) 범위");
+  Future<DailyWellnessSummary?> fetchDailySummary(String date) async {
+    try {
+      final json = await _client
+          .get<Map<String, dynamic>>("/summary/daily", query: {"date": date});
+      return DailyWellnessSummary.fromJson(json);
+    } on ApiException catch (e) {
+      // 관리 일정 0건이면 카드를 만들지 않는다 (숫자를 지어내지 않음, PRD §14.8)
+      if (e.code == "SUMMARY_NOT_GENERATED" || e.code == "NOT_FOUND") {
+        return null;
+      }
+      rethrow;
+    }
+  }
+
+  @override
+  Future<List<WellnessPref>> fetchWellnessPrefs() async {
+    final json = await _client.get<Map<String, dynamic>>("/me/wellness-prefs");
+    final list = json["prefs"] as List<dynamic>? ?? [];
+    return list
+        .map((e) => WellnessPref.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  @override
+  Future<void> updateWellnessPrefs(List<WellnessPref> prefs) async {
+    await _client.patch<Map<String, dynamic>>(
+      "/me/wellness-prefs",
+      body: {"prefs": prefs.map((p) => p.toJson()).toList()},
+    );
+  }
+
+  @override
+  Future<void> markDailySummaryViewed(String summaryId) async {
+    await _client.post<Map<String, dynamic>>(
+      "/summary/daily/$summaryId/viewed",
+    );
+  }
 
   @override
   Future<List<PrepEstimate>> fetchPrepEstimates() =>

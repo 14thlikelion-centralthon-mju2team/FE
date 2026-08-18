@@ -7,6 +7,7 @@ import "../models/notification.dart";
 import "../models/action_log.dart";
 import "../models/daily_wellness_summary.dart";
 import "../models/prep_estimate.dart";
+import "../models/wellness_pref.dart";
 
 class MockEnsomRepository implements EnsomRepository {
   // -- 일정 --------------------------------------------------------
@@ -249,6 +250,12 @@ class MockEnsomRepository implements EnsomRepository {
   Future<Plan> selectRoute(String planId, String routeOptionId) =>
       _mockPlan();
 
+  // -- 설정 ---------------------------------------------------------
+  @override
+  Future<void> updateSettings(Map<String, dynamic> patch) async {
+    await Future.delayed(const Duration(milliseconds: 200));
+  }
+
   // -- 맞춤 준비 항목 ------------------------------------------------
   @override
   Future<List<PrepItem>> fetchPrepItems() async {
@@ -330,6 +337,29 @@ class MockEnsomRepository implements EnsomRepository {
       cardScenario: "exposure",
       message: "자외선이 높은 시간대의 예상 야외 이동이 길었어요. 지금은 수분을 보충하고 편안하게 쉬어주세요.",
     );
+  }
+
+  // -- 웰니스 설정 (WELL-06) -----------------------------------------
+  @override
+  Future<List<WellnessPref>> fetchWellnessPrefs() async {
+    await Future.delayed(const Duration(milliseconds: 200));
+    return const [
+      WellnessPref(topic: "uv", isEnabled: true, remindIntervalMinutes: 120),
+      WellnessPref(topic: "pm", isEnabled: true, remindIntervalMinutes: 180),
+      WellnessPref(topic: "temp", isEnabled: false, remindIntervalMinutes: 120),
+      WellnessPref(topic: "rain", isEnabled: false, remindIntervalMinutes: 120),
+      WellnessPref(topic: "hydration", isEnabled: false, remindIntervalMinutes: 90),
+    ];
+  }
+
+  @override
+  Future<void> updateWellnessPrefs(List<WellnessPref> prefs) async {
+    await Future.delayed(const Duration(milliseconds: 200));
+  }
+
+  @override
+  Future<void> markDailySummaryViewed(String summaryId) async {
+    await Future.delayed(const Duration(milliseconds: 100));
   }
 
   // -- 행동 기록 -----------------------------------------------------

@@ -24,6 +24,7 @@ final planControllerProvider = StateNotifierProvider.autoDispose
 });
 
 /// 계획의 단일 진실원천.
+/// previousPlan을 추적해서 리비전 변경 시 UI가 "무엇이 바뀌었는지"를 표시한다.
 class PlanController extends StateNotifier<AsyncValue<Plan>> {
   PlanController({required this.repo, required this.eventId})
       : super(const AsyncValue.loading()) {
@@ -33,10 +34,18 @@ class PlanController extends StateNotifier<AsyncValue<Plan>> {
   final EnsomRepository repo;
   final String eventId;
 
+  /// 직전 계획 — 리비전 변경 배너에 사용
+  Plan? previousPlan;
+
   Future<void> _load() async {
     state = const AsyncValue.loading();
     try {
       final plan = await repo.fetchLatestPlan(eventId);
+      // 이전 계획과 리비전이 다를 때만 previousPlan 갱신
+      final current = state.valueOrNull;
+      if (current != null && current.revisionNo != plan.revisionNo) {
+        previousPlan = current;
+      }
       state = AsyncValue.data(plan);
     } catch (e, st) {
       state = AsyncValue.error(e, st);

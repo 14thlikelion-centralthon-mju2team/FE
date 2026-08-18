@@ -1,22 +1,37 @@
 import "package:flutter/material.dart";
+import "package:flutter_riverpod/flutter_riverpod.dart";
+import "package:go_router/go_router.dart";
+import "package:google_sign_in/google_sign_in.dart";
+import "package:uuid/uuid.dart";
+import "../../network/api_client.dart";
+import "../../providers/auth_providers.dart";
 import "email_signup_screen.dart";
 import "email_login_screen.dart";
 
-/// 진입 선택 화면. 원본 구조(선택 화면 -> 별도 폼 화면)를 그대로 유지한다.
-/// 최종 마일스톤 문서(M0) 기준: "이메일 또는 Google 로그인"만 지원.
-/// 카카오/Apple 버튼은 스키마에 provider 값이 없어 제거된 상태를 유지.
-class AuthScreen extends StatefulWidget {
-  const AuthScreen({super.key, required this.onGoogleLogin});
-
-  final Future<void> Function() onGoogleLogin;
+/// 진입 선택 화면. API 명세 §2.5 POST /auth/login (Google)
+/// Google 로그인은 idToken을 서버에 보내면 서버가 계정 확정·세션 발급.
+/// Google 로그인은 항상 emailVerificationRequired: false (§2.5).
+class AuthScreen extends ConsumerStatefulWidget {
+  const AuthScreen({super.key});
 
   @override
-  State<AuthScreen> createState() => _AuthScreenState();
+  ConsumerState<AuthScreen> createState() => _AuthScreenState();
 }
 
-class _AuthScreenState extends State<AuthScreen> {
+class _AuthScreenState extends ConsumerState<AuthScreen> {
   bool _submitting = false;
   String? _error;
+
+  static const _uuid = Uuid();
+
+  // Google Sign-In 설정. serverClientId는 백엔드가 토큰을 검증할 때
+  // 사용하는 OAuth 클라이언트 ID. 실제 값은 환경 설정에서 주입한다.
+  static final _googleSignIn = GoogleSignIn(
+    scopes: [
+      "email",
+      "https://www.googleapis.com/auth/calendar.readonly",
+    ],
+  );
 
   Future<void> _handleGoogleLogin() async {
     setState(() {
@@ -24,7 +39,50 @@ class _AuthScreenState extends State<AuthScreen> {
       _error = null;
     });
     try {
-      await widget.onGoogleLogin();
+      final googleUser = await _googleSignIn.signIn();
+      if (googleUser == null) {
+        // 사용자가 취소
+        setState(() => _submitting = false);
+        return;
+      }
+
+      final googleAuth = await googleUser.authentication;
+      final idToken = googleAuth.idToken;
+      if (idToken == null) {
+        setState(() {
+          _error = "Google 인증 정보를 가져오지 못했어요.";
+          _submitting = false;
+        });
+        return;
+      }
+
+      final authNotifier = ref.read(authNotifierProvider.notifier);
+      await authNotifier.loginWithGoogle(
+        idToken: idToken,
+        installationId: _uuid.v4(),
+      );
+
+      if (!mounted) return;
+
+      final authState = ref.read(authNotifierProvider);
+      switch (authState.status) {
+        case AuthStatus.consentRequired:
+          context.go("/onboarding/consent");
+        case AuthStatus.authenticated:
+          context.go("/home");
+        default:
+          // Google 로그인은 emailVerificationRequired가 되지 않음
+          context.go("/home");
+      }
+    } on ApiException catch (e) {
+      setState(() {
+        switch (e.code) {
+          case "NETWORK_ERROR":
+            _error = "네트워크에 연결할 수 없어요. 잠시 후 다시 시도해주세요.";
+          default:
+            _error = "Google 로그인에 실패했어요. 다시 시도해주세요.";
+        }
+      });
     } catch (e) {
       setState(() => _error = "Google 로그인에 실패했어요. 다시 시도해주세요.");
     } finally {
@@ -35,48 +93,65 @@ class _AuthScreenState extends State<AuthScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            if (_error != null) ...[
-              Text(_error!, style: const TextStyle(color: Colors.red)),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Text(
+                "Ensom",
+                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                "늦지 않게, 서두르지 않게.",
+                style: TextStyle(color: Colors.grey),
+              ),
+              const SizedBox(height: 48),
+              if (_error != null) ...[
+                Text(_error!, style: const TextStyle(color: Colors.red)),
+                const SizedBox(height: 16),
+              ],
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: _submitting ? null : _handleGoogleLogin,
+                  icon: const Icon(Icons.g_mobiledata, size: 24),
+                  label: const Text("Google로 시작하기"),
+                ),
+              ),
               const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
+                  onPressed: _submitting
+                      ? null
+                      : () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const EmailSignupScreen(),
+                            ),
+                          );
+                        },
+                  child: const Text("이메일로 시작하기"),
+                ),
+              ),
+              const SizedBox(height: 24),
+              TextButton(
+                onPressed: _submitting
+                    ? null
+                    : () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const EmailLoginScreen(),
+                          ),
+                        );
+                      },
+                child: const Text("이미 계정이 있으신가요? 로그인"),
+              ),
             ],
-            ElevatedButton(
-              onPressed: _submitting ? null : _handleGoogleLogin,
-              child: const Text("Google로 시작하기"),
-            ),
-            const SizedBox(height: 12),
-            OutlinedButton(
-              onPressed: _submitting
-                  ? null
-                  : () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const EmailSignupScreen(),
-                        ),
-                      );
-                    },
-              child: const Text("이메일로 시작하기"),
-            ),
-            // 카카오 버튼 제거 -- users.provider check 제약에 'kakao' 없음
-            // Apple 버튼 제거(잠정) -- 스키마에 'apple' 없음, 팀 확인 대기 중
-            const SizedBox(height: 24),
-            TextButton(
-              onPressed: _submitting
-                  ? null
-                  : () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const EmailLoginScreen(),
-                        ),
-                      );
-                    },
-              child: const Text("이미 계정이 있으신가요? 로그인"),
-            ),
-          ],
+          ),
         ),
       ),
     );

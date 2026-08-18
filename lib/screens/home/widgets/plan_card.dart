@@ -3,6 +3,7 @@ import "package:intl/intl.dart";
 import "../../../models/plan.dart";
 import "reason_section.dart";
 import "checklist_section.dart";
+import "plan_change_banner.dart";
 
 /// HOME-01/02.
 ///
@@ -15,6 +16,7 @@ class PlanCard extends StatelessWidget {
     super.key,
     required this.eventTitle,
     required this.plan,
+    this.previousPlan,
     required this.onPrepStart,
     required this.onDeparted,
     required this.onSnooze,
@@ -25,6 +27,7 @@ class PlanCard extends StatelessWidget {
 
   final String eventTitle;
   final Plan plan;
+  final Plan? previousPlan;
   final VoidCallback onPrepStart;
   final VoidCallback onDeparted;
   final VoidCallback onSnooze;
@@ -59,6 +62,8 @@ class PlanCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // 계획 변경 배너 — 리비전이 바뀌었을 때만 표시
+            PlanChangeBanner(currentPlan: plan, previousPlan: previousPlan),
             Text(eventTitle,
                 style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
             const SizedBox(height: 4),
