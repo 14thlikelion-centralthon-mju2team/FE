@@ -50,6 +50,12 @@ class PlanCard extends StatelessWidget {
         return "도착했어요.";
       case EventLifecycleStatus.closed:
         return "일정이 마무리됐어요.";
+      case EventLifecycleStatus.skipped:
+        return "이 일정은 건너뛰었어요.";
+      case EventLifecycleStatus.cancelled:
+        return "이 일정은 취소됐어요.";
+      case EventLifecycleStatus.unresolved:
+        return "도착 여부를 확인하지 못했어요.";
     }
   }
 

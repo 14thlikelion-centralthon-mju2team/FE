@@ -5,26 +5,17 @@ part "plan.g.dart";
 
 /// 계획 리비전 상태(ERD plan_revision.plan_status). eventStatus와
 /// 완전히 다른 축이다 -- API v5.0 §9.2 "planStatus ≠ eventStatus".
+/// 실제 서버가 사용하는 값: active / superseded (2개).
 enum PlanStatus {
-  @JsonValue("draft")
-  draft,
-  @JsonValue("ready")
-  ready,
-  @JsonValue("scheduled")
-  scheduled,
   @JsonValue("active")
   active,
-  @JsonValue("completed")
-  completed,
   @JsonValue("superseded")
   superseded,
-  @JsonValue("cancelled")
-  cancelled,
 }
 
-/// 일정 생명주기. API v5.0 §9.2가 명시한 값만 쓴다:
-/// planned -> notified -> preparing -> enroute -> arrived -> closed.
-/// (지난 라운드에 이 값들을 planStatus 쪽에 잘못 넣었던 걸 바로잡음)
+/// 일정 생명주기(ERD event.status). BE ck_event_status 제약 9개 값 전부.
+/// planned → notified → preparing → enroute → arrived → closed 가 정상 흐름이고,
+/// skipped/cancelled/unresolved는 비정상 종료 경로다.
 enum EventLifecycleStatus {
   @JsonValue("planned")
   planned,
@@ -38,6 +29,12 @@ enum EventLifecycleStatus {
   arrived,
   @JsonValue("closed")
   closed,
+  @JsonValue("skipped")
+  skipped,
+  @JsonValue("cancelled")
+  cancelled,
+  @JsonValue("unresolved")
+  unresolved,
 }
 
 /// breakdown의 한 필드가 왜 그 값인지 설명하는 근거 한 줄.
