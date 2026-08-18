@@ -60,13 +60,15 @@ abstract class EnsomRepository {
   Future<void> resolveChecklistItem(
     String planId,
     String planPrepItemId,
-    ChecklistCompletionStatus status,
-  );
+    ChecklistCompletionStatus status, {
+    required String clientEventId,
+  });
   Future<void> resolveWellnessAction(
     String planId,
     String wellnessActionId,
-    WellnessActionCompletionStatus status,
-  );
+    WellnessActionCompletionStatus status, {
+    required String clientEventId,
+  });
   Future<DailyWellnessSummary?> fetchDailySummary(String date);
   Future<void> markDailySummaryViewed(String summaryId);
 

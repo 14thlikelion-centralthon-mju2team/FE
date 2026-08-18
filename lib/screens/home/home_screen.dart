@@ -55,7 +55,10 @@ class HomeScreen extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // 앱 재시작·홈 진입 시 오프라인 큐 자동 재전송 (BLOCKER #1 해결)
+    ref.watch(offlineQueueFlushProvider);
+
     final nextEventAsync = ref.watch(nextEventProvider);
 
     return Scaffold(

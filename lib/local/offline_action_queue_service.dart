@@ -77,18 +77,32 @@ class OfflineActionQueueService {
             jsonDecode(r.payloadJson) as Map<String, dynamic>))
         .toList();
 
+    // API v5.0 §1.7: 행동 배치 최대 100건. chunk 단위로 전송하고
+    // 각 chunk 성공 시 해당 행만 삭제한다.
+    const chunkSize = 100;
     try {
-      // API v5.0 §13 배치 엔드포인트. duplicated로 돌아와도 정상 --
-      // 서버가 (userId, clientEventId)로 이미 알아서 흡수한다 (TR-03).
-      await _repo.submitActions(planId, actions);
-      for (final row in rows) {
-        await (_db.delete(_db.offlineActionQueue)
-              ..where((t) => t.clientEventId.equals(row.clientEventId)))
-            .go();
+      for (int i = 0; i < actions.length; i += chunkSize) {
+        final chunk = actions.sublist(
+          i,
+          (i + chunkSize > actions.length) ? actions.length : i + chunkSize,
+        );
+        final chunkRows = rows.sublist(
+          i,
+          (i + chunkSize > rows.length) ? rows.length : i + chunkSize,
+        );
+
+        await _repo.submitActions(planId, chunk);
+
+        // chunk 성공 → 해당 행 삭제
+        for (final row in chunkRows) {
+          await (_db.delete(_db.offlineActionQueue)
+                ..where((t) => t.clientEventId.equals(row.clientEventId)))
+              .go();
+        }
       }
       return true;
     } catch (_) {
-      // 실패(주로 오프라인)면 큐에 그대로 남겨 다음 flush를 기다린다.
+      // 실패(주로 오프라인)면 남은 행은 큐에 유지. 다음 flush를 기다린다.
       return false;
     }
   }
