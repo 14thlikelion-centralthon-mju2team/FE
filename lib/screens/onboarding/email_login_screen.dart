@@ -1,21 +1,29 @@
 import "package:flutter/material.dart";
+import "package:flutter_riverpod/flutter_riverpod.dart";
+import "package:go_router/go_router.dart";
+import "package:uuid/uuid.dart";
+import "../../network/api_client.dart";
+import "../../providers/auth_providers.dart";
 
-/// 원본에는 "로그인 화면으로 이동" TODO만 있고 실제 화면이 없었다.
-/// 신규 작성.
-class EmailLoginScreen extends StatefulWidget {
+/// API 명세 §2.2 POST /auth/email/login
+/// 실패 시 AUTH_INVALID_CREDENTIALS (이메일 없음·비밀번호 불일치 구분 안 함, TR-14)
+/// 연속 5회 실패 시 ACCOUNT_LOCKED (423) + retryAfterSec
+class EmailLoginScreen extends ConsumerStatefulWidget {
   const EmailLoginScreen({super.key});
 
   @override
-  State<EmailLoginScreen> createState() => _EmailLoginScreenState();
+  ConsumerState<EmailLoginScreen> createState() => _EmailLoginScreenState();
 }
 
-class _EmailLoginScreenState extends State<EmailLoginScreen> {
+class _EmailLoginScreenState extends ConsumerState<EmailLoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
 
   bool _submitting = false;
   String? _error;
+
+  static const _uuid = Uuid();
 
   @override
   void dispose() {
@@ -41,13 +49,45 @@ class _EmailLoginScreenState extends State<EmailLoginScreen> {
       _error = null;
     });
     try {
-      // TODO(fe-auth-onboarding): 실제 로그인 API 연결
-      // await repo.loginWithEmail(
-      //   email: _emailController.text.trim(),
-      //   password: _passwordController.text,
-      // );
-    } catch (e) {
-      setState(() => _error = "이메일 또는 비밀번호를 확인해주세요.");
+      final authNotifier = ref.read(authNotifierProvider.notifier);
+      await authNotifier.loginWithEmail(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+        installationId: _uuid.v4(),
+      );
+
+      if (!mounted) return;
+
+      // AuthNotifier가 상태를 전이시켰으므로 라우터가 리다이렉트 처리.
+      // 하지만 명시적 분기도 둬서 go_router redirect가 아직 안 붙었을 때도 동작.
+      final authState = ref.read(authNotifierProvider);
+      switch (authState.status) {
+        case AuthStatus.emailVerificationRequired:
+          context.go(
+            "/onboarding/email-verification?email=${Uri.encodeComponent(_emailController.text.trim())}",
+          );
+        case AuthStatus.consentRequired:
+          context.go("/onboarding/consent");
+        case AuthStatus.authenticated:
+          context.go("/home");
+        default:
+          break;
+      }
+    } on ApiException catch (e) {
+      setState(() {
+        switch (e.code) {
+          case "AUTH_INVALID_CREDENTIALS":
+            _error = "이메일 또는 비밀번호를 확인해주세요.";
+          case "ACCOUNT_LOCKED":
+            _error = "로그인 시도가 너무 많아요. 잠시 후 다시 시도해주세요.";
+          case "NETWORK_ERROR":
+            _error = "네트워크에 연결할 수 없어요. 잠시 후 다시 시도해주세요.";
+          default:
+            _error = e.message;
+        }
+      });
+    } catch (_) {
+      setState(() => _error = "로그인에 실패했어요. 다시 시도해주세요.");
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
@@ -61,13 +101,14 @@ class _EmailLoginScreenState extends State<EmailLoginScreen> {
         padding: const EdgeInsets.all(24),
         child: Form(
           key: _formKey,
-          child: Column(
+          child: ListView(
             children: [
               TextFormField(
                 controller: _emailController,
                 keyboardType: TextInputType.emailAddress,
                 decoration: const InputDecoration(labelText: "이메일"),
                 validator: _validateEmail,
+                textInputAction: TextInputAction.next,
               ),
               const SizedBox(height: 12),
               TextFormField(
@@ -75,15 +116,24 @@ class _EmailLoginScreenState extends State<EmailLoginScreen> {
                 obscureText: true,
                 decoration: const InputDecoration(labelText: "비밀번호"),
                 validator: _validatePassword,
+                textInputAction: TextInputAction.done,
+                onFieldSubmitted: (_) => _submit(),
               ),
               if (_error != null) ...[
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
                 Text(_error!, style: const TextStyle(color: Colors.red)),
               ],
               const SizedBox(height: 24),
               ElevatedButton(
                 onPressed: _submitting ? null : _submit,
                 child: Text(_submitting ? "로그인 중..." : "로그인"),
+              ),
+              const SizedBox(height: 12),
+              TextButton(
+                onPressed: _submitting
+                    ? null
+                    : () => context.push("/onboarding/password-reset"),
+                child: const Text("비밀번호를 잊으셨나요?"),
               ),
             ],
           ),

@@ -1,40 +1,61 @@
 import "package:flutter/material.dart";
+import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:go_router/go_router.dart";
+import "../../core/auth_service.dart";
+import "../../network/api_client.dart";
+import "../../providers/auth_providers.dart";
 
-/// 이메일 회원가입 직후 진입. Google 로그인 사용자는 이 화면을 거치지
-/// 않는다(email_verified_at 개념 자체가 이메일 가입자에게만 해당).
+/// 이메일 회원가입 직후 진입. Google 로그인 사용자는 이 화면을 거치지 않는다.
+/// API 명세 §2.3: POST /auth/email/verify/resend (재발송, 60초 쿨다운)
 ///
-/// TODO(fe-auth-onboarding): 아래 정책이 BE(박찬)와 아직 미확정.
-/// - 인증 전 /me/bootstrap 호출 시 서버가 핵심 화면 진입을 막는지,
-///   배지만 띄우는지
-/// - 인증 완료를 폴링으로 확인할지, 딥링크로 앱에 돌아오게 할지
-class EmailVerificationScreen extends StatefulWidget {
+/// 인증 완료 확인: 사용자가 "인증 완료했어요" → 이메일 로그인을 시도해서
+/// emailVerificationRequired가 false면 성공. 폴링이나 딥링크가 아님.
+class EmailVerificationScreen extends ConsumerStatefulWidget {
   const EmailVerificationScreen({super.key, required this.email});
 
   final String email;
 
   @override
-  State<EmailVerificationScreen> createState() =>
+  ConsumerState<EmailVerificationScreen> createState() =>
       _EmailVerificationScreenState();
 }
 
-class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
+class _EmailVerificationScreenState
+    extends ConsumerState<EmailVerificationScreen> {
   bool _resending = false;
   bool _checking = false;
   String? _message;
+  DateTime? _lastResendAt;
 
   Future<void> _resendEmail() async {
+    // 60초 쿨다운 (§2.3)
+    if (_lastResendAt != null &&
+        DateTime.now().difference(_lastResendAt!) <
+            const Duration(seconds: 60)) {
+      setState(
+          () => _message = "60초 후에 다시 시도할 수 있어요.");
+      return;
+    }
+
     setState(() {
       _resending = true;
       _message = null;
     });
     try {
-      // TODO: POST /auth/email/resend-verification 연동
-      // (엔드포인트가 M0에 포함되는지 BE 확인 필요)
-      await Future.delayed(const Duration(milliseconds: 300));
+      final authService = ref.read(authServiceProvider);
+      await authService.resendVerification(widget.email);
+      _lastResendAt = DateTime.now();
       if (!mounted) return;
       setState(() => _message = "인증 메일을 다시 보냈어요.");
-    } catch (e) {
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      // TR-14: 계정 유무와 무관하게 항상 200 반환이므로 에러면 네트워크 문제
+      setState(() {
+        _message = e.retryable
+            ? "네트워크에 연결할 수 없어요. 잠시 후 다시 시도해주세요."
+            : "메일 재발송에 실패했어요.";
+      });
+    } catch (_) {
       if (!mounted) return;
       setState(() => _message = "메일 재발송에 실패했어요. 잠시 후 다시 시도해주세요.");
     } finally {
@@ -42,18 +63,39 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
     }
   }
 
+  /// "인증 완료했어요" — 이메일 인증이 됐는지 확인하기 위해 로그인을 시도한다.
+  /// 서버가 emailVerificationRequired: false를 주면 성공.
   Future<void> _checkVerified() async {
     setState(() {
       _checking = true;
       _message = null;
     });
     try {
-      // TODO: GET /me/bootstrap 등으로 emailVerifiedAt 확인
-      // 인증 완료 확인되면 다음 온보딩 단계로 이동:
-      // if (verified) { context.go("/onboarding/consent"); return; }
-      await Future.delayed(const Duration(milliseconds: 300));
+      // 인증 완료 확인을 위해 로그인 시도는 적절하지 않으므로
+      // 대신 bootstrap을 호출해본다. 인증 완료되었으면 정상 응답,
+      // 미인증이면 403 EMAIL_VERIFICATION_REQUIRED.
+      final apiClient = ref.read(apiClientProvider);
+      await apiClient.get<Map<String, dynamic>>("/me/bootstrap");
+
+      // 여기까지 왔으면 인증 완료
       if (!mounted) return;
-      setState(() => _message = "아직 인증이 확인되지 않았어요. 메일함을 확인해주세요.");
+      ref.read(authNotifierProvider.notifier).onEmailVerified();
+      context.go("/onboarding/consent");
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      if (e.code == "EMAIL_VERIFICATION_REQUIRED" ||
+          e.code == "FORBIDDEN") {
+        setState(
+            () => _message = "아직 인증이 확인되지 않았어요. 메일함을 확인해주세요.");
+      } else if (e.code == "UNAUTHORIZED") {
+        // 토큰이 없거나 만료됨 — 로그인부터 다시
+        setState(() => _message = "세션이 만료됐어요. 다시 로그인해주세요.");
+      } else {
+        setState(() => _message = "확인에 실패했어요. 잠시 후 다시 시도해주세요.");
+      }
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _message = "확인에 실패했어요. 잠시 후 다시 시도해주세요.");
     } finally {
       if (mounted) setState(() => _checking = false);
     }
@@ -83,7 +125,13 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
             ),
             if (_message != null) ...[
               const SizedBox(height: 16),
-              Text(_message!, textAlign: TextAlign.center),
+              Text(
+                _message!,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: _message!.contains("보냈") ? Colors.green : Colors.orange,
+                ),
+              ),
             ],
             const SizedBox(height: 32),
             ElevatedButton(
