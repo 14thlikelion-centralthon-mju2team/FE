@@ -2,6 +2,7 @@ import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:go_router/go_router.dart";
 import "../../models/action_log.dart";
+import "../../models/plan.dart";
 import "../../providers/home_providers.dart";
 import "../../providers/offline_queue_providers.dart";
 import "widgets/plan_card.dart";
@@ -38,8 +39,23 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
+  /// 계획이 로드/갱신되면 로컬 알림을 (재)예약한다.
+  /// 같은 리비전이면 스킵 — 불필요한 OS 호출 방지.
+  void _scheduleLocalNotifications(Plan plan, String eventDisplayName) {
+    if (_lastScheduledRevision == plan.revisionNo) return;
+    _lastScheduledRevision = plan.revisionNo;
+
+    LocalNotificationService.instance.schedulePlanNotifications(
+      eventId: plan.eventId,
+      revisionNo: plan.revisionNo,
+      prepStartAt: plan.prepStartAt,
+      recommendedDepartAt: plan.recommendedDepartAt,
+      eventDisplayName: eventDisplayName,
+    );
+  }
+
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final nextEventAsync = ref.watch(nextEventProvider);
 
     return Scaffold(
@@ -54,10 +70,32 @@ class HomeScreen extends ConsumerWidget {
       ),
       body: nextEventAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, st) => Center(child: Text("불러오지 못했어요: $err")),
+        error: (err, st) => Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text("불러오지 못했어요: $err"),
+              const SizedBox(height: 12),
+              ElevatedButton(
+                onPressed: () => ref.invalidate(nextEventProvider),
+                child: const Text("다시 시도"),
+              ),
+            ],
+          ),
+        ),
         data: (event) {
           if (event == null) {
-            return const Center(child: Text("다가오는 일정이 없어요."));
+            return const Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.event_available, size: 48, color: Colors.grey),
+                  SizedBox(height: 12),
+                  Text("다가오는 일정이 없어요.",
+                      style: TextStyle(color: Colors.grey)),
+                ],
+              ),
+            );
           }
 
           final planState = ref.watch(planControllerProvider(event.eventId));

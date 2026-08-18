@@ -11,6 +11,7 @@ class PlanCard extends StatelessWidget {
     super.key,
     required this.eventTitle,
     required this.plan,
+    this.previousPlan,
     required this.onPrepStart,
     required this.onDeparted,
     required this.onSnooze,
@@ -22,6 +23,7 @@ class PlanCard extends StatelessWidget {
 
   final String eventTitle;
   final Plan plan;
+  final Plan? previousPlan;
   final VoidCallback onPrepStart;
   final VoidCallback onDeparted;
   final VoidCallback onSnooze;
@@ -46,6 +48,12 @@ class PlanCard extends StatelessWidget {
         return "도착했어요.";
       case EventLifecycleStatus.closed:
         return "일정이 마무리됐어요.";
+      case EventLifecycleStatus.skipped:
+        return "이 일정은 건너뛰었어요.";
+      case EventLifecycleStatus.cancelled:
+        return "이 일정은 취소됐어요.";
+      case EventLifecycleStatus.unresolved:
+        return "도착 여부를 확인하지 못했어요.";
     }
   }
 
@@ -58,6 +66,8 @@ class PlanCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // 계획 변경 배너 — 리비전이 바뀌었을 때만 표시
+            PlanChangeBanner(currentPlan: plan, previousPlan: previousPlan),
             Text(eventTitle,
                 style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
             const SizedBox(height: 4),

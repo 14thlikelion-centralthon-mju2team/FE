@@ -40,11 +40,12 @@ abstract class PrepItem with _$PrepItem {
   bool get isInvalidChipCombination => fromChip && sensitive;
 }
 
-/// 추천 칩 목록. 민감·규제 품목(담배·주류 등)은 여기 포함하지 않는다
-/// (PRD §1.1 "추천 칩은 일반적인 준비물 위주로 제공").
+/// 추천 칩 목록. 민감·규제 품목(담배·주류·복용약 등)은 여기 포함하지 않는다
+/// (PRD §1.1 "추천 칩은 일반적인 준비물 위주로 제공", TR-10 추천 경계).
+/// 복용약은 사용자가 "직접 추가"로만 등록할 수 있으며, 선택 시 서버가
+/// ruleCategory='medication'을 판별해 isSensitive=true를 강제 세팅한다.
 const List<Map<String, dynamic>> kPrepItemQuickAddChips = [
   {'label': '영양제', 'kind': PrepKind.consume},
-  {'label': '복용약', 'kind': PrepKind.consume, 'sensitive': true},
   {'label': '물·텀블러', 'kind': PrepKind.carry},
   {'label': '선크림', 'kind': PrepKind.carry},
   {'label': '마스크', 'kind': PrepKind.carry},

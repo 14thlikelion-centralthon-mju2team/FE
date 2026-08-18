@@ -1,14 +1,17 @@
 import "package:flutter/material.dart";
+import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:go_router/go_router.dart";
+import "../../core/auth_service.dart";
+import "../../network/api_client.dart";
+import "../../providers/auth_providers.dart";
 
-/// PRD §11.2 "1.소셜 로그인/이메일 가입 2.필수 약관 동의" 순서 반영.
-/// API 명세 §consent: consentType(terms/privacy/location/marketing),
-/// policyVersion, action(agreed/revoked), isRequired.
-class ConsentScreen extends StatefulWidget {
+/// PRD §11.2 "필수 약관 동의" / API 명세 §2.8 POST /consents
+/// consentRequired가 빈 배열이 될 때까지 홈 진입을 막는다.
+class ConsentScreen extends ConsumerStatefulWidget {
   const ConsentScreen({super.key});
 
   @override
-  State<ConsentScreen> createState() => _ConsentScreenState();
+  ConsumerState<ConsentScreen> createState() => _ConsentScreenState();
 }
 
 class _ConsentItem {
@@ -24,7 +27,7 @@ class _ConsentItem {
   bool agreed = false;
 }
 
-class _ConsentScreenState extends State<ConsentScreen> {
+class _ConsentScreenState extends ConsumerState<ConsentScreen> {
   final List<_ConsentItem> _items = [
     _ConsentItem(type: "terms", label: "[필수] 이용약관 동의", required: true),
     _ConsentItem(type: "privacy", label: "[필수] 개인정보 처리방침 동의", required: true),
@@ -48,22 +51,49 @@ class _ConsentScreenState extends State<ConsentScreen> {
   }
 
   bool _submitting = false;
+  String? _error;
+
+  /// 약관 동의 정책 버전. 실제 운영에서는 서버가 내려주는 최신 버전을
+  /// bootstrap에서 받아 써야 하지만 MVP에서는 하드코딩.
+  static const _policyVersion = "v1";
 
   Future<void> _submit() async {
-    setState(() => _submitting = true);
+    setState(() {
+      _submitting = true;
+      _error = null;
+    });
     try {
-      // TODO(fe-auth-onboarding): POST /consents 연동
-      // 필수 항목만이 아니라 선택 항목도 각각의 agreed 상태를 그대로 전송.
-      // for (final item in _items) {
-      //   await apiClient.post('/consents', body: {
-      //     'consentType': item.type,
-      //     'policyVersion': '2026-08-17', // TODO: 실제 정책 버전 확정 필요
-      //     'action': item.agreed ? 'agreed' : 'revoked',
-      //     'isRequired': item.required,
-      //   });
-      // }
+      final authService = ref.read(authServiceProvider);
+
+      final consents = _items
+          .map((item) => ConsentEntry(
+                consentType: item.type,
+                policyVersion: _policyVersion,
+                action: item.agreed ? "agreed" : "revoked",
+                isRequired: item.required,
+              ))
+          .toList();
+
+      await authService.submitConsents(consents);
+
       if (!mounted) return;
-      context.go("/onboarding/interest");
+
+      // 약관 동의 완료 → AuthNotifier 상태 전이
+      ref.read(authNotifierProvider.notifier).onConsentCompleted();
+
+      // 온보딩 다음 단계(준비시간 입력)로 이동
+      context.go("/onboarding/prep-time");
+    } on ApiException catch (e) {
+      setState(() {
+        switch (e.code) {
+          case "NETWORK_ERROR":
+            _error = "네트워크에 연결할 수 없어요. 잠시 후 다시 시도해주세요.";
+          default:
+            _error = "동의 처리에 실패했어요. 다시 시도해주세요.";
+        }
+      });
+    } catch (_) {
+      setState(() => _error = "동의 처리에 실패했어요. 다시 시도해주세요.");
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
@@ -95,7 +125,7 @@ class _ConsentScreenState extends State<ConsentScreen> {
                   },
                   secondary: TextButton(
                     onPressed: () {
-                      // TODO: 약관 전문 화면으로 이동 (기획/디자인 확정 대기)
+                      // TODO: 약관 전문 화면으로 이동 (정적 마크다운 뷰어)
                     },
                     child: const Text("보기"),
                   ),
@@ -103,11 +133,19 @@ class _ConsentScreenState extends State<ConsentScreen> {
               },
             ),
           ),
+          if (_error != null)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Text(_error!, style: const TextStyle(color: Colors.red)),
+            ),
           Padding(
             padding: const EdgeInsets.all(16),
-            child: ElevatedButton(
-              onPressed: (_allRequiredAgreed && !_submitting) ? _submit : null,
-              child: Text(_submitting ? "처리 중..." : "동의하고 계속하기"),
+            child: SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: (_allRequiredAgreed && !_submitting) ? _submit : null,
+                child: Text(_submitting ? "처리 중..." : "동의하고 계속하기"),
+              ),
             ),
           ),
         ],

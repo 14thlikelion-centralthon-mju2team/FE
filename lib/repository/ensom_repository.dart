@@ -40,6 +40,9 @@ abstract class EnsomRepository {
   Future<List<RouteOption>> fetchRouteOptions(String planId);
   Future<Plan> selectRoute(String planId, String routeOptionId);
 
+  // 설정 (SET-03, ONB-01)
+  Future<void> updateSettings(Map<String, dynamic> patch);
+
   // 맞춤 준비 항목 (ONB-01, SET-02, PLAN-05)
   Future<List<PrepItem>> fetchPrepItems();
   Future<PrepItem> createPrepItem(PrepItem item);
@@ -70,6 +73,13 @@ abstract class EnsomRepository {
   // 웰니스 관심 항목 설정 (WELL-06)
   Future<List<WellnessPref>> fetchWellnessPrefs();
   Future<void> updateWellnessPrefs(List<WellnessPref> prefs);
+
+  // 웰니스 설정 (WELL-06) — GET/PATCH /me/wellness-prefs
+  Future<List<WellnessPref>> fetchWellnessPrefs();
+  Future<void> updateWellnessPrefs(List<WellnessPref> prefs);
+
+  // 일일 마무리 카드 조회 기록 (WELL-05) — POST /summary/daily/{summaryId}/viewed
+  Future<void> markDailySummaryViewed(String summaryId);
 
   // 행동 기록 -- API v5.0 §13: 배치 {actions:[...]}, clientEventId로 멱등 보장 (TR-03)
   Future<ActionBatchResponse> submitActions(

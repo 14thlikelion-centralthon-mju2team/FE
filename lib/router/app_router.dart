@@ -1,6 +1,8 @@
 import "package:flutter/material.dart";
+import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:go_router/go_router.dart";
 import "placeholder_screen.dart";
+import "../providers/auth_providers.dart";
 import "../screens/onboarding/auth_screen.dart";
 import "../screens/onboarding/consent_screen.dart";
 import "../screens/onboarding/email_verification_screen.dart";
@@ -30,58 +32,29 @@ final appRouter = GoRouter(
           // TODO(fe-auth-onboarding): 실제 Google OAuth 연동
         },
       ),
-    ),
-    GoRoute(
-      path: "/onboarding/email-verification",
-      builder: (c, s) {
-        final email = s.uri.queryParameters["email"] ?? "";
-        return EmailVerificationScreen(email: email);
-      },
-    ),
-    GoRoute(
-      path: "/onboarding/consent",
-      builder: (c, s) => const ConsentScreen(),
-    ),
-    GoRoute(
-      path: "/onboarding/interest",
-      builder: (c, s) => const PlaceholderScreen(title: "관심 영역 선택"),
-    ),
-    GoRoute(
-        path: "/onboarding/survey1",
-        builder: (c, s) => const PlaceholderScreen(title: "설문 1/2")),
-    GoRoute(
-        path: "/onboarding/survey2",
-        builder: (c, s) => const PlaceholderScreen(title: "설문 2/2")),
-    GoRoute(
-        path: "/onboarding/health-data",
-        builder: (c, s) => const PlaceholderScreen(title: "건강 데이터 업로드")),
-    GoRoute(
-        path: "/onboarding/external-data",
-        builder: (c, s) => const PlaceholderScreen(title: "외부 데이터 연동")),
-    GoRoute(
-        path: "/onboarding/notification-permission",
-        builder: (c, s) => const PlaceholderScreen(title: "알림 권한")),
-    GoRoute(
+      GoRoute(
+        path: "/onboarding/consent",
+        builder: (c, s) => const ConsentScreen(),
+      ),
+      GoRoute(
+        path: "/onboarding/prep-time",
+        builder: (c, s) => const PrepTimeEntryScreen(),
+      ),
+      GoRoute(
         path: "/onboarding/location-intro",
-        builder: (c, s) => const LocationPermissionScreen()),
-    GoRoute(
-        path: "/onboarding/location-modal",
-        builder: (c, s) => const PlaceholderScreen(title: "권한 모달")),
-    GoRoute(
+        builder: (c, s) => const LocationPermissionScreen(),
+      ),
+      GoRoute(
+        path: "/onboarding/interest",
+        builder: (c, s) => const PlaceholderScreen(title: "관심 영역 선택"),
+      ),
+      GoRoute(
         path: "/onboarding/complete",
-        builder: (c, s) => const PlaceholderScreen(title: "온보딩 완료")),
-    GoRoute(
-      path: "/onboarding/prep-time",
-      builder: (c, s) => const PrepTimeEntryScreen(),
-    ),
-    GoRoute(
-        path: "/places/manage",
-        builder: (c, s) => const PlaceRegistrationScreen()),
-    GoRoute(
-      path: "/plans/:planId/routes",
-      builder: (c, s) => RouteSelectionScreen(
-        planId: s.pathParameters["planId"]!,
-        eventId: s.uri.queryParameters["eventId"]!,
+        builder: (c, s) => const PlaceholderScreen(title: "온보딩 완료"),
+      ),
+      GoRoute(
+        path: "/onboarding/password-reset",
+        builder: (c, s) => const PlaceholderScreen(title: "비밀번호 재설정"),
       ),
     ),
     GoRoute(
@@ -107,23 +80,55 @@ final appRouter = GoRouter(
         StatefulShellBranch(routes: [
           GoRoute(
               path: "/map",
-              builder: (c, s) => const PlaceholderScreen(title: "지도")),
-        ]),
-        StatefulShellBranch(routes: [
-          GoRoute(
+              builder: (c, s) => const PlaceholderScreen(title: "지도"),
+            ),
+          ]),
+          StatefulShellBranch(routes: [
+            GoRoute(
               path: "/calendar",
-              builder: (c, s) => const PlaceholderScreen(title: "캘린더")),
-        ]),
-        StatefulShellBranch(routes: [
-          GoRoute(
+              builder: (c, s) => const PlaceholderScreen(title: "캘린더"),
+            ),
+          ]),
+          StatefulShellBranch(routes: [
+            GoRoute(
               path: "/settings",
-              builder: (c, s) => const PlaceholderScreen(title: "설정")),
-        ]),
-      ],
-    ),
-  ],
-);
+              builder: (c, s) => const PlaceholderScreen(title: "설정"),
+            ),
+          ]),
+        ],
+      ),
+    ],
+  );
+});
 
+// ─── 스플래시 (세션 확인 중 표시) ────────────────────────────────
+class _SplashScreen extends StatelessWidget {
+  const _SplashScreen();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(
+      body: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              "Ensom",
+              style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+            ),
+            SizedBox(height: 8),
+            Text("늦지 않게, 서두르지 않게.",
+                style: TextStyle(color: Colors.grey)),
+            SizedBox(height: 32),
+            CircularProgressIndicator(),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── 메인 탭 셸 ─────────────────────────────────────────────────
 class MainTabShell extends StatelessWidget {
   final StatefulNavigationShell shell;
   const MainTabShell({super.key, required this.shell});
