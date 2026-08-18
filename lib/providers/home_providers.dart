@@ -28,6 +28,8 @@ final planControllerProvider = StateNotifierProvider.autoDispose
 
 /// 계획의 단일 진실원천.
 /// previousPlan을 추적해서 리비전 변경 시 UI가 "무엇이 바뀌었는지"를 표시한다.
+/// resolve 호출은 OfflineActionQueueService.enqueueResolve()를 경유해
+/// clientEventId가 DB에 영속 저장되고, 재시도 시 동일 ID가 재사용된다.
 class PlanController extends StateNotifier<AsyncValue<Plan>> {
   PlanController({required this.repo, required this.queue, required this.eventId})
       : super(const AsyncValue.loading()) {
