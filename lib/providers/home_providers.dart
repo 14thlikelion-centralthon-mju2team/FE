@@ -1,11 +1,12 @@
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:flutter_riverpod/legacy.dart";
-import "package:uuid/uuid.dart";
 import "../models/event.dart";
 import "../models/plan.dart";
 import "../models/action_log.dart";
+import "../local/offline_action_queue_service.dart";
 import "../repository/ensom_repository.dart";
 import "../repository/providers.dart";
+import "offline_queue_providers.dart";
 
 final nextEventProvider = FutureProvider.autoDispose<Event?>((ref) async {
   final repo = ref.watch(ensomRepositoryProvider);
@@ -21,19 +22,22 @@ final routeOptionsProvider = FutureProvider.autoDispose
 final planControllerProvider = StateNotifierProvider.autoDispose
     .family<PlanController, AsyncValue<Plan>, String>((ref, eventId) {
   final repo = ref.watch(ensomRepositoryProvider);
-  return PlanController(repo: repo, eventId: eventId);
+  final queue = ref.watch(offlineActionQueueServiceProvider);
+  return PlanController(repo: repo, queue: queue, eventId: eventId);
 });
 
 /// 계획의 단일 진실원천.
+/// resolve 호출은 OfflineActionQueueService.enqueueResolve()를 경유해
+/// clientEventId가 DB에 영속 저장되고, 재시도 시 동일 ID가 재사용된다.
 class PlanController extends StateNotifier<AsyncValue<Plan>> {
-  PlanController({required this.repo, required this.eventId})
+  PlanController({required this.repo, required this.queue, required this.eventId})
       : super(const AsyncValue.loading()) {
     _load();
   }
 
   final EnsomRepository repo;
+  final OfflineActionQueueService queue;
   final String eventId;
-  static const _uuid = Uuid();
 
   Future<void> _load() async {
     state = const AsyncValue.loading();
@@ -64,8 +68,8 @@ class PlanController extends StateNotifier<AsyncValue<Plan>> {
     state = AsyncValue.data(updated);
   }
 
-  /// 낙관적 갱신 + 실패 시 롤백.
-  /// clientEventId는 오프라인 큐(enqueueResolve) 내부에서 발급·영속 저장된다.
+  /// 낙관적 갱신. 실제 전송은 오프라인 큐(enqueueResolve)를 경유한다.
+  /// clientEventId는 큐 내부에서 1회 발급·DB 영속 저장되므로
   /// 네트워크 유실 후 재시도에서도 동일 ID가 재사용된다 (TR-03).
   Future<void> toggleChecklistItem(ChecklistItem item, bool completed) async {
     final plan = state.value;
@@ -86,16 +90,19 @@ class PlanController extends StateNotifier<AsyncValue<Plan>> {
     );
     state = AsyncValue.data(optimistic);
 
-    try {
-      await repo.resolveChecklistItem(
-          plan.planId, item.planPrepItemId, newStatus,
-          clientEventId: _uuid.v4());
-    } catch (_) {
-      state = AsyncValue.data(plan); // 롤백
+    final sent = await queue.enqueueResolve(
+      planId: plan.planId,
+      resolveType: "checklist",
+      itemId: item.planPrepItemId,
+      status: newStatus.name,
+    );
+
+    if (!sent) {
+      // 오프라인 — 낙관적 상태 유지, 다음 flushAll에서 재전송
     }
   }
 
-  /// 웰니스 행동 resolve — 동일하게 clientEventId를 호출 시점에 발급.
+  /// 웰니스 행동 resolve — 동일하게 enqueueResolve() 경유.
   Future<void> resolveWellnessAction(
     WellnessAction action,
     WellnessActionCompletionStatus status,
@@ -114,12 +121,15 @@ class PlanController extends StateNotifier<AsyncValue<Plan>> {
     );
     state = AsyncValue.data(optimistic);
 
-    try {
-      await repo.resolveWellnessAction(
-          plan.planId, action.wellnessActionId, status,
-          clientEventId: _uuid.v4());
-    } catch (_) {
-      state = AsyncValue.data(plan);
+    final sent = await queue.enqueueResolve(
+      planId: plan.planId,
+      resolveType: "wellness",
+      itemId: action.wellnessActionId,
+      status: status.name,
+    );
+
+    if (!sent) {
+      // 오프라인 — 낙관적 상태 유지, 다음 flushAll에서 재전송
     }
   }
 }
