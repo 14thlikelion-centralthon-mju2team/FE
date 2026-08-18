@@ -56,13 +56,15 @@ abstract class EnsomRepository {
   Future<void> resolveChecklistItem(
     String planId,
     String planPrepItemId,
-    ChecklistCompletionStatus status,
-  );
+    ChecklistCompletionStatus status, {
+    required String clientEventId,
+  });
   Future<void> resolveWellnessAction(
     String planId,
     String wellnessActionId,
-    WellnessActionCompletionStatus status,
-  );
+    WellnessActionCompletionStatus status, {
+    required String clientEventId,
+  });
   Future<DailyWellnessSummary?> fetchDailySummary(String date);
 
   // 행동 기록 -- API v5.0 §13: 배치 {actions:[...]}, clientEventId로 멱등 보장 (TR-03)

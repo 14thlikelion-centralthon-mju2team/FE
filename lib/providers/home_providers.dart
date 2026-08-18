@@ -1,5 +1,6 @@
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:flutter_riverpod/legacy.dart";
+import "package:uuid/uuid.dart";
 import "../models/event.dart";
 import "../models/plan.dart";
 import "../models/action_log.dart";
@@ -32,6 +33,7 @@ class PlanController extends StateNotifier<AsyncValue<Plan>> {
 
   final EnsomRepository repo;
   final String eventId;
+  static const _uuid = Uuid();
 
   Future<void> _load() async {
     state = const AsyncValue.loading();
@@ -84,7 +86,8 @@ class PlanController extends StateNotifier<AsyncValue<Plan>> {
 
     try {
       await repo.resolveChecklistItem(
-          plan.planId, item.planPrepItemId, newStatus);
+          plan.planId, item.planPrepItemId, newStatus,
+          clientEventId: _uuid.v4());
     } catch (_) {
       state = AsyncValue.data(plan); // 롤백
     }
@@ -112,7 +115,8 @@ class PlanController extends StateNotifier<AsyncValue<Plan>> {
 
     try {
       await repo.resolveWellnessAction(
-          plan.planId, action.wellnessActionId, status);
+          plan.planId, action.wellnessActionId, status,
+          clientEventId: _uuid.v4());
     } catch (_) {
       state = AsyncValue.data(plan);
     }

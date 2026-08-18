@@ -101,13 +101,14 @@ class ApiEnsomRepository implements EnsomRepository {
   Future<void> resolveChecklistItem(
     String planId,
     String planPrepItemId,
-    ChecklistCompletionStatus status,
-  ) async {
+    ChecklistCompletionStatus status, {
+    required String clientEventId,
+  }) async {
     await _client.post<Map<String, dynamic>>(
       "/plans/$planId/prep-items/$planPrepItemId/resolve",
       body: {
-        "completionStatus": status.name, // pending|completed, JsonValue와 동일 문자열
-        "clientEventId": _uuid.v4(),
+        "completionStatus": status.name,
+        "clientEventId": clientEventId,
       },
     );
   }
@@ -116,13 +117,14 @@ class ApiEnsomRepository implements EnsomRepository {
   Future<void> resolveWellnessAction(
     String planId,
     String wellnessActionId,
-    WellnessActionCompletionStatus status,
-  ) async {
+    WellnessActionCompletionStatus status, {
+    required String clientEventId,
+  }) async {
     await _client.post<Map<String, dynamic>>(
       "/plans/$planId/wellness-actions/$wellnessActionId/resolve",
       body: {
-        "completionStatus": status.name, // proposed|completed|dismissed
-        "clientEventId": _uuid.v4(),
+        "completionStatus": status.name,
+        "clientEventId": clientEventId,
       },
     );
   }
