@@ -204,7 +204,11 @@ class ApiEnsomRepository implements EnsomRepository {
   ) async {
     await _client.post<Map<String, dynamic>>(
       "/notifications/$notificationId/respond",
-      body: {"action": _actionJsonValues[action]},
+      body: {
+        "action": _actionJsonValues[action],
+        "clientEventId": _uuid.v4(),
+        "deviceTs": DateTime.now().toIso8601String(),
+      },
     );
   }
 
@@ -216,9 +220,18 @@ class ApiEnsomRepository implements EnsomRepository {
       return DailyWellnessSummary.fromJson(json);
     } on ApiException catch (e) {
       // 관리 일정 0건이면 카드를 만들지 않는다 (숫자를 지어내지 않음)
-      if (e.code == "NOT_FOUND") return null;
+      if (e.code == "NOT_FOUND" || e.code == "SUMMARY_NOT_GENERATED") {
+        return null;
+      }
       rethrow;
     }
+  }
+
+  @override
+  Future<void> markDailySummaryViewed(String summaryId) async {
+    await _client.post<Map<String, dynamic>>(
+      "/summary/daily/$summaryId/viewed",
+    );
   }
 
   @override
@@ -230,7 +243,7 @@ class ApiEnsomRepository implements EnsomRepository {
 
   @override
   Future<void> updateWellnessPrefs(List<WellnessPref> prefs) async {
-    await _client.post<Map<String, dynamic>>(
+    await _client.patch<Map<String, dynamic>>(
       "/me/wellness-prefs",
       body: {"prefs": prefs.map((p) => p.toJson()).toList()},
     );

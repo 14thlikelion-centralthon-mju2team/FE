@@ -11,8 +11,15 @@ final dailySummaryProvider =
   return repo.fetchDailySummary(dateStr);
 });
 
-class DailySummaryScreen extends ConsumerWidget {
+class DailySummaryScreen extends ConsumerStatefulWidget {
   const DailySummaryScreen({super.key});
+
+  @override
+  ConsumerState<DailySummaryScreen> createState() => _DailySummaryScreenState();
+}
+
+class _DailySummaryScreenState extends ConsumerState<DailySummaryScreen> {
+  bool _viewedMarked = false;
 
   Color _bandColor(DwlBand band) {
     switch (band) {
@@ -36,8 +43,17 @@ class DailySummaryScreen extends ConsumerWidget {
     }
   }
 
+  /// isViewed==false일 때 화면 진입 시 1회 POST /summary/daily/{id}/viewed 호출.
+  void _markViewedIfNeeded(DailyWellnessSummary summary) {
+    if (_viewedMarked || summary.isViewed) return;
+    _viewedMarked = true;
+    final repo = ref.read(ensomRepositoryProvider);
+    // fire-and-forget: 조회 기록 실패가 화면을 막아서는 안 됨
+    repo.markDailySummaryViewed(summary.summaryId);
+  }
+
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final today = DateTime.now();
     final summaryAsync = ref.watch(dailySummaryProvider(today));
 
@@ -63,7 +79,10 @@ class DailySummaryScreen extends ConsumerWidget {
           }
           return Padding(
             padding: const EdgeInsets.all(24),
-            child: Column(
+            child: Builder(builder: (context) {
+              // 화면 진입 시 조회 기록 (§12.4 POST /summary/daily/{id}/viewed)
+              _markViewedIfNeeded(summary);
+              return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
@@ -94,7 +113,8 @@ class DailySummaryScreen extends ConsumerWidget {
                 // 문구다 (PRD §14.8) -- 클라이언트가 재구성하지 않는다.
                 Text(summary.message, style: const TextStyle(fontSize: 15)),
               ],
-            ),
+            );
+            }),
           );
         },
       ),

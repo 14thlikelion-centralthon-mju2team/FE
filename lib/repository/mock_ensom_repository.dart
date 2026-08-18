@@ -350,6 +350,7 @@ class MockEnsomRepository implements EnsomRepository {
   Future<DailyWellnessSummary?> fetchDailySummary(String date) async {
     await Future.delayed(const Duration(milliseconds: 300));
     return DailyWellnessSummary(
+      summaryId: "mock-summary-1",
       summaryDate: date,
       eventCount: 3,
       totalOutdoorMinutes: 43,
@@ -357,6 +358,11 @@ class MockEnsomRepository implements EnsomRepository {
       cardScenario: "exposure",
       message: "자외선이 높은 시간대의 예상 야외 이동이 길었어요. 지금은 수분을 보충하고 편안하게 쉬어주세요.",
     );
+  }
+
+  @override
+  Future<void> markDailySummaryViewed(String summaryId) async {
+    await Future.delayed(const Duration(milliseconds: 100));
   }
 
   @override

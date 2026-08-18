@@ -8,8 +8,8 @@ import "../../repository/providers.dart";
 const _topicLabels = {
   "uv": "자외선",
   "pm": "미세먼지",
-  "heat": "기온·폭염",
-  "precipitation": "강수",
+  "temp": "기온·체감온도",
+  "rain": "강수",
   "hydration": "수분 섭취",
 };
 
@@ -98,15 +98,15 @@ class _PrefTile extends StatelessWidget {
             ),
             if (pref.isEnabled) ...[
               Text(
-                "재알림 주기: ${pref.remindIntervalMinutes}분",
+                "재알림 주기: ${pref.remindIntervalMinutes ?? 120}분",
                 style: const TextStyle(fontSize: 12, color: Colors.grey),
               ),
               Slider(
-                value: pref.remindIntervalMinutes.toDouble(),
+                value: (pref.remindIntervalMinutes ?? 120).toDouble(),
                 min: 30,
                 max: 240,
                 divisions: 14,
-                label: "${pref.remindIntervalMinutes}분",
+                label: "${pref.remindIntervalMinutes ?? 120}분",
                 onChanged: (v) =>
                     onChanged(pref.copyWith(remindIntervalMinutes: v.round())),
               ),
