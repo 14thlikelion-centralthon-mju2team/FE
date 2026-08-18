@@ -249,6 +249,12 @@ class MockEnsomRepository implements EnsomRepository {
   Future<Plan> selectRoute(String planId, String routeOptionId) =>
       _mockPlan();
 
+  // -- 설정 ---------------------------------------------------------
+  @override
+  Future<void> updateSettings(Map<String, dynamic> patch) async {
+    await Future.delayed(const Duration(milliseconds: 200));
+  }
+
   // -- 맞춤 준비 항목 ------------------------------------------------
   @override
   Future<List<PrepItem>> fetchPrepItems() async {

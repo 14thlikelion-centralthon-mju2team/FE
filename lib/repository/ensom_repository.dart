@@ -39,6 +39,9 @@ abstract class EnsomRepository {
   Future<List<RouteOption>> fetchRouteOptions(String planId);
   Future<Plan> selectRoute(String planId, String routeOptionId);
 
+  // 설정 (SET-03, ONB-01)
+  Future<void> updateSettings(Map<String, dynamic> patch);
+
   // 맞춤 준비 항목 (ONB-01, SET-02, PLAN-05)
   Future<List<PrepItem>> fetchPrepItems();
   Future<PrepItem> createPrepItem(PrepItem item);

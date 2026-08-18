@@ -128,7 +128,95 @@ class ApiEnsomRepository implements EnsomRepository {
   }
 
   // ================================================================
-  // 아래부터는 이번 PR(M1) 범위 밖. 호출 시 즉시 예외를 던진다.
+  // 설정 (SET-03, ONB-01) — PATCH /me/settings
+  // ================================================================
+
+  @override
+  Future<void> updateSettings(Map<String, dynamic> patch) async {
+    await _client.patch<Map<String, dynamic>>(
+      "/me/settings",
+      body: patch,
+    );
+  }
+
+  // ================================================================
+  // 맞춤 준비 항목 (ONB-01, SET-02, PLAN-05)
+  // API 명세 §6: POST /prep-items
+  // ================================================================
+
+  @override
+  Future<List<PrepItem>> fetchPrepItems() async {
+    final json = await _client.get<List<dynamic>>("/prep-items");
+    return json
+        .map((e) => PrepItem.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  @override
+  Future<PrepItem> createPrepItem(PrepItem item) async {
+    final json = await _client.post<Map<String, dynamic>>(
+      "/prep-items",
+      body: _prepItemToRequestBody(item),
+    );
+    return PrepItem.fromJson(json);
+  }
+
+  @override
+  Future<PrepItem> updatePrepItem(String id, PrepItem item) async {
+    final json = await _client.patch<Map<String, dynamic>>(
+      "/prep-items/$id",
+      body: _prepItemToRequestBody(item),
+    );
+    return PrepItem.fromJson(json);
+  }
+
+  @override
+  Future<void> deletePrepItem(String id) async {
+    await _client.delete<Map<String, dynamic>>("/prep-items/$id");
+  }
+
+  /// API 명세 §6.1의 요청 바디 구성.
+  /// PrepItem 모델의 필드를 서버가 기대하는 camelCase 필드로 변환한다.
+  Map<String, dynamic> _prepItemToRequestBody(PrepItem item) {
+    // PrepKind → (ruleCategory, actionType) 매핑
+    // API 명세 §6: ruleCategory × actionType 2축 구조
+    String ruleCategory;
+    String actionType;
+
+    switch (item.kind) {
+      case PrepKind.carry:
+        ruleCategory = "general_item";
+        actionType = "carry";
+      case PrepKind.consume:
+        // sensitive가 medication 판별 기준 (§6.2: medication → isSensitive 강제)
+        ruleCategory = item.sensitive ? "medication" : "supplement";
+        actionType = "consume";
+      case PrepKind.purchase:
+        ruleCategory = "personal_item";
+        actionType = "purchase";
+      case PrepKind.routine:
+        ruleCategory = "routine";
+        actionType = "timed_routine";
+    }
+
+    return {
+      "ruleName": item.label,
+      "ruleCategory": ruleCategory,
+      "actionType": actionType,
+      "ruleTiming": "pre_departure",
+      "defaultMinutes": item.kind == PrepKind.routine ? item.extraMin : null,
+      "applyEventKind": null,
+      "applyTimeBand": null,
+      "applyPlaceId": null,
+      "applyWeather": null,
+      "isRequired": false,
+      "isSensitive": item.sensitive,
+      "fromChip": item.fromChip,
+    };
+  }
+
+  // ================================================================
+  // 아래부터는 이번 PR 범위 밖. 호출 시 즉시 예외를 던진다.
   // ================================================================
 
   @override
@@ -164,22 +252,6 @@ class ApiEnsomRepository implements EnsomRepository {
     String? originPlaceId,
   }) =>
       throw UnimplementedError("계획 수동 수정 UI는 M1 이후 범위");
-
-  @override
-  Future<List<PrepItem>> fetchPrepItems() =>
-      throw UnimplementedError("맞춤 준비 항목 목록은 feat/fe-auth-onboarding(온보딩) 범위");
-
-  @override
-  Future<PrepItem> createPrepItem(PrepItem item) =>
-      throw UnimplementedError("feat/fe-auth-onboarding 범위");
-
-  @override
-  Future<PrepItem> updatePrepItem(String id, PrepItem item) =>
-      throw UnimplementedError("feat/fe-auth-onboarding 범위");
-
-  @override
-  Future<void> deletePrepItem(String id) =>
-      throw UnimplementedError("feat/fe-auth-onboarding 범위");
 
   @override
   Future<List<AppNotification>> fetchTodayNotifications() =>

@@ -1,50 +1,97 @@
 import "package:flutter/material.dart";
+import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:go_router/go_router.dart";
+import "../../models/prep_item.dart";
+import "../../network/api_client.dart";
+import "../../repository/providers.dart";
 
 /// PRD §11.3 "준비 시간 및 맞춤 준비 항목 입력 화면" 반영.
 /// 맞춤 준비 항목은 별도 온보딩 단계가 아니라 이 화면 안의 한 섹션이다
-/// -- API 명세 §6에서 이미 확정한 원칙, 화면 분리 금지.
-class PrepTimeEntryScreen extends StatefulWidget {
+/// — API 명세 §6에서 이미 확정한 원칙, 화면 분리 금지.
+///
+/// 이 화면에서 처리하는 API 호출:
+///   1. PATCH /me/settings { initialPrepMinutes } — §4.1
+///   2. POST /prep-items (선택된 빠른 추가 + 직접 입력 + 시간 루틴) — §6.1
+class PrepTimeEntryScreen extends ConsumerStatefulWidget {
   const PrepTimeEntryScreen({super.key});
 
   @override
-  State<PrepTimeEntryScreen> createState() => _PrepTimeEntryScreenState();
+  ConsumerState<PrepTimeEntryScreen> createState() =>
+      _PrepTimeEntryScreenState();
 }
 
+// ─── 빠른 추가 항목 (carry/consume/purchase) ────────────────────────
+
 class _QuickAddItem {
-  _QuickAddItem({required this.label, required this.kind});
+  _QuickAddItem({
+    required this.label,
+    required this.kind,
+    this.sensitive = false,
+  });
+
   final String label;
-  final String kind;
+  final PrepKind kind;
+  final bool sensitive;
   bool selected = false;
 }
 
-class _PrepTimeEntryScreenState extends State<PrepTimeEntryScreen> {
-  static const _presets = [10, 20, 30, 45, 60]; // 분. "잘 모르겠어요"는 null로 별도 처리
+// ─── 시간 소요 루틴 항목 (timed_routine) ────────────────────────────
+
+class _RoutineItem {
+  _RoutineItem({required this.label, required this.minutes});
+
+  final String label;
+  int minutes;
+  bool selected = false;
+}
+
+// ─── 화면 상태 ──────────────────────────────────────────────────────
+
+class _PrepTimeEntryScreenState extends ConsumerState<PrepTimeEntryScreen> {
+  // ── 준비 시간 프리셋 ──────────────────────────────────────────────
+  static const _presets = [10, 20, 30, 45, 60];
   int? _selectedPreset;
   bool _unknownSelected = false;
 
-  // 복용약 등 민감 항목은 추천 칩에 노출하지 않는다 (TR-10, PRD §11.3/§14.8).
-  // 사용자가 "직접 추가"로 입력한 경우에만 준비 항목으로 받고, 그 항목이
-  // 민감한지 여부는 서버가 판단해서 sensitive 플래그를 내려준다 -- 클라이언트가
-  // 텍스트를 보고 미리 추측하거나 저장 시점에만 마스킹하지 않는다.
+  // ── 빠른 추가 칩 (carry/consume/purchase) ─────────────────────────
+  // 민감 항목(복용약)은 추천 칩에 노출하지 않음 (TR-10 추천 경계)
   final List<_QuickAddItem> _quickItems = [
-    _QuickAddItem(label: "영양제", kind: "consume"),
-    _QuickAddItem(label: "물 텀블러", kind: "carry"),
-    _QuickAddItem(label: "선크림", kind: "carry"),
-    _QuickAddItem(label: "마스크", kind: "carry"),
-    _QuickAddItem(label: "우산", kind: "carry"),
-    _QuickAddItem(label: "보조배터리", kind: "carry"),
-    _QuickAddItem(label: "커피 차 간식", kind: "purchase"),
+    _QuickAddItem(label: "영양제", kind: PrepKind.consume),
+    _QuickAddItem(label: "물·텀블러", kind: PrepKind.carry),
+    _QuickAddItem(label: "선크림", kind: PrepKind.carry),
+    _QuickAddItem(label: "마스크", kind: PrepKind.carry),
+    _QuickAddItem(label: "우산", kind: PrepKind.carry),
+    _QuickAddItem(label: "보조배터리", kind: PrepKind.carry),
+    _QuickAddItem(label: "커피·차·간식", kind: PrepKind.purchase),
   ];
 
+  // ── 시간 소요 루틴 칩 (timed_routine) ─────────────────────────────
+  // PRD §11.3: "렌즈, 화장, 식사, 반려동물 돌보기"
+  // 시간이 필요한 루틴 → 설정한 분만큼 준비 시간에 합산됨
+  final List<_RoutineItem> _routineItems = [
+    _RoutineItem(label: "렌즈 착용", minutes: 5),
+    _RoutineItem(label: "화장·스킨케어", minutes: 15),
+    _RoutineItem(label: "식사", minutes: 15),
+    _RoutineItem(label: "샤워", minutes: 15),
+    _RoutineItem(label: "반려동물 돌보기", minutes: 10),
+  ];
+
+  // ── 직접 입력 ─────────────────────────────────────────────────────
   final _customItemController = TextEditingController();
+  final _customRoutineController = TextEditingController();
+  int _customRoutineMinutes = 10;
+
   bool _submitting = false;
+  String? _error;
 
   @override
   void dispose() {
     _customItemController.dispose();
+    _customRoutineController.dispose();
     super.dispose();
   }
+
+  // ── 준비 시간 선택 ────────────────────────────────────────────────
 
   void _selectPreset(int minutes) {
     setState(() {
@@ -60,41 +107,103 @@ class _PrepTimeEntryScreenState extends State<PrepTimeEntryScreen> {
     });
   }
 
+  // ── 제출 ──────────────────────────────────────────────────────────
+
+  bool get _canSubmit => _selectedPreset != null || _unknownSelected;
+
   Future<void> _submit() async {
-    setState(() => _submitting = true);
+    setState(() {
+      _submitting = true;
+      _error = null;
+    });
     try {
-      // TODO(fe-plan-route): PATCH /me/settings { initialPrepMinutes }
-      //   _unknownSelected면 initialPrepMinutes: null 전송 (시드 없음)
-      // TODO(fe-plan-route): POST /prep-items (선택된 quickItems + 직접입력)
-      //   각 항목 kind는 carry/consume/purchase만 이 화면에서 다루고,
-      //   routine(시간 소요 루틴)은 이 화면 범위 밖 -- 설정에서 추가하도록
-      //   API 명세 §6 참고
-      //   직접 입력 항목(_customItemController)은 fromChip=false로 전송하고,
-      //   sensitive 여부는 클라이언트가 정하지 않는다 -- 서버 응답의
-      //   sensitive 플래그를 그대로 받아 잠금화면 마스킹에만 사용한다
-      //   (TR-10 3중 경계: 표시/추천/집계 경계 중 "추천 경계"에 해당).
+      final repo = ref.read(ensomRepositoryProvider);
+
+      // 1. PATCH /me/settings — 준비 시간 시드 저장
+      //    "잘 모르겠어요"는 null 전송 (§4.1: initialPrepMinutes는 null 허용)
+      await repo.updateSettings({
+        "initialPrepMinutes": _unknownSelected ? null : _selectedPreset,
+      });
+
+      // 2. POST /prep-items — 선택된 빠른 추가 항목
+      final selectedQuick = _quickItems.where((i) => i.selected);
+      for (final item in selectedQuick) {
+        await repo.createPrepItem(PrepItem(
+          id: "", // 서버가 발급
+          label: item.label,
+          kind: item.kind,
+          sensitive: item.sensitive,
+          fromChip: true,
+        ));
+      }
+
+      // 3. POST /prep-items — 선택된 시간 소요 루틴
+      final selectedRoutines = _routineItems.where((r) => r.selected);
+      for (final routine in selectedRoutines) {
+        await repo.createPrepItem(PrepItem(
+          id: "",
+          label: routine.label,
+          kind: PrepKind.routine,
+          extraMin: routine.minutes,
+          fromChip: true,
+        ));
+      }
+
+      // 4. POST /prep-items — 직접 입력한 일반 항목
+      final customText = _customItemController.text.trim();
+      if (customText.isNotEmpty) {
+        await repo.createPrepItem(PrepItem(
+          id: "",
+          label: customText,
+          kind: PrepKind.carry,
+          fromChip: false,
+        ));
+      }
+
+      // 5. POST /prep-items — 직접 입력한 루틴
+      final customRoutineText = _customRoutineController.text.trim();
+      if (customRoutineText.isNotEmpty) {
+        await repo.createPrepItem(PrepItem(
+          id: "",
+          label: customRoutineText,
+          kind: PrepKind.routine,
+          extraMin: _customRoutineMinutes,
+          fromChip: false,
+        ));
+      }
+
       if (!mounted) return;
-      context.go("/onboarding/interest");
+      context.go("/home");
+    } on ApiException catch (e) {
+      setState(() {
+        if (e.isNetworkError) {
+          _error = "네트워크에 연결할 수 없어요. 잠시 후 다시 시도해주세요.";
+        } else {
+          _error = e.message;
+        }
+      });
+    } catch (_) {
+      setState(() => _error = "저장에 실패했어요. 다시 시도해주세요.");
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
   }
 
   void _skip() {
-    // 맞춤 항목은 선택 사항 -- 건너뛰어도 온보딩 완료를 막지 않는다 (PRD §11.3)
-    context.go("/onboarding/interest");
+    // 맞춤 항목은 선택 사항 — 건너뛰어도 온보딩 완료를 막지 않음 (PRD §11.3)
+    context.go("/home");
   }
 
-  bool get _canSubmit => _selectedPreset != null || _unknownSelected;
+  // ── UI ────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("준비시간 입력"),
+        title: const Text("준비 시간"),
         actions: [
           TextButton(
-            onPressed: _skip,
+            onPressed: _submitting ? null : _skip,
             child: const Text("나중에 설정할게요"),
           ),
         ],
@@ -102,13 +211,14 @@ class _PrepTimeEntryScreenState extends State<PrepTimeEntryScreen> {
       body: ListView(
         padding: const EdgeInsets.all(24),
         children: [
+          // ── 섹션 1: 준비 시간 ─────────────────────────────────────
           const Text(
             "평소 외출 준비에 얼마나 걸리나요?",
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 4),
           const Text(
-            "정확하지 않아도 괜찮아요. 실제 준비와 이동 기록을 바탕으로 계속 조정할게요.",
+            "정확하지 않아도 괜찮아요. 실제 기록을 바탕으로 계속 조정할게요.",
             style: TextStyle(color: Colors.grey, fontSize: 13),
           ),
           const SizedBox(height: 16),
@@ -130,14 +240,16 @@ class _PrepTimeEntryScreenState extends State<PrepTimeEntryScreen> {
             ],
           ),
 
-          const SizedBox(height: 32),
+          const SizedBox(height: 36),
+
+          // ── 섹션 2: 빠른 추가 (챙기기/사용/구매) ──────────────────
           const Text(
-            "외출 전에 자주 챙기거나 하는 일이 있나요?",
+            "외출 전에 자주 챙기는 것이 있나요?",
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 4),
           const Text(
-            "선택한 항목은 다음 일정의 준비 체크리스트에 자동 반영됩니다.",
+            "선택한 항목은 준비 체크리스트에 자동 반영됩니다.",
             style: TextStyle(color: Colors.grey, fontSize: 13),
           ),
           const SizedBox(height: 16),
@@ -157,15 +269,243 @@ class _PrepTimeEntryScreenState extends State<PrepTimeEntryScreen> {
           TextField(
             controller: _customItemController,
             decoration: const InputDecoration(
-              labelText: "직접 추가",
-              hintText: "예: 렌즈 착용, 반려동물 밥 주기",
+              labelText: "직접 추가 (챙기기)",
+              hintText: "예: 지갑, 이어폰",
+              prefixIcon: Icon(Icons.add_circle_outline),
             ),
           ),
 
-          const SizedBox(height: 40),
-          ElevatedButton(
-            onPressed: (_canSubmit && !_submitting) ? _submit : null,
-            child: Text(_submitting ? "저장 중..." : "다음으로"),
+          const SizedBox(height: 36),
+
+          // ── 섹션 3: 시간 소요 루틴 (timed_routine) ────────────────
+          const Text(
+            "시간이 필요한 루틴이 있나요?",
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            "선택한 루틴 시간이 준비 시작 시각에 반영됩니다.",
+            style: TextStyle(color: Colors.grey, fontSize: 13),
+          ),
+          const SizedBox(height: 16),
+          for (final routine in _routineItems)
+            _RoutineTile(
+              routine: routine,
+              onToggle: (v) => setState(() => routine.selected = v),
+              onMinutesChanged: (m) => setState(() => routine.minutes = m),
+            ),
+
+          const SizedBox(height: 12),
+          _CustomRoutineInput(
+            labelController: _customRoutineController,
+            minutes: _customRoutineMinutes,
+            onMinutesChanged: (m) =>
+                setState(() => _customRoutineMinutes = m),
+          ),
+
+          // ── 합산 미리보기 ─────────────────────────────────────────
+          _RoutineSummary(
+            prepMinutes: _selectedPreset,
+            routineItems: _routineItems,
+            customRoutineLabel: _customRoutineController.text.trim(),
+            customRoutineMinutes: _customRoutineMinutes,
+          ),
+
+          // ── 에러 메시지 ───────────────────────────────────────────
+          if (_error != null) ...[
+            const SizedBox(height: 16),
+            Text(_error!, style: const TextStyle(color: Colors.red)),
+          ],
+
+          const SizedBox(height: 32),
+
+          // ── 제출 버튼 ─────────────────────────────────────────────
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: (_canSubmit && !_submitting) ? _submit : null,
+              child: Text(_submitting ? "저장 중..." : "다음으로"),
+            ),
+          ),
+
+          const SizedBox(height: 16),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── 루틴 항목 타일 ──────────────────────────────────────────────────
+
+class _RoutineTile extends StatelessWidget {
+  const _RoutineTile({
+    required this.routine,
+    required this.onToggle,
+    required this.onMinutesChanged,
+  });
+
+  final _RoutineItem routine;
+  final ValueChanged<bool> onToggle;
+  final ValueChanged<int> onMinutesChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        child: Row(
+          children: [
+            Checkbox(
+              value: routine.selected,
+              onChanged: (v) => onToggle(v ?? false),
+            ),
+            Expanded(child: Text(routine.label)),
+            if (routine.selected) ...[
+              IconButton(
+                icon: const Icon(Icons.remove_circle_outline, size: 20),
+                onPressed: routine.minutes > 5
+                    ? () => onMinutesChanged(routine.minutes - 5)
+                    : null,
+              ),
+              Text(
+                "${routine.minutes}분",
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+              IconButton(
+                icon: const Icon(Icons.add_circle_outline, size: 20),
+                onPressed: routine.minutes < 60
+                    ? () => onMinutesChanged(routine.minutes + 5)
+                    : null,
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── 직접 입력 루틴 ──────────────────────────────────────────────────
+
+class _CustomRoutineInput extends StatelessWidget {
+  const _CustomRoutineInput({
+    required this.labelController,
+    required this.minutes,
+    required this.onMinutesChanged,
+  });
+
+  final TextEditingController labelController;
+  final int minutes;
+  final ValueChanged<int> onMinutesChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: labelController,
+                decoration: const InputDecoration(
+                  labelText: "직접 추가 (루틴)",
+                  hintText: "예: 스트레칭",
+                  isDense: true,
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            IconButton(
+              icon: const Icon(Icons.remove_circle_outline, size: 20),
+              onPressed:
+                  minutes > 5 ? () => onMinutesChanged(minutes - 5) : null,
+            ),
+            Text(
+              "$minutes분",
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+            IconButton(
+              icon: const Icon(Icons.add_circle_outline, size: 20),
+              onPressed:
+                  minutes < 60 ? () => onMinutesChanged(minutes + 5) : null,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── 합산 미리보기 ───────────────────────────────────────────────────
+
+class _RoutineSummary extends StatelessWidget {
+  const _RoutineSummary({
+    required this.prepMinutes,
+    required this.routineItems,
+    required this.customRoutineLabel,
+    required this.customRoutineMinutes,
+  });
+
+  final int? prepMinutes;
+  final List<_RoutineItem> routineItems;
+  final String customRoutineLabel;
+  final int customRoutineMinutes;
+
+  @override
+  Widget build(BuildContext context) {
+    final selectedRoutines = routineItems.where((r) => r.selected);
+    final routineTotal = selectedRoutines.fold<int>(
+            0, (sum, r) => sum + r.minutes) +
+        (customRoutineLabel.isNotEmpty ? customRoutineMinutes : 0);
+
+    if (prepMinutes == null && routineTotal == 0) {
+      return const SizedBox.shrink();
+    }
+
+    final totalMin = (prepMinutes ?? 0) + routineTotal;
+
+    return Container(
+      margin: const EdgeInsets.only(top: 24),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.blue.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.blue.withOpacity(0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            "예상 준비 시간 미리보기",
+            style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+          ),
+          const SizedBox(height: 8),
+          if (prepMinutes != null)
+            Text("기본 준비: ${prepMinutes}분",
+                style: const TextStyle(fontSize: 13)),
+          if (routineTotal > 0) ...[
+            Text("루틴 합산: ${routineTotal}분",
+                style: const TextStyle(fontSize: 13)),
+            for (final r in selectedRoutines)
+              Text("  · ${r.label}: ${r.minutes}분",
+                  style: const TextStyle(fontSize: 12, color: Colors.grey)),
+            if (customRoutineLabel.isNotEmpty)
+              Text("  · $customRoutineLabel: ${customRoutineMinutes}분",
+                  style: const TextStyle(fontSize: 12, color: Colors.grey)),
+          ],
+          const Divider(height: 16),
+          Text(
+            "총 약 ${totalMin}분",
+            style: const TextStyle(
+                fontWeight: FontWeight.bold, fontSize: 16, color: Colors.blue),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            "실제 이동 시간과 여유 시간은 일정별로 따로 계산됩니다.",
+            style: TextStyle(fontSize: 11, color: Colors.grey),
           ),
         ],
       ),
