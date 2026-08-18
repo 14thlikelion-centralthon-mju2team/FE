@@ -229,13 +229,8 @@ Map<String, dynamic> _$PlanToJson(_Plan instance) => <String, dynamic>{
 };
 
 const _$PlanStatusEnumMap = {
-  PlanStatus.draft: 'draft',
-  PlanStatus.ready: 'ready',
-  PlanStatus.scheduled: 'scheduled',
   PlanStatus.active: 'active',
-  PlanStatus.completed: 'completed',
   PlanStatus.superseded: 'superseded',
-  PlanStatus.cancelled: 'cancelled',
 };
 
 const _$EventLifecycleStatusEnumMap = {
@@ -245,6 +240,9 @@ const _$EventLifecycleStatusEnumMap = {
   EventLifecycleStatus.enroute: 'enroute',
   EventLifecycleStatus.arrived: 'arrived',
   EventLifecycleStatus.closed: 'closed',
+  EventLifecycleStatus.skipped: 'skipped',
+  EventLifecycleStatus.cancelled: 'cancelled',
+  EventLifecycleStatus.unresolved: 'unresolved',
 };
 
 _RouteOption _$RouteOptionFromJson(Map<String, dynamic> json) => _RouteOption(

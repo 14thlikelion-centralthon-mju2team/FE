@@ -9,6 +9,7 @@ part of 'daily_wellness_summary.dart';
 _DailyWellnessSummary _$DailyWellnessSummaryFromJson(
   Map<String, dynamic> json,
 ) => _DailyWellnessSummary(
+  summaryId: json['summaryId'] as String,
   summaryDate: json['summaryDate'] as String,
   eventCount: (json['eventCount'] as num).toInt(),
   totalOutdoorMinutes: (json['totalOutdoorMinutes'] as num).toInt(),
@@ -22,6 +23,7 @@ _DailyWellnessSummary _$DailyWellnessSummaryFromJson(
 Map<String, dynamic> _$DailyWellnessSummaryToJson(
   _DailyWellnessSummary instance,
 ) => <String, dynamic>{
+  'summaryId': instance.summaryId,
   'summaryDate': instance.summaryDate,
   'eventCount': instance.eventCount,
   'totalOutdoorMinutes': instance.totalOutdoorMinutes,

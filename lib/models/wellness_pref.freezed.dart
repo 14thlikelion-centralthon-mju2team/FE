@@ -16,7 +16,7 @@ T _$identity<T>(T value) => value;
 mixin _$WellnessPref {
 
  String get topic;// uv | pm | heat | precipitation | hydration
- bool get isEnabled; int get remindIntervalMinutes; int get dailyEventCap;
+ bool get isEnabled; int? get remindIntervalMinutes; int get dailyEventCap;
 /// Create a copy of WellnessPref
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -49,7 +49,7 @@ abstract mixin class $WellnessPrefCopyWith<$Res>  {
   factory $WellnessPrefCopyWith(WellnessPref value, $Res Function(WellnessPref) _then) = _$WellnessPrefCopyWithImpl;
 @useResult
 $Res call({
- String topic, bool isEnabled, int remindIntervalMinutes, int dailyEventCap
+ String topic, bool isEnabled, int? remindIntervalMinutes, int dailyEventCap
 });
 
 
@@ -157,7 +157,7 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String topic,  bool isEnabled,  int remindIntervalMinutes,  int dailyEventCap)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String topic,  bool isEnabled,  int? remindIntervalMinutes,  int dailyEventCap)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _WellnessPref() when $default != null:
 return $default(_that.topic,_that.isEnabled,_that.remindIntervalMinutes,_that.dailyEventCap);case _:
@@ -178,7 +178,7 @@ return $default(_that.topic,_that.isEnabled,_that.remindIntervalMinutes,_that.da
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String topic,  bool isEnabled,  int remindIntervalMinutes,  int dailyEventCap)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String topic,  bool isEnabled,  int? remindIntervalMinutes,  int dailyEventCap)  $default,) {final _that = this;
 switch (_that) {
 case _WellnessPref():
 return $default(_that.topic,_that.isEnabled,_that.remindIntervalMinutes,_that.dailyEventCap);case _:
@@ -198,7 +198,7 @@ return $default(_that.topic,_that.isEnabled,_that.remindIntervalMinutes,_that.da
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String topic,  bool isEnabled,  int remindIntervalMinutes,  int dailyEventCap)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String topic,  bool isEnabled,  int? remindIntervalMinutes,  int dailyEventCap)?  $default,) {final _that = this;
 switch (_that) {
 case _WellnessPref() when $default != null:
 return $default(_that.topic,_that.isEnabled,_that.remindIntervalMinutes,_that.dailyEventCap);case _:
@@ -255,7 +255,7 @@ abstract mixin class _$WellnessPrefCopyWith<$Res> implements $WellnessPrefCopyWi
   factory _$WellnessPrefCopyWith(_WellnessPref value, $Res Function(_WellnessPref) _then) = __$WellnessPrefCopyWithImpl;
 @override @useResult
 $Res call({
- String topic, bool isEnabled, int remindIntervalMinutes, int dailyEventCap
+ String topic, bool isEnabled, int? remindIntervalMinutes, int dailyEventCap
 });
 
 

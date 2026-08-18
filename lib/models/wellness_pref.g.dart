@@ -8,15 +8,15 @@ part of 'wellness_pref.dart';
 
 _WellnessPref _$WellnessPrefFromJson(Map<String, dynamic> json) =>
     _WellnessPref(
-      topic: json['topic'] as String,
+      topic: json['wellnessTopic'] as String,
       isEnabled: json['isEnabled'] as bool,
-      remindIntervalMinutes: (json['remindIntervalMinutes'] as num).toInt(),
+      remindIntervalMinutes: (json['remindIntervalMinutes'] as num?)?.toInt(),
       dailyEventCap: (json['dailyEventCap'] as num?)?.toInt() ?? 1,
     );
 
 Map<String, dynamic> _$WellnessPrefToJson(_WellnessPref instance) =>
     <String, dynamic>{
-      'topic': instance.topic,
+      'wellnessTopic': instance.topic,
       'isEnabled': instance.isEnabled,
       'remindIntervalMinutes': instance.remindIntervalMinutes,
       'dailyEventCap': instance.dailyEventCap,
