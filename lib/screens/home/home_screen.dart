@@ -2,14 +2,26 @@ import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:go_router/go_router.dart";
 import "package:uuid/uuid.dart";
+import "../../core/local_notification_service.dart";
 import "../../models/action_log.dart";
+import "../../models/plan.dart";
 import "../../providers/home_providers.dart";
 import "widgets/plan_card.dart";
 
 const _uuid = Uuid();
 
-class HomeScreen extends ConsumerWidget {
+/// 홈 화면. 다음 일정과 활성 계획을 표시하고,
+/// 계획이 로드/갱신될 때마다 로컬 알림을 자동 예약한다 (TR-07).
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends ConsumerState<HomeScreen> {
+  /// 마지막으로 로컬 알림을 예약한 리비전 — 중복 예약 방지
+  int? _lastScheduledRevision;
 
   ActionLogEntry _buildAction(ActionType type) {
     return ActionLogEntry(
@@ -20,22 +32,34 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _runAction(
-    BuildContext context,
-    Future<void> Function() action,
-  ) async {
+  Future<void> _runAction(Future<void> Function() action) async {
     try {
       await action();
     } catch (e) {
-      if (!context.mounted) return;
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("처리하지 못했어요. 다시 시도해주세요.")),
       );
     }
   }
 
+  /// 계획이 로드/갱신되면 로컬 알림을 (재)예약한다.
+  /// 같은 리비전이면 스킵 — 불필요한 OS 호출 방지.
+  void _scheduleLocalNotifications(Plan plan, String eventDisplayName) {
+    if (_lastScheduledRevision == plan.revisionNo) return;
+    _lastScheduledRevision = plan.revisionNo;
+
+    LocalNotificationService.instance.schedulePlanNotifications(
+      eventId: plan.eventId,
+      revisionNo: plan.revisionNo,
+      prepStartAt: plan.prepStartAt,
+      recommendedDepartAt: plan.recommendedDepartAt,
+      eventDisplayName: eventDisplayName,
+    );
+  }
+
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final nextEventAsync = ref.watch(nextEventProvider);
 
     return Scaffold(
@@ -44,23 +68,40 @@ class HomeScreen extends ConsumerWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.notifications_none),
-            onPressed: () {
-              // TODO(fe-notification-offline): 알림 로그 드래그 시트 연결
-            },
+            onPressed: () => context.push("/notifications/today"),
           ),
         ],
       ),
       body: nextEventAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, st) => Center(child: Text("불러오지 못했어요: $err")),
+        error: (err, st) => Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text("불러오지 못했어요: $err"),
+              const SizedBox(height: 12),
+              ElevatedButton(
+                onPressed: () => ref.invalidate(nextEventProvider),
+                child: const Text("다시 시도"),
+              ),
+            ],
+          ),
+        ),
         data: (event) {
           if (event == null) {
-            return const Center(child: Text("다가오는 일정이 없어요."));
+            return const Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.event_available, size: 48, color: Colors.grey),
+                  SizedBox(height: 12),
+                  Text("다가오는 일정이 없어요.",
+                      style: TextStyle(color: Colors.grey)),
+                ],
+              ),
+            );
           }
 
-          // API v5.0 §8.3: displayName은 서버가 displayLabel->
-          // destinationName->"오후 2시 일정" 순으로 이미 해석해서
-          // 채워준다. 클라이언트가 자체 폴백을 만들 필요가 없다.
           final planState = ref.watch(planControllerProvider(event.eventId));
           final controller =
               ref.read(planControllerProvider(event.eventId).notifier);
@@ -80,41 +121,42 @@ class HomeScreen extends ConsumerWidget {
                 ],
               ),
             ),
-            data: (plan) => ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                PlanCard(
-                  eventTitle: event.displayName,
-                  plan: plan,
-                  onPrepStart: () => _runAction(
-                    context,
-                    () => controller
-                        .submitActions([_buildAction(ActionType.prepStarted)]),
+            data: (plan) {
+              // 계획이 로드될 때마다 로컬 알림 예약 (TR-07)
+              _scheduleLocalNotifications(plan, event.displayName);
+
+              return ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
+                  PlanCard(
+                    eventTitle: event.displayName,
+                    plan: plan,
+                    previousPlan: controller.previousPlan,
+                    onPrepStart: () => _runAction(
+                      () => controller
+                          .submitActions([_buildAction(ActionType.prepStarted)]),
+                    ),
+                    onDeparted: () => _runAction(
+                      () => controller
+                          .submitActions([_buildAction(ActionType.departed)]),
+                    ),
+                    onSnooze: () => _runAction(
+                      () => controller
+                          .submitActions([_buildAction(ActionType.snoozed)]),
+                    ),
+                    onSkip: () => _runAction(
+                      () => controller
+                          .submitActions([_buildAction(ActionType.excluded)]),
+                    ),
+                    onSelectRoute: () => context.push(
+                        "/plans/${plan.planId}/routes?eventId=${event.eventId}"),
+                    onToggleChecklistItem: (item, completed) => _runAction(
+                      () => controller.toggleChecklistItem(item, completed),
+                    ),
                   ),
-                  onDeparted: () => _runAction(
-                    context,
-                    () => controller
-                        .submitActions([_buildAction(ActionType.departed)]),
-                  ),
-                  onSnooze: () => _runAction(
-                    context,
-                    () => controller
-                        .submitActions([_buildAction(ActionType.snoozed)]),
-                  ),
-                  onSkip: () => _runAction(
-                    context,
-                    () => controller
-                        .submitActions([_buildAction(ActionType.excluded)]),
-                  ),
-                  onSelectRoute: () => context
-                      .push("/plans/${plan.planId}/routes?eventId=${event.eventId}"),
-                  onToggleChecklistItem: (item, completed) => _runAction(
-                    context,
-                    () => controller.toggleChecklistItem(item, completed),
-                  ),
-                ),
-              ],
-            ),
+                ],
+              );
+            },
           );
         },
       ),
