@@ -10,10 +10,13 @@ import "../screens/places/place_registration_screen.dart";
 import "../screens/home/home_screen.dart";
 import "../screens/route/route_selection_screen.dart";
 import "../screens/notifications/notification_log_screen.dart";
+import "../screens/settings/wellness_prefs_screen.dart";
+import "../screens/summary/daily_summary_screen.dart";
 
 final appRouter = GoRouter(
   initialLocation: "/onboarding/splash",
   routes: [
+    // 온보딩 (탭바 없음)
     GoRoute(
         path: "/onboarding/splash",
         builder: (c, s) => const PlaceholderScreen(title: "스플래시")),
@@ -85,8 +88,16 @@ final appRouter = GoRouter(
       path: "/notifications/today",
       builder: (c, s) => const NotificationLogScreen(),
     ),
+    GoRoute(
+      path: "/settings/wellness-prefs",
+      builder: (c, s) => const WellnessPrefsScreen(),
+    ),
+    GoRoute(
+      path: "/summary/daily",
+      builder: (c, s) => const DailySummaryScreen(),
+    ),
 
-    // 메인 4탭
+    // 메인 4탭 (홈/지도/캘린더/설정)
     StatefulShellRoute.indexedStack(
       builder: (context, state, shell) => MainTabShell(shell: shell),
       branches: [
@@ -136,6 +147,3 @@ class MainTabShell extends StatelessWidget {
     );
   }
 }
-
-// TODO(fe-auth-onboarding): 챗봇 탭 완전 제외 여부를 기획(최수민)에게
-// 재확인 필요.

@@ -7,6 +7,7 @@ import "../models/notification.dart";
 import "../models/action_log.dart";
 import "../models/daily_wellness_summary.dart";
 import "../models/prep_estimate.dart";
+import "../models/wellness_pref.dart";
 
 class MockEnsomRepository implements EnsomRepository {
   // -- 일정 --------------------------------------------------------
@@ -356,6 +357,23 @@ class MockEnsomRepository implements EnsomRepository {
       cardScenario: "exposure",
       message: "자외선이 높은 시간대의 예상 야외 이동이 길었어요. 지금은 수분을 보충하고 편안하게 쉬어주세요.",
     );
+  }
+
+  @override
+  Future<List<WellnessPref>> fetchWellnessPrefs() async {
+    await Future.delayed(const Duration(milliseconds: 300));
+    return const [
+      WellnessPref(topic: "uv", isEnabled: true, remindIntervalMinutes: 120),
+      WellnessPref(topic: "pm", isEnabled: true, remindIntervalMinutes: 180),
+      WellnessPref(topic: "heat", isEnabled: false, remindIntervalMinutes: 90),
+      WellnessPref(topic: "precipitation", isEnabled: true, remindIntervalMinutes: 60),
+      WellnessPref(topic: "hydration", isEnabled: true, remindIntervalMinutes: 120),
+    ];
+  }
+
+  @override
+  Future<void> updateWellnessPrefs(List<WellnessPref> prefs) async {
+    await Future.delayed(const Duration(milliseconds: 300));
   }
 
   // -- 행동 기록 -----------------------------------------------------

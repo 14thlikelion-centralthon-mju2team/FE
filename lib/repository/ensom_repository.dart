@@ -6,6 +6,7 @@ import "../models/notification.dart";
 import "../models/action_log.dart";
 import "../models/daily_wellness_summary.dart";
 import "../models/prep_estimate.dart";
+import "../models/wellness_pref.dart";
 
 /// API v5.0 기준. submitAction(단건) -> submitActions(배치)로 개명,
 /// resolveChecklistItem/resolveWellnessAction 분리(§12.2, 서로 다른
@@ -64,6 +65,10 @@ abstract class EnsomRepository {
     WellnessActionCompletionStatus status,
   );
   Future<DailyWellnessSummary?> fetchDailySummary(String date);
+
+  // 웰니스 관심 항목 설정 (WELL-06)
+  Future<List<WellnessPref>> fetchWellnessPrefs();
+  Future<void> updateWellnessPrefs(List<WellnessPref> prefs);
 
   // 행동 기록 -- API v5.0 §13: 배치 {actions:[...]}, clientEventId로 멱등 보장 (TR-03)
   Future<ActionBatchResponse> submitActions(

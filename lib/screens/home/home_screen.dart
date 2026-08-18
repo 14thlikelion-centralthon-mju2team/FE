@@ -109,6 +109,16 @@ class HomeScreen extends ConsumerWidget {
                       );
                     }
                   },
+                  onResolveWellnessAction: (action, status) async {
+                    try {
+                      await controller.resolveWellnessAction(action, status);
+                    } catch (e) {
+                      if (!context.mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text("처리하지 못했어요. 다시 시도해주세요.")),
+                      );
+                    }
+                  },
                 ),
               ],
             ),
