@@ -280,14 +280,40 @@ class MockEnsomRepository implements EnsomRepository {
   @override
   Future<List<AppNotification>> fetchTodayNotifications() async {
     await Future.delayed(const Duration(milliseconds: 300));
+    final now = DateTime.now();
     return [
       AppNotification(
         notificationId: "n1",
-        notificationClass: NotificationClass.time,
+        notificationCategory: NotificationCategory.time,
+        notificationType: NotificationType.relaxed,
         slot: "A",
-        sentAt: DateTime.now().subtract(const Duration(minutes: 20)),
-        message: "20분 뒤 준비를 시작할 예정입니다.",
+        scheduledAt: now.subtract(const Duration(minutes: 20)),
+        sentAt: now.subtract(const Duration(minutes: 20)),
+        deliveryStatus: DeliveryStatus.delivered,
+        body: "20분 뒤 준비를 시작할 예정입니다.",
+        triggerReason: "준비 시작 20분 전",
         reaction: "prep_started",
+      ),
+      AppNotification(
+        notificationId: "n2",
+        notificationCategory: NotificationCategory.time,
+        notificationType: NotificationType.disruption,
+        slot: "C",
+        sentAt: now.subtract(const Duration(minutes: 5)),
+        deliveryStatus: DeliveryStatus.delivered,
+        body: "지하철 지연으로 출발 권장 시각이 7분 빨라졌습니다.",
+        triggerReason: "교통 지연 +8분",
+      ),
+      AppNotification(
+        notificationId: "n3",
+        notificationCategory: NotificationCategory.wellness,
+        notificationType: NotificationType.wellnessEvent,
+        slot: "W",
+        sentAt: now.subtract(const Duration(minutes: 90)),
+        deliveryStatus: DeliveryStatus.delivered,
+        body: "야외 이동이 계속되고 있어요. 설정한 시간이 지났다면 선크림을 다시 확인해 보세요.",
+        triggerReason: "자외선 높음 · 설정 주기 120분 도달",
+        reaction: "completed",
       ),
     ];
   }

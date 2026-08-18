@@ -9,6 +9,7 @@ import "../screens/onboarding/prep_time_entry_screen.dart";
 import "../screens/places/place_registration_screen.dart";
 import "../screens/home/home_screen.dart";
 import "../screens/route/route_selection_screen.dart";
+import "../screens/notifications/notification_log_screen.dart";
 
 final appRouter = GoRouter(
   initialLocation: "/onboarding/splash",
@@ -80,15 +81,17 @@ final appRouter = GoRouter(
         eventId: s.uri.queryParameters["eventId"]!,
       ),
     ),
+    GoRoute(
+      path: "/notifications/today",
+      builder: (c, s) => const NotificationLogScreen(),
+    ),
 
     // 메인 4탭
     StatefulShellRoute.indexedStack(
       builder: (context, state, shell) => MainTabShell(shell: shell),
       branches: [
         StatefulShellBranch(routes: [
-          GoRoute(
-              path: "/home",
-              builder: (c, s) => const HomeScreen()),
+          GoRoute(path: "/home", builder: (c, s) => const HomeScreen()),
         ]),
         StatefulShellBranch(routes: [
           GoRoute(

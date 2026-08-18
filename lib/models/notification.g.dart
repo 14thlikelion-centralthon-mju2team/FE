@@ -9,28 +9,59 @@ part of 'notification.dart';
 _AppNotification _$AppNotificationFromJson(Map<String, dynamic> json) =>
     _AppNotification(
       notificationId: json['notificationId'] as String,
-      notificationClass: $enumDecode(
-        _$NotificationClassEnumMap,
-        json['notificationClass'],
+      notificationCategory: $enumDecode(
+        _$NotificationCategoryEnumMap,
+        json['notificationCategory'],
+      ),
+      notificationType: $enumDecode(
+        _$NotificationTypeEnumMap,
+        json['notificationType'],
       ),
       slot: json['slot'] as String,
-      sentAt: DateTime.parse(json['sentAt'] as String),
-      message: json['message'] as String,
+      scheduledAt: json['scheduledAt'] == null
+          ? null
+          : DateTime.parse(json['scheduledAt'] as String),
+      sentAt: json['sentAt'] == null
+          ? null
+          : DateTime.parse(json['sentAt'] as String),
+      deliveryStatus: $enumDecodeNullable(
+        _$DeliveryStatusEnumMap,
+        json['deliveryStatus'],
+      ),
+      body: json['body'] as String,
+      triggerReason: json['triggerReason'] as String?,
       reaction: json['reaction'] as String?,
     );
 
-Map<String, dynamic> _$AppNotificationToJson(
-  _AppNotification instance,
-) => <String, dynamic>{
-  'notificationId': instance.notificationId,
-  'notificationClass': _$NotificationClassEnumMap[instance.notificationClass]!,
-  'slot': instance.slot,
-  'sentAt': instance.sentAt.toIso8601String(),
-  'message': instance.message,
-  'reaction': instance.reaction,
+Map<String, dynamic> _$AppNotificationToJson(_AppNotification instance) =>
+    <String, dynamic>{
+      'notificationId': instance.notificationId,
+      'notificationCategory':
+          _$NotificationCategoryEnumMap[instance.notificationCategory]!,
+      'notificationType': _$NotificationTypeEnumMap[instance.notificationType]!,
+      'slot': instance.slot,
+      'scheduledAt': instance.scheduledAt?.toIso8601String(),
+      'sentAt': instance.sentAt?.toIso8601String(),
+      'deliveryStatus': _$DeliveryStatusEnumMap[instance.deliveryStatus],
+      'body': instance.body,
+      'triggerReason': instance.triggerReason,
+      'reaction': instance.reaction,
+    };
+
+const _$NotificationCategoryEnumMap = {
+  NotificationCategory.time: 'time',
+  NotificationCategory.wellness: 'wellness',
 };
 
-const _$NotificationClassEnumMap = {
-  NotificationClass.time: 'time',
-  NotificationClass.wellness: 'wellness',
+const _$NotificationTypeEnumMap = {
+  NotificationType.relaxed: 'relaxed',
+  NotificationType.critical: 'critical',
+  NotificationType.disruption: 'disruption',
+  NotificationType.wellnessEvent: 'wellness_event',
+};
+
+const _$DeliveryStatusEnumMap = {
+  DeliveryStatus.delivered: 'delivered',
+  DeliveryStatus.pending: 'pending',
+  DeliveryStatus.failed: 'failed',
 };

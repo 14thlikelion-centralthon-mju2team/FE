@@ -1,37 +1,41 @@
 import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:go_router/go_router.dart";
-import "package:uuid/uuid.dart";
 import "../../models/action_log.dart";
 import "../../providers/home_providers.dart";
+import "../../providers/offline_queue_providers.dart";
 import "widgets/plan_card.dart";
-
-const _uuid = Uuid();
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
-  ActionLogEntry _buildAction(ActionType type) {
-    return ActionLogEntry(
-      clientEventId: _uuid.v4(),
+  /// 큐에 넣고, 온라인이라 즉시 반영됐으면(true) 계획을 새로고침한다.
+  /// 오프라인이면(false) 마지막으로 보여주던 정상 상태를 그대로 두고
+  /// 스낵바로만 안내한다 -- 무작정 새로고침하면 좋은 캐시가 에러
+  /// 화면으로 바뀔 수 있다.
+  Future<void> _enqueueAndMaybeRefresh(
+    BuildContext context,
+    WidgetRef ref,
+    String eventId,
+    String planId,
+    ActionType type,
+  ) async {
+    final queue = ref.read(offlineActionQueueServiceProvider);
+    final sent = await queue.enqueue(
+      planId: planId,
       actionType: type,
-      deviceTs: DateTime.now(),
       actionSource: ActionSource.user,
     );
-  }
 
-  Future<void> _runAction(
-    BuildContext context,
-    Future<void> Function() action,
-  ) async {
-    try {
-      await action();
-    } catch (e) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("처리하지 못했어요. 다시 시도해주세요.")),
-      );
+    if (sent) {
+      ref.read(planControllerProvider(eventId).notifier).retry();
+      return;
     }
+
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("오프라인 상태예요. 연결되면 자동으로 반영돼요.")),
+    );
   }
 
   @override
@@ -44,9 +48,7 @@ class HomeScreen extends ConsumerWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.notifications_none),
-            onPressed: () {
-              // TODO(fe-notification-offline): 알림 로그 드래그 시트 연결
-            },
+            onPressed: () => context.push("/notifications/today"),
           ),
         ],
       ),
@@ -58,9 +60,6 @@ class HomeScreen extends ConsumerWidget {
             return const Center(child: Text("다가오는 일정이 없어요."));
           }
 
-          // API v5.0 §8.3: displayName은 서버가 displayLabel->
-          // destinationName->"오후 2시 일정" 순으로 이미 해석해서
-          // 채워준다. 클라이언트가 자체 폴백을 만들 필요가 없다.
           final planState = ref.watch(planControllerProvider(event.eventId));
           final controller =
               ref.read(planControllerProvider(event.eventId).notifier);
@@ -86,32 +85,30 @@ class HomeScreen extends ConsumerWidget {
                 PlanCard(
                   eventTitle: event.displayName,
                   plan: plan,
-                  onPrepStart: () => _runAction(
-                    context,
-                    () => controller
-                        .submitActions([_buildAction(ActionType.prepStarted)]),
+                  onPrepStart: () => _enqueueAndMaybeRefresh(
+                    context, ref, event.eventId, plan.planId, ActionType.prepStarted,
                   ),
-                  onDeparted: () => _runAction(
-                    context,
-                    () => controller
-                        .submitActions([_buildAction(ActionType.departed)]),
+                  onDeparted: () => _enqueueAndMaybeRefresh(
+                    context, ref, event.eventId, plan.planId, ActionType.departed,
                   ),
-                  onSnooze: () => _runAction(
-                    context,
-                    () => controller
-                        .submitActions([_buildAction(ActionType.snoozed)]),
+                  onSnooze: () => _enqueueAndMaybeRefresh(
+                    context, ref, event.eventId, plan.planId, ActionType.snoozed,
                   ),
-                  onSkip: () => _runAction(
-                    context,
-                    () => controller
-                        .submitActions([_buildAction(ActionType.excluded)]),
+                  onSkip: () => _enqueueAndMaybeRefresh(
+                    context, ref, event.eventId, plan.planId, ActionType.excluded,
                   ),
                   onSelectRoute: () => context
                       .push("/plans/${plan.planId}/routes?eventId=${event.eventId}"),
-                  onToggleChecklistItem: (item, completed) => _runAction(
-                    context,
-                    () => controller.toggleChecklistItem(item, completed),
-                  ),
+                  onToggleChecklistItem: (item, completed) async {
+                    try {
+                      await controller.toggleChecklistItem(item, completed);
+                    } catch (e) {
+                      if (!context.mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text("처리하지 못했어요. 다시 시도해주세요.")),
+                      );
+                    }
+                  },
                 ),
               ],
             ),

@@ -182,8 +182,12 @@ class ApiEnsomRepository implements EnsomRepository {
       throw UnimplementedError("feat/fe-auth-onboarding 범위");
 
   @override
-  Future<List<AppNotification>> fetchTodayNotifications() =>
-      throw UnimplementedError("알림 로그 화면은 feat/fe-notification-offline(M2) 범위");
+  Future<List<AppNotification>> fetchTodayNotifications() async {
+    final json = await _client.get<List<dynamic>>("/notifications/today");
+    return json
+        .map((e) => AppNotification.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
 
   @override
   Future<void> respondToNotification(
