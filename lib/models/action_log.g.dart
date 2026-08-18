@@ -65,4 +65,7 @@ const _$EventLifecycleStatusEnumMap = {
   EventLifecycleStatus.enroute: 'enroute',
   EventLifecycleStatus.arrived: 'arrived',
   EventLifecycleStatus.closed: 'closed',
+  EventLifecycleStatus.skipped: 'skipped',
+  EventLifecycleStatus.cancelled: 'cancelled',
+  EventLifecycleStatus.unresolved: 'unresolved',
 };

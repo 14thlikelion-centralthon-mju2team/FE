@@ -27,8 +27,7 @@ final planControllerProvider = StateNotifierProvider.autoDispose
 });
 
 /// 계획의 단일 진실원천.
-/// resolve 호출은 OfflineActionQueueService.enqueueResolve()를 경유해
-/// clientEventId가 DB에 영속 저장되고, 재시도 시 동일 ID가 재사용된다.
+/// previousPlan을 추적해서 리비전 변경 시 UI가 "무엇이 바뀌었는지"를 표시한다.
 class PlanController extends StateNotifier<AsyncValue<Plan>> {
   PlanController({required this.repo, required this.queue, required this.eventId})
       : super(const AsyncValue.loading()) {
@@ -39,10 +38,18 @@ class PlanController extends StateNotifier<AsyncValue<Plan>> {
   final OfflineActionQueueService queue;
   final String eventId;
 
+  /// 직전 계획 — 리비전 변경 배너에 사용
+  Plan? previousPlan;
+
   Future<void> _load() async {
+    final current = state.hasValue ? state.value : null;
     state = const AsyncValue.loading();
     try {
       final plan = await repo.fetchLatestPlan(eventId);
+      // 이전 계획과 리비전이 다를 때만 previousPlan 갱신
+      if (current != null && current.revisionNo != plan.revisionNo) {
+        previousPlan = current;
+      }
       state = AsyncValue.data(plan);
     } catch (e, st) {
       state = AsyncValue.error(e, st);

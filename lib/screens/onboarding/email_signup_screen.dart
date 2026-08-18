@@ -1,16 +1,20 @@
 import "package:flutter/material.dart";
+import "package:flutter_riverpod/flutter_riverpod.dart";
+import "package:go_router/go_router.dart";
+import "package:uuid/uuid.dart";
+import "../../network/api_client.dart";
+import "../../providers/auth_providers.dart";
 
-/// 원본 EmailSignupForm(필드 3개, 미완성)을 실제 제출 가능한 화면으로
-/// 완성했다. 전화번호 입력란은 원본 의도대로 넣지 않았다 --
-/// 스키마에 해당 컬럼 자체가 없기 때문.
-class EmailSignupScreen extends StatefulWidget {
+/// PRD §11.3 / API 명세 §2.1 POST /auth/email/signup
+/// 비밀번호 정책: 최소 10자, 이메일 로컬파트·서비스명 포함 금지 (서버에서도 검증)
+class EmailSignupScreen extends ConsumerStatefulWidget {
   const EmailSignupScreen({super.key});
 
   @override
-  State<EmailSignupScreen> createState() => _EmailSignupScreenState();
+  ConsumerState<EmailSignupScreen> createState() => _EmailSignupScreenState();
 }
 
-class _EmailSignupScreenState extends State<EmailSignupScreen> {
+class _EmailSignupScreenState extends ConsumerState<EmailSignupScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -18,6 +22,8 @@ class _EmailSignupScreenState extends State<EmailSignupScreen> {
 
   bool _submitting = false;
   String? _error;
+
+  static const _uuid = Uuid();
 
   @override
   void dispose() {
@@ -36,9 +42,15 @@ class _EmailSignupScreenState extends State<EmailSignupScreen> {
 
   String? _validatePassword(String? value) {
     if (value == null || value.isEmpty) return "비밀번호를 입력해주세요.";
-    // TRD §10.2 서버 정책과 일치 -- 클라이언트 검증이 서버보다 느슨하면
-    // 사용자가 통과했다고 믿은 입력이 서버에서 거부되는 불일치가 생긴다.
     if (value.length < 10) return "비밀번호는 10자 이상이어야 해요.";
+    // 이메일 로컬파트 포함 여부 (클라이언트 사전 검사)
+    final emailLocal = _emailController.text.split("@").first.toLowerCase();
+    if (emailLocal.isNotEmpty && value.toLowerCase().contains(emailLocal)) {
+      return "이메일 주소를 비밀번호에 포함할 수 없어요.";
+    }
+    if (value.toLowerCase().contains("ensom")) {
+      return "서비스명을 비밀번호에 포함할 수 없어요.";
+    }
     return null;
   }
 
@@ -54,15 +66,35 @@ class _EmailSignupScreenState extends State<EmailSignupScreen> {
       _error = null;
     });
     try {
-      // TODO(fe-auth-onboarding): 실제 회원가입 API 연결
-      // await repo.signUpWithEmail(
-      //   email: _emailController.text.trim(),
-      //   password: _passwordController.text,
-      //   nickname: _nicknameController.text.trim(),
-      // );
-      // 가입 성공 후 이메일 인증 안내 화면으로 이동 -- 라우트/정책은
-      // BE(박찬)와 확인 필요 (email_verified_at 처리 방식 미확정)
-    } catch (e) {
+      final authNotifier = ref.read(authNotifierProvider.notifier);
+      await authNotifier.signupWithEmail(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+        nickname: _nicknameController.text.trim(),
+        installationId: _uuid.v4(),
+      );
+
+      if (!mounted) return;
+      // 가입 성공 → 이메일 인증 안내 화면으로 이동
+      context.go(
+        "/onboarding/email-verification?email=${Uri.encodeComponent(_emailController.text.trim())}",
+      );
+    } on ApiException catch (e) {
+      setState(() {
+        switch (e.code) {
+          case "EMAIL_ALREADY_LINKED":
+            _error = "이미 Google로 가입된 이메일이에요. Google로 로그인해주세요.";
+          case "WEAK_PASSWORD":
+            _error = "비밀번호가 너무 쉬워요. 다른 비밀번호를 사용해주세요.";
+          case "VALIDATION_ERROR":
+            _error = e.message;
+          case "NETWORK_ERROR":
+            _error = "네트워크에 연결할 수 없어요. 잠시 후 다시 시도해주세요.";
+          default:
+            _error = "회원가입에 실패했어요. 다시 시도해주세요.";
+        }
+      });
+    } catch (_) {
       setState(() => _error = "회원가입에 실패했어요. 다시 시도해주세요.");
     } finally {
       if (mounted) setState(() => _submitting = false);
@@ -77,30 +109,36 @@ class _EmailSignupScreenState extends State<EmailSignupScreen> {
         padding: const EdgeInsets.all(24),
         child: Form(
           key: _formKey,
-          child: Column(
+          child: ListView(
             children: [
               TextFormField(
                 controller: _emailController,
                 keyboardType: TextInputType.emailAddress,
                 decoration: const InputDecoration(labelText: "이메일"),
                 validator: _validateEmail,
+                textInputAction: TextInputAction.next,
               ),
               const SizedBox(height: 12),
               TextFormField(
                 controller: _passwordController,
                 obscureText: true,
-                decoration: const InputDecoration(labelText: "비밀번호"),
+                decoration: const InputDecoration(
+                  labelText: "비밀번호",
+                  helperText: "10자 이상, 이메일·서비스명 포함 불가",
+                ),
                 validator: _validatePassword,
+                textInputAction: TextInputAction.next,
               ),
               const SizedBox(height: 12),
               TextFormField(
                 controller: _nicknameController,
                 decoration: const InputDecoration(labelText: "닉네임"),
                 validator: _validateNickname,
+                textInputAction: TextInputAction.done,
+                onFieldSubmitted: (_) => _submit(),
               ),
-              // 전화번호 입력란 없음 -- 스키마에 컬럼 자체가 없음
               if (_error != null) ...[
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
                 Text(_error!, style: const TextStyle(color: Colors.red)),
               ],
               const SizedBox(height: 24),

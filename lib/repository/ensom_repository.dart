@@ -6,6 +6,7 @@ import "../models/notification.dart";
 import "../models/action_log.dart";
 import "../models/daily_wellness_summary.dart";
 import "../models/prep_estimate.dart";
+import "../models/wellness_pref.dart";
 
 /// API v5.0 기준. submitAction(단건) -> submitActions(배치)로 개명,
 /// resolveChecklistItem/resolveWellnessAction 분리(§12.2, 서로 다른
@@ -39,6 +40,9 @@ abstract class EnsomRepository {
   Future<List<RouteOption>> fetchRouteOptions(String planId);
   Future<Plan> selectRoute(String planId, String routeOptionId);
 
+  // 설정 (SET-03, ONB-01)
+  Future<void> updateSettings(Map<String, dynamic> patch);
+
   // 맞춤 준비 항목 (ONB-01, SET-02, PLAN-05)
   Future<List<PrepItem>> fetchPrepItems();
   Future<PrepItem> createPrepItem(PrepItem item);
@@ -66,6 +70,11 @@ abstract class EnsomRepository {
     required String clientEventId,
   });
   Future<DailyWellnessSummary?> fetchDailySummary(String date);
+  Future<void> markDailySummaryViewed(String summaryId);
+
+  // 웰니스 관심 항목 설정 (WELL-06) — GET/PATCH /me/wellness-prefs
+  Future<List<WellnessPref>> fetchWellnessPrefs();
+  Future<void> updateWellnessPrefs(List<WellnessPref> prefs);
 
   // 행동 기록 -- API v5.0 §13: 배치 {actions:[...]}, clientEventId로 멱등 보장 (TR-03)
   Future<ActionBatchResponse> submitActions(

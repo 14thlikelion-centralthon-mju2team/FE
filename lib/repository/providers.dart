@@ -1,24 +1,12 @@
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "ensom_repository.dart";
 import "api_ensom_repository.dart";
-import "../network/api_client.dart";
-import "../core/secure_storage_service.dart";
+import "../providers/auth_providers.dart";
 
 /// 실제 API 연동 리포지토리.
-/// SecureStorageService → ApiClient → ApiEnsomRepository 체인.
-final _secureStorageProvider = Provider<SecureStorageService>((ref) {
-  return SecureStorageService();
-});
-
-final _apiClientProvider = Provider<ApiClient>((ref) {
-  final secureStorage = ref.watch(_secureStorageProvider);
-  return ApiClient(
-    baseUrl: "https://api.ensom.app/v1",
-    secureStorage: secureStorage,
-  );
-});
-
+/// auth_providers.dart의 apiClientProvider를 의존해서
+/// 동일한 ApiClient(동일한 SecureStorage 세션)를 공유한다.
 final ensomRepositoryProvider = Provider<EnsomRepository>((ref) {
-  final apiClient = ref.watch(_apiClientProvider);
+  final apiClient = ref.watch(apiClientProvider);
   return ApiEnsomRepository(apiClient);
 });

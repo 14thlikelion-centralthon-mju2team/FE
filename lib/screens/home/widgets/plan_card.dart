@@ -3,34 +3,36 @@ import "package:intl/intl.dart";
 import "../../../models/plan.dart";
 import "reason_section.dart";
 import "checklist_section.dart";
+import "wellness_actions_section.dart";
+import "plan_change_banner.dart";
 
-/// HOME-01/02.
-///
-/// 리뷰 3라운드째 지적됐던 문제가 여기서 확정됩니다: 상태 문구는
-/// planStatus가 아니라 eventStatus 기준이어야 한다(API v5.0 §9.2).
-/// planStatus는 리비전 관리값(active/superseded)이라 사용자에게
-/// "지금 뭘 해야 하는지"를 설명하지 않는다.
+/// HOME-01/02. 상태 문구는 eventStatus 기준(API v5.0 §9.2).
 class PlanCard extends StatelessWidget {
   const PlanCard({
     super.key,
     required this.eventTitle,
     required this.plan,
+    this.previousPlan,
     required this.onPrepStart,
     required this.onDeparted,
     required this.onSnooze,
     required this.onSkip,
     required this.onSelectRoute,
     required this.onToggleChecklistItem,
+    required this.onResolveWellnessAction,
   });
 
   final String eventTitle;
   final Plan plan;
+  final Plan? previousPlan;
   final VoidCallback onPrepStart;
   final VoidCallback onDeparted;
   final VoidCallback onSnooze;
   final VoidCallback onSkip;
   final VoidCallback onSelectRoute;
   final void Function(ChecklistItem item, bool completed) onToggleChecklistItem;
+  final void Function(WellnessAction action, WellnessActionCompletionStatus status)
+      onResolveWellnessAction;
 
   String get _statusMessage {
     if (!plan.feasible) return "현재 출발하면 약속 시간보다 늦을 수 있습니다.";
@@ -47,6 +49,12 @@ class PlanCard extends StatelessWidget {
         return "도착했어요.";
       case EventLifecycleStatus.closed:
         return "일정이 마무리됐어요.";
+      case EventLifecycleStatus.skipped:
+        return "이 일정은 건너뛰었어요.";
+      case EventLifecycleStatus.cancelled:
+        return "이 일정은 취소됐어요.";
+      case EventLifecycleStatus.unresolved:
+        return "도착 여부를 확인하지 못했어요.";
     }
   }
 
@@ -59,6 +67,8 @@ class PlanCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // 계획 변경 배너 — 리비전이 바뀌었을 때만 표시
+            PlanChangeBanner(currentPlan: plan, previousPlan: previousPlan),
             Text(eventTitle,
                 style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
             const SizedBox(height: 4),
@@ -85,7 +95,10 @@ class PlanCard extends StatelessWidget {
             ),
             if (plan.wellnessActions.isNotEmpty) ...[
               const Divider(height: 24),
-              _WellnessActionsPreview(actions: plan.wellnessActions),
+              WellnessActionsSection(
+                actions: plan.wellnessActions,
+                onResolve: onResolveWellnessAction,
+              ),
             ],
             const SizedBox(height: 16),
             Wrap(
@@ -143,37 +156,6 @@ class _BreakdownSummary extends StatelessWidget {
       "준비 ${breakdown.estimatedPrepMinutes}분 · 이동 ${breakdown.travelMinutes}분 · "
       "여유 ${breakdown.arrivalBufferMinutes}분 (총 $total분)",
       style: const TextStyle(fontSize: 12, color: Colors.grey),
-    );
-  }
-}
-
-/// 읽기 전용 미리보기만 제공한다. 완료/해제 상호작용은
-/// feat/fe-wellness(M3)에서 본격적으로 만든다 -- 여기서는 Plan 응답에
-/// 이미 포함된 데이터를 조용히 버리지 않는다는 정도의 의미다.
-class _WellnessActionsPreview extends StatelessWidget {
-  const _WellnessActionsPreview({required this.actions});
-
-  final List<WellnessAction> actions;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text("웰니스 행동", style: TextStyle(fontWeight: FontWeight.w600)),
-        const SizedBox(height: 8),
-        for (final action in actions)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 2),
-            child: Row(
-              children: [
-                Icon(Icons.wb_sunny_outlined, size: 14, color: Colors.orange[700]),
-                const SizedBox(width: 6),
-                Text(action.actionLabel),
-              ],
-            ),
-          ),
-      ],
     );
   }
 }
