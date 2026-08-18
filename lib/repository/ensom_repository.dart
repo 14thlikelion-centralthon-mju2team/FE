@@ -73,6 +73,9 @@ abstract class EnsomRepository {
   Future<List<WellnessPref>> fetchWellnessPrefs();
   Future<void> updateWellnessPrefs(List<WellnessPref> prefs);
 
+  // 일일 마무리 카드 조회 기록 (WELL-05) — POST /summary/daily/{summaryId}/viewed
+  Future<void> markDailySummaryViewed(String summaryId);
+
   // 행동 기록 -- API v5.0 §13: 배치 {actions:[...]}, clientEventId로 멱등 보장 (TR-03)
   Future<ActionBatchResponse> submitActions(
     String planId,

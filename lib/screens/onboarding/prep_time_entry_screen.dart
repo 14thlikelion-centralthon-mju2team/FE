@@ -125,11 +125,15 @@ class _PrepTimeEntryScreenState extends ConsumerState<PrepTimeEntryScreen> {
         "initialPrepMinutes": _unknownSelected ? null : _selectedPreset,
       });
 
-      // 2. POST /prep-items — 선택된 빠른 추가 항목
-      final selectedQuick = _quickItems.where((i) => i.selected);
-      for (final item in selectedQuick) {
-        await repo.createPrepItem(PrepItem(
-          id: "", // 서버가 발급
+      // 2~5. POST /prep-items — 부분 실패 허용
+      //    settings 저장은 성공했으므로 prep-items 중 일부가 실패해도
+      //    성공한 건은 유지하고 실패 건수를 사용자에게 안내한다.
+      final itemsToCreate = <PrepItem>[];
+
+      // 선택된 빠른 추가 항목
+      for (final item in _quickItems.where((i) => i.selected)) {
+        itemsToCreate.add(PrepItem(
+          id: "",
           label: item.label,
           kind: item.kind,
           sensitive: item.sensitive,
@@ -137,10 +141,9 @@ class _PrepTimeEntryScreenState extends ConsumerState<PrepTimeEntryScreen> {
         ));
       }
 
-      // 3. POST /prep-items — 선택된 시간 소요 루틴
-      final selectedRoutines = _routineItems.where((r) => r.selected);
-      for (final routine in selectedRoutines) {
-        await repo.createPrepItem(PrepItem(
+      // 선택된 시간 소요 루틴
+      for (final routine in _routineItems.where((r) => r.selected)) {
+        itemsToCreate.add(PrepItem(
           id: "",
           label: routine.label,
           kind: PrepKind.routine,
@@ -149,10 +152,10 @@ class _PrepTimeEntryScreenState extends ConsumerState<PrepTimeEntryScreen> {
         ));
       }
 
-      // 4. POST /prep-items — 직접 입력한 일반 항목
+      // 직접 입력한 일반 항목
       final customText = _customItemController.text.trim();
       if (customText.isNotEmpty) {
-        await repo.createPrepItem(PrepItem(
+        itemsToCreate.add(PrepItem(
           id: "",
           label: customText,
           kind: PrepKind.carry,
@@ -160,10 +163,10 @@ class _PrepTimeEntryScreenState extends ConsumerState<PrepTimeEntryScreen> {
         ));
       }
 
-      // 5. POST /prep-items — 직접 입력한 루틴
+      // 직접 입력한 루틴
       final customRoutineText = _customRoutineController.text.trim();
       if (customRoutineText.isNotEmpty) {
-        await repo.createPrepItem(PrepItem(
+        itemsToCreate.add(PrepItem(
           id: "",
           label: customRoutineText,
           kind: PrepKind.routine,
@@ -172,9 +175,39 @@ class _PrepTimeEntryScreenState extends ConsumerState<PrepTimeEntryScreen> {
         ));
       }
 
+      // 순차 호출 — 부분 실패 추적
+      int successCount = 0;
+      int failCount = 0;
+      for (final item in itemsToCreate) {
+        try {
+          await repo.createPrepItem(item);
+          successCount++;
+        } catch (_) {
+          failCount++;
+        }
+      }
+
       if (!mounted) return;
+
+      if (failCount > 0 && successCount == 0) {
+        // 전부 실패
+        setState(() => _error = "준비 항목 저장에 실패했어요. 네트워크를 확인하고 다시 시도해주세요.");
+        return;
+      }
+
+      if (failCount > 0) {
+        // 부분 실패 — 안내 후 진행 허용
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("$successCount개 저장됨 · $failCount개 실패 — 설정에서 다시 추가할 수 있어요."),
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+
       context.go("/home");
     } on ApiException catch (e) {
+      // settings PATCH 자체가 실패한 경우
       setState(() {
         if (e.isNetworkError) {
           _error = "네트워크에 연결할 수 없어요. 잠시 후 다시 시도해주세요.";

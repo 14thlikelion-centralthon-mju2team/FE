@@ -1,6 +1,5 @@
 import "dart:io";
 
-import "package:uuid/uuid.dart";
 import "../network/api_client.dart";
 import "secure_storage_service.dart";
 
@@ -16,7 +15,6 @@ class AuthService {
 
   final ApiClient _client;
   final SecureStorageService _secureStorage;
-  final _uuid = const Uuid();
 
   // ─── 이메일 회원가입 (§2.1) ─────────────────────────────────────
   /// 가입 성공 시 토큰을 발급하지 않는다(API 명세 §2.1).
@@ -85,15 +83,17 @@ class AuthService {
   }
 
   // ─── Google 로그인 (§2.5) ──────────────────────────────────────
+  /// 현재 BE 매핑: POST /auth/google (dev BE 기준)
+  /// API 명세는 POST /auth/login { provider: "google" } 이지만,
+  /// BE와 합의해 /auth/google 단일 경로로 확정.
   Future<LoginResult> loginWithGoogle({
     required String idToken,
     required String installationId,
   }) async {
     try {
       final data = await _client.post<Map<String, dynamic>>(
-        "/auth/login",
+        "/auth/google",
         body: {
-          "provider": "google",
           "idToken": idToken,
           "installationId": installationId,
         },
@@ -126,14 +126,16 @@ class AuthService {
   }
 
   // ─── 약관 동의 (§2.8) ─────────────────────────────────────────
+  /// 현재 BE 계약: 단건 ConsentRequest + Idempotency-Key 헤더.
+  /// ApiClient.post()가 Idempotency-Key를 자동 부여하므로 body에는
+  /// 동의 내용만 담는다. 복수 항목은 순차 호출한다.
   Future<void> submitConsents(List<ConsentEntry> consents) async {
-    await _client.post<Map<String, dynamic>>(
-      "/consents",
-      body: {
-        "consents": consents.map((c) => c.toJson()).toList(),
-        "idempotencyKey": _uuid.v4(),
-      },
-    );
+    for (final consent in consents) {
+      await _client.post<Map<String, dynamic>>(
+        "/consents",
+        body: consent.toJson(),
+      );
+    }
   }
 
   // ─── 로그아웃 (§2.6) ──────────────────────────────────────────

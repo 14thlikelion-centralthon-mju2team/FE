@@ -317,6 +317,13 @@ class ApiEnsomRepository implements EnsomRepository {
   }
 
   @override
+  Future<void> markDailySummaryViewed(String summaryId) async {
+    await _client.post<Map<String, dynamic>>(
+      "/summary/daily/$summaryId/viewed",
+    );
+  }
+
+  @override
   Future<List<PrepEstimate>> fetchPrepEstimates() =>
       throw UnimplementedError("개인화 조회 화면은 아직 스코프 미배정");
 

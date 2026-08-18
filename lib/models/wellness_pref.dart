@@ -7,14 +7,15 @@ part "wellness_pref.g.dart";
 /// GET/PATCH /me/wellness-prefs.
 ///
 /// API 명세 §4.2 wellnessTopic: uv | pm | temp | rain | hydration
-/// (이전 버전의 heat/precipitation은 폐기됨 — API v5.0 정합성 수정)
 @freezed
 abstract class WellnessPref with _$WellnessPref {
   const factory WellnessPref({
-    /// API 명세 §4.2: "uv" | "pm" | "temp" | "rain" | "hydration"
-    required String topic,
+    /// API 명세 §4.2 필드명: "wellnessTopic"
+    /// Dart에서는 topic으로 사용하되 JSON 직렬화 시 wellnessTopic으로 매핑.
+    @JsonKey(name: "wellnessTopic") required String topic,
     required bool isEnabled,
-    required int remindIntervalMinutes,
+    /// null 허용 — API 응답에서 설정하지 않은 항목은 null로 내려올 수 있음.
+    @JsonKey(name: "remindIntervalMinutes") int? remindIntervalMinutes,
     @Default(1) int dailyEventCap,
   }) = _WellnessPref;
 

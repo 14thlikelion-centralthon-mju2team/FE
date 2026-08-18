@@ -127,16 +127,16 @@ class _PrefTile extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.only(left: 4, bottom: 4),
                 child: Text(
-                  "재알림 주기: ${pref.remindIntervalMinutes}분",
+                  "재알림 주기: ${pref.remindIntervalMinutes ?? 120}분",
                   style: const TextStyle(fontSize: 12, color: Colors.grey),
                 ),
               ),
               Slider(
-                value: pref.remindIntervalMinutes.toDouble(),
+                value: (pref.remindIntervalMinutes ?? 120).toDouble(),
                 min: 30,
                 max: 240,
                 divisions: 14,
-                label: "${pref.remindIntervalMinutes}분",
+                label: "${pref.remindIntervalMinutes ?? 120}분",
                 onChanged: (v) =>
                     onChanged(pref.copyWith(remindIntervalMinutes: v.round())),
               ),

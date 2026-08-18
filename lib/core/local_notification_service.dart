@@ -113,7 +113,7 @@ class LocalNotificationService {
 
   /// 서버 푸시가 먼저 도착했을 때 동일 dedupKey의 로컬 알림 취소.
   Future<void> cancelByDedupKey(String dedupKey) async {
-    final id = dedupKey.hashCode;
+    final id = _fnv1a32(dedupKey);
     await _plugin.cancel(id);
   }
 
@@ -141,8 +141,25 @@ class LocalNotificationService {
 
   // ─── Internal ──────────────────────────────────────────────────────
 
+  /// 안정적 notification ID 생성.
+  /// Dart의 String.hashCode는 앱 재시작/플랫폼 간 동일함을 보장하지 않으므로
+  /// FNV-1a 32bit 해시를 직접 사용한다. 앱 재시작 후에도 동일 문자열 →
+  /// 동일 ID를 생성하므로 기존 예약 알림을 안전하게 취소할 수 있다.
   int _notificationId(String eventId, String slot, int revisionNo) {
-    return "$eventId:$slot:$revisionNo".hashCode;
+    return _fnv1a32("$eventId:$slot:$revisionNo");
+  }
+
+  /// FNV-1a 32-bit 해시. 플랫폼·실행 독립적이고 영속적.
+  static int _fnv1a32(String input) {
+    const int fnvOffsetBasis = 0x811c9dc5;
+    const int fnvPrime = 0x01000193;
+    int hash = fnvOffsetBasis;
+    for (int i = 0; i < input.length; i++) {
+      hash ^= input.codeUnitAt(i);
+      hash = (hash * fnvPrime) & 0xFFFFFFFF;
+    }
+    // Flutter local notifications expects a positive int32
+    return hash.toSigned(32);
   }
 
   /// TR-10 표시 경계: 민감 항목명이 텍스트에 포함되어 있으면 "개인 준비"로 치환.

@@ -357,6 +357,11 @@ class MockEnsomRepository implements EnsomRepository {
     await Future.delayed(const Duration(milliseconds: 200));
   }
 
+  @override
+  Future<void> markDailySummaryViewed(String summaryId) async {
+    await Future.delayed(const Duration(milliseconds: 100));
+  }
+
   // -- 행동 기록 -----------------------------------------------------
   @override
   Future<ActionBatchResponse> submitActions(

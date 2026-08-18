@@ -35,6 +35,10 @@ class FcmService {
 
   /// main.dart에서 Firebase.initializeApp() 이후에 호출.
   /// apiClient와 installationId는 로그인 후 세팅된다.
+  ///
+  /// Firebase 설정 파일(google-services.json / GoogleService-Info.plist)이
+  /// 없는 환경에서는 초기화가 실패할 수 있다. 이 경우 로컬 알림 폴백만
+  /// 동작하며 앱 시작에 영향을 주지 않는다.
   Future<void> initialize({
     required ApiClient apiClient,
     required String installationId,
@@ -42,24 +46,29 @@ class FcmService {
     _apiClient = apiClient;
     _installationId = installationId;
 
-    // 알림 권한 요청 (iOS — Android 13+도 필요)
-    await _messaging.requestPermission(
-      alert: true,
-      badge: true,
-      sound: true,
-    );
+    try {
+      // 알림 권한 요청 (iOS — Android 13+도 필요)
+      await _messaging.requestPermission(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
 
-    // 토큰 획득 + 서버 등록
-    final token = await _messaging.getToken();
-    if (token != null) {
-      await _registerToken(token);
+      // 토큰 획득 + 서버 등록
+      final token = await _messaging.getToken();
+      if (token != null) {
+        await _registerToken(token);
+      }
+
+      // 토큰 갱신 콜백 — 앱 재실행마다 갱신될 수 있음 (§2.7)
+      _messaging.onTokenRefresh.listen(_registerToken);
+
+      // 포그라운드 메시지 핸들러
+      FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
+    } catch (e) {
+      // Firebase 미설정 환경 — FCM 비활성, 로컬 알림 폴백만 동작
+      // 앱 시작을 중단하지 않는다.
     }
-
-    // 토큰 갱신 콜백 — 앱 재실행마다 갱신될 수 있음 (§2.7)
-    _messaging.onTokenRefresh.listen(_registerToken);
-
-    // 포그라운드 메시지 핸들러
-    FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
   }
 
   /// 로그인 후 apiClient/installationId 갱신 시 재호출.
@@ -163,9 +172,11 @@ class FcmService {
       iOS: iosDetails,
     );
 
-    // 알림 ID: dedupKey가 있으면 그 hashCode, 없으면 현재 시각
-    final notificationId =
-        (data["dedupKey"] as String?)?.hashCode ?? DateTime.now().hashCode;
+    // 알림 ID: dedupKey가 있으면 FNV-1a 해시, 없으면 현재 시각 기반
+    final dedupKeyStr = data["dedupKey"] as String?;
+    final notificationId = dedupKeyStr != null
+        ? _fnv1a32(dedupKeyStr)
+        : DateTime.now().millisecondsSinceEpoch & 0x7FFFFFFF;
 
     await _localPlugin.show(
       notificationId,
@@ -197,6 +208,18 @@ class FcmService {
       return "android";
     }
   }
+
+  /// FNV-1a 32-bit 해시. LocalNotificationService와 동일 알고리즘.
+  static int _fnv1a32(String input) {
+    const int fnvOffsetBasis = 0x811c9dc5;
+    const int fnvPrime = 0x01000193;
+    int hash = fnvOffsetBasis;
+    for (int i = 0; i < input.length; i++) {
+      hash ^= input.codeUnitAt(i);
+      hash = (hash * fnvPrime) & 0xFFFFFFFF;
+    }
+    return hash.toSigned(32);
+  }
 }
 
 /// 백그라운드 메시지 핸들러 (top-level function 필수).
@@ -210,6 +233,18 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     // 백그라운드에서는 LocalNotificationService 상태에 접근 불가(isolate)
     // FlutterLocalNotificationsPlugin을 직접 생성해 취소한다.
     final plugin = FlutterLocalNotificationsPlugin();
-    await plugin.cancel(dedupKey.hashCode);
+    await plugin.cancel(_fnv1a32Background(dedupKey));
   }
+}
+
+/// 백그라운드 isolate용 FNV-1a 32bit 해시 (LocalNotificationService와 동일 알고리즘).
+int _fnv1a32Background(String input) {
+  const int fnvOffsetBasis = 0x811c9dc5;
+  const int fnvPrime = 0x01000193;
+  int hash = fnvOffsetBasis;
+  for (int i = 0; i < input.length; i++) {
+    hash ^= input.codeUnitAt(i);
+    hash = (hash * fnvPrime) & 0xFFFFFFFF;
+  }
+  return hash.toSigned(32);
 }
