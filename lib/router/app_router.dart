@@ -20,6 +20,7 @@ import "../screens/events/event_create_from_map_screen.dart";
 import "../screens/calendar/calendar_screen.dart";
 import "../screens/calendar/event_form_screen.dart";
 import "../screens/detail/event_detail_screen.dart";
+import "../screens/search/place_search_screen.dart";
 import "../screens/profile/profile_screen.dart";
 import "../screens/profile/account_screen.dart";
 import "../screens/profile/notification_settings_screen.dart";
@@ -144,6 +145,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: "/events/create-from-map",
         builder: (c, s) => const EventCreateFromMapScreen(),
+      ),
+      GoRoute(
+        path: "/search/place",
+        builder: (c, s) => const PlaceSearchScreen(),
       ),
       GoRoute(
         path: "/calendar/new",
