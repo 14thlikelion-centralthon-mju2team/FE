@@ -87,9 +87,14 @@ class _ArrivalResultCardState extends ConsumerState<ArrivalResultCard> {
 
   @override
   Widget build(BuildContext context) {
-    if (_loading || _execution == null || _submitted)
+    if (_loading || _execution == null || _submitted) {
       return const SizedBox.shrink();
+    }
     final execution = _execution!;
+
+    // 명세 S-44: 사후 평가 폼은 "판정이 애매할 때만" 등장한다.
+    // 정시 도착이나 원인이 명확한 지각에는 섹션 자체가 없다.
+    final needsEvaluation = execution.arrivalResult == ArrivalResult.unknown;
 
     return Card(
       child: Padding(
@@ -102,73 +107,75 @@ class _ArrivalResultCardState extends ConsumerState<ArrivalResultCard> {
               style: TextStyle(fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 4),
-            // rushLoadScore는 운영 지표 전용이라 여기 표시하지 않는다 (PRD 절대 원칙 3).
             Text(
               _arrivalResultLabel(execution.arrivalResult),
               style: const TextStyle(color: EnsomColors.inkMuted),
             ),
-            const SizedBox(height: 12),
-            const Text(
-              "준비 시간은 어땠나요?",
-              style: TextStyle(fontSize: 12, color: EnsomColors.inkMuted),
-            ),
-            const SizedBox(height: 4),
-            Wrap(
-              spacing: 8,
-              children: [
-                ChoiceChip(
-                  label: const Text("너무 일렀어요"),
-                  selected: _prepTiming == PrepTimingAssessment.tooEarly,
-                  onSelected: (_) => setState(
-                    () => _prepTiming = PrepTimingAssessment.tooEarly,
+            if (needsEvaluation) ...[
+              const SizedBox(height: 12),
+              const Text(
+                "준비 시간은 어땠나요?",
+                style: TextStyle(fontSize: 12, color: EnsomColors.inkMuted),
+              ),
+              const SizedBox(height: 4),
+              Wrap(
+                spacing: 8,
+                children: [
+                  ChoiceChip(
+                    label: const Text("너무 일렀어요"),
+                    selected: _prepTiming == PrepTimingAssessment.tooEarly,
+                    onSelected: (_) => setState(
+                      () => _prepTiming = PrepTimingAssessment.tooEarly,
+                    ),
                   ),
-                ),
-                ChoiceChip(
-                  label: const Text("적절했어요"),
-                  selected: _prepTiming == PrepTimingAssessment.appropriate,
-                  onSelected: (_) => setState(
-                    () => _prepTiming = PrepTimingAssessment.appropriate,
+                  ChoiceChip(
+                    label: const Text("적절했어요"),
+                    selected: _prepTiming == PrepTimingAssessment.appropriate,
+                    onSelected: (_) => setState(
+                      () => _prepTiming = PrepTimingAssessment.appropriate,
+                    ),
                   ),
-                ),
-                ChoiceChip(
-                  label: const Text("촉박했어요"),
-                  selected: _prepTiming == PrepTimingAssessment.tooLate,
-                  onSelected: (_) => setState(
-                    () => _prepTiming = PrepTimingAssessment.tooLate,
+                  ChoiceChip(
+                    label: const Text("촉박했어요"),
+                    selected: _prepTiming == PrepTimingAssessment.tooLate,
+                    onSelected: (_) => setState(
+                      () => _prepTiming = PrepTimingAssessment.tooLate,
+                    ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              "서두른 정도는요?",
-              style: TextStyle(fontSize: 12, color: EnsomColors.inkMuted),
-            ),
-            const SizedBox(height: 4),
-            Wrap(
-              spacing: 8,
-              children: [
-                ChoiceChip(
-                  label: const Text("여유로웠어요"),
-                  selected: _rush == RushAssessment.notRushed,
-                  onSelected: (_) =>
-                      setState(() => _rush = RushAssessment.notRushed),
-                ),
-                ChoiceChip(
-                  label: const Text("서둘렀어요"),
-                  selected: _rush == RushAssessment.rushed,
-                  onSelected: (_) =>
-                      setState(() => _rush = RushAssessment.rushed),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            FilledButton(
-              onPressed: (_prepTiming != null && _rush != null && !_submitting)
-                  ? _submit
-                  : null,
-              child: Text(_submitting ? "저장 중..." : "저장"),
-            ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                "서두른 정도는요?",
+                style: TextStyle(fontSize: 12, color: EnsomColors.inkMuted),
+              ),
+              const SizedBox(height: 4),
+              Wrap(
+                spacing: 8,
+                children: [
+                  ChoiceChip(
+                    label: const Text("여유로웠어요"),
+                    selected: _rush == RushAssessment.notRushed,
+                    onSelected: (_) =>
+                        setState(() => _rush = RushAssessment.notRushed),
+                  ),
+                  ChoiceChip(
+                    label: const Text("서둘렀어요"),
+                    selected: _rush == RushAssessment.rushed,
+                    onSelected: (_) =>
+                        setState(() => _rush = RushAssessment.rushed),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              FilledButton(
+                onPressed:
+                    (_prepTiming != null && _rush != null && !_submitting)
+                    ? _submit
+                    : null,
+                child: Text(_submitting ? "저장 중..." : "저장"),
+              ),
+            ],
           ],
         ),
       ),

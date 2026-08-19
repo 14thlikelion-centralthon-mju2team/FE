@@ -11,6 +11,7 @@ import "../screens/onboarding/prep_time_entry_screen.dart";
 import "../screens/onboarding/wellness_onboarding_screen.dart";
 import "../screens/onboarding/onboarding_complete_screen.dart";
 import "../screens/onboarding/permission_priming_screen.dart";
+import "../screens/onboarding/signup_complete_screen.dart";
 import "../screens/home/home_screen.dart";
 import "../screens/notifications/notification_log_screen.dart";
 import "../screens/places/place_registration_screen.dart";
@@ -83,7 +84,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           final isOnboardingFlow =
               path.startsWith("/onboarding/") && !isAuthPage && !isConsentPage;
           if (isOnboardingFlow) return null;
-          return "/onboarding/prep-time";
+          return "/onboarding/signup-complete";
 
         case AuthStatus.authenticated:
           // 인증 완료 — 온보딩/스플래시에 있으면 홈으로
@@ -111,6 +112,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (c, s) => EmailVerificationScreen(
           email: s.uri.queryParameters["email"] ?? "",
         ),
+      ),
+      GoRoute(
+        path: "/onboarding/signup-complete",
+        builder: (c, s) => const SignupCompleteScreen(),
       ),
       GoRoute(
         path: "/onboarding/prep-time",

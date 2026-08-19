@@ -5,6 +5,7 @@ import "../../core/auth_service.dart";
 import "../../network/api_client.dart";
 import "../../providers/auth_providers.dart";
 import "../../theme/ensom_colors.dart";
+import "consent_detail_screen.dart";
 
 /// PRD §11.2 "필수 약관 동의" / API 명세 §2.8 POST /consents
 /// consentRequired가 빈 배열이 될 때까지 홈 진입을 막는다.
@@ -133,7 +134,17 @@ class _ConsentScreenState extends ConsumerState<ConsentScreen> {
                     },
                     secondary: TextButton(
                       onPressed: () {
-                        // TODO: 약관 전문 화면으로 이동 (정적 마크다운 뷰어)
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => ConsentDetailScreen(
+                              consentType: item.type,
+                              title: item.label.replaceAll(
+                                RegExp(r"\[.+?\]\s*"),
+                                "",
+                              ),
+                            ),
+                          ),
+                        );
                       },
                       child: const Text("보기"),
                     ),

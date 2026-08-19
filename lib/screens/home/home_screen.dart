@@ -225,6 +225,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       plan.eventStatus == EventLifecycleStatus.closed) ...[
                     const SizedBox(height: 16),
                     ArrivalResultCard(eventId: event.eventId),
+                    const SizedBox(height: 12),
+                    Card(
+                      child: ListTile(
+                        leading: const Icon(Icons.nightlight_round_outlined),
+                        title: const Text("오늘의 마무리"),
+                        subtitle: const Text("하루를 돌아보세요"),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () => context.push("/summary/daily"),
+                      ),
+                    ),
                   ],
                 ],
               );

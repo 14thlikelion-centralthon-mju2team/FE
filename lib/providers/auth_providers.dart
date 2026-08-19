@@ -82,6 +82,15 @@ class AuthNotifier extends StateNotifier<AuthState> {
       // refresh가 필요하면 ApiClient가 처리한다. 세션 검사 네트워크 실패와
       // 인증 실패를 구분하기 위해 실제 인증 필요 API를 호출한다.
       await apiClient.get<Map<String, dynamic>>("/me/bootstrap");
+      final isOnboardingDone = await secureStorage.onboardingCompleted;
+      if (!isOnboardingDone) {
+        state = const AuthState(
+          status: AuthStatus.onboarding,
+          onboardingRequired: true,
+        );
+        _syncFcm();
+        return;
+      }
       state = const AuthState(status: AuthStatus.authenticated);
       _syncFcm();
     } on ApiException catch (e) {
@@ -177,6 +186,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   void onOnboardingCompleted() {
+    secureStorage.setOnboardingCompleted(true);
     state = AuthState(status: AuthStatus.authenticated, userId: state.userId);
   }
 
