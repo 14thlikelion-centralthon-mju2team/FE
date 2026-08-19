@@ -458,7 +458,10 @@ class ApiEnsomRepository implements EnsomRepository {
 
   @override
   Future<void> syncCalendar() async {
-    await _client.post<Map<String, dynamic>>("/calendar/sync");
+    // BE 경로: POST /calendar/google/connect { authCode }
+    // 실제로는 Google Sign-In에서 받은 serverAuthCode를 전달해야 하지만
+    // 현재 FE에서 캘린더 연동 흐름(CAL-03)이 미구현이므로 호출만 정의.
+    throw UnimplementedError("CAL-03 캘린더 연동 흐름 미구현 — authCode 필요");
   }
 
   // -- 도착 결과·사후 평가 (REPORT-01, §14) -----------------------------

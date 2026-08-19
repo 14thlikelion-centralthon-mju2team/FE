@@ -140,7 +140,7 @@ class _PlaceRegistrationScreenState
         actions: [
           if (widget.isOnboarding)
             TextButton(
-              onPressed: () => context.go("/home"),
+              onPressed: () => context.go("/onboarding/wellness"),
               child: const Text("완료"),
             ),
         ],
