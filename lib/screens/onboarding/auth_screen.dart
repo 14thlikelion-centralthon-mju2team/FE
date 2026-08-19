@@ -2,6 +2,7 @@ import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:go_router/go_router.dart";
 import "package:google_sign_in/google_sign_in.dart";
+import "../../core/app_config.dart";
 import "../../network/api_client.dart";
 import "../../providers/auth_providers.dart";
 import "email_signup_screen.dart";
@@ -22,8 +23,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   String? _error;
 
   // Google Sign-In 설정. serverClientId는 백엔드가 토큰을 검증할 때
-  // 사용하는 OAuth 클라이언트 ID. 실제 값은 환경 설정에서 주입한다.
+  // 사용하는 OAuth 클라이언트 ID(Web 타입) — --dart-define=GOOGLE_SERVER_CLIENT_ID로 주입.
   static final _googleSignIn = GoogleSignIn(
+    serverClientId: kGoogleServerClientId.isEmpty ? null : kGoogleServerClientId,
     scopes: [
       "email",
       "https://www.googleapis.com/auth/calendar.readonly",
@@ -111,15 +113,17 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                 Text(_error!, style: const TextStyle(color: Colors.red)),
                 const SizedBox(height: 16),
               ],
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: _submitting ? null : _handleGoogleLogin,
-                  icon: const Icon(Icons.g_mobiledata, size: 24),
-                  label: const Text("Google로 시작하기"),
+              if (kGoogleServerClientId.isNotEmpty) ...[
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: _submitting ? null : _handleGoogleLogin,
+                    icon: const Icon(Icons.g_mobiledata, size: 24),
+                    label: const Text("Google로 시작하기"),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 12),
+                const SizedBox(height: 12),
+              ],
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton(
