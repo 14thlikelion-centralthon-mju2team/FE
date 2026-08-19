@@ -7,6 +7,8 @@ import "../../models/plan.dart";
 import "../../network/api_client.dart";
 import "../../providers/auth_providers.dart";
 import "../../repository/providers.dart";
+import "../../widgets/prep_item_add_sheet.dart";
+import "../../widgets/route_change_sheet.dart";
 
 /// DTL-01 일정 상세
 /// 진입: HM-01 카드 탭, CAL-01 카드 탭, HM-02 알림 행
@@ -116,6 +118,21 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
             _buildBreakdown(),
             const SizedBox(height: 24),
             _buildChecklist(),
+            Padding(
+              padding: const EdgeInsets.only(left: 8, top: 8),
+              child: TextButton.icon(
+                onPressed: () async {
+                  final added = await showModalBottomSheet<bool>(
+                    context: context,
+                    isScrollControlled: true,
+                    builder: (_) => const PrepItemAddSheet(),
+                  );
+                  if (added == true) _loadDetail();
+                },
+                icon: const Icon(Icons.add, size: 18),
+                label: const Text("준비 항목 추가"),
+              ),
+            ),
             const SizedBox(height: 24),
             _buildRoute(),
           ],
@@ -310,8 +327,15 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
         leading: const Icon(Icons.directions),
         title: Text("이동 $travelMin분"),
         trailing: TextButton(
-          onPressed: () {
-            // TODO: RTE-01 경로 변경 시트
+          onPressed: () async {
+            final changed = await showModalBottomSheet<bool>(
+              context: context,
+              builder: (_) => RouteChangeSheet(
+                planId: _plan!.planId,
+                eventId: widget.eventId,
+              ),
+            );
+            if (changed == true) _loadDetail();
           },
           child: const Text("변경"),
         ),
