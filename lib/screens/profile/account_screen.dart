@@ -1,6 +1,7 @@
 import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:go_router/go_router.dart";
+import "package:google_sign_in/google_sign_in.dart";
 import "../../providers/auth_providers.dart";
 import "../../network/api_client.dart";
 
@@ -156,6 +157,20 @@ class _WithdrawScreenState extends ConsumerState<WithdrawScreen> {
   Future<void> _withdraw() async {
     setState(() => _processing = true);
     try {
+      // Must-Fix #3: 소셜 재인증 — Google 로그인 재확인
+      final googleSignIn = GoogleSignIn();
+      final account = await googleSignIn.signIn();
+      if (account == null) {
+        // 사용자가 재인증을 취소
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("본인 확인이 필요해요.")),
+          );
+          setState(() => _processing = false);
+        }
+        return;
+      }
+
       final apiClient = ref.read(apiClientProvider);
       await apiClient.delete("/me");
       if (mounted) {
@@ -181,6 +196,13 @@ class _WithdrawScreenState extends ConsumerState<WithdrawScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(e.message)),
+        );
+        setState(() => _processing = false);
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("본인 확인에 실패했어요. 다시 시도해주세요.")),
         );
         setState(() => _processing = false);
       }

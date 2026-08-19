@@ -69,9 +69,10 @@ class PlanCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final timeFormat = DateFormat("a h:mm", "ko_KR");
-    return GestureDetector(
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
       onTap: onTap,
-      child: Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(

@@ -1,5 +1,7 @@
 import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
+import "package:go_router/go_router.dart";
+import "package:uuid/uuid.dart";
 import "../../network/api_client.dart";
 import "../../providers/auth_providers.dart";
 
@@ -16,6 +18,7 @@ class EventDetailScreen extends ConsumerStatefulWidget {
 }
 
 class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
+  static const _uuid = Uuid();
   Map<String, dynamic>? _event;
   Map<String, dynamic>? _plan;
   bool _loading = true;
@@ -280,6 +283,9 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
             const SizedBox(height: 12),
             ...checklist.map((item) {
               final map = item as Map<String, dynamic>;
+              // TR-10: 화면 내에서도 민감 항목 마스킹 적용.
+              // 잠금화면/푸시 마스킹과 별개로, 화면 공유·스크린샷 시 노출 방지.
+              // 사용자가 자기 항목명을 보려면 "자세히" 등 별도 인터랙션 추가 필요(후속).
               final name = map["isSensitive"] == true
                   ? "개인 준비"
                   : (map["itemName"] ?? "");
@@ -327,7 +333,10 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
       final planId = _plan!["planId"];
       await apiClient.post(
         "/plans/$planId/prep-items/$itemId/resolve",
-        body: {"completionStatus": "completed"},
+        body: {
+          "completionStatus": "completed",
+          "clientEventId": _uuid.v4(),
+        },
       );
       await _loadDetail();
     } on ApiException catch (e) {
@@ -382,7 +391,7 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("삭제했어요.")),
         );
-        Navigator.of(context).pop();
+        context.pop();
       }
     } on ApiException catch (e) {
       if (mounted) {
@@ -397,9 +406,14 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
     if (isoTime == null) return "--:--";
     try {
       final dt = DateTime.parse(isoTime.toString()).toLocal();
+      final now = DateTime.now();
       final h = dt.hour.toString().padLeft(2, "0");
       final m = dt.minute.toString().padLeft(2, "0");
-      return "$h:$m";
+      // 오늘이면 시간만, 아니면 날짜+시간
+      if (dt.year == now.year && dt.month == now.month && dt.day == now.day) {
+        return "$h:$m";
+      }
+      return "${dt.month}/${dt.day} $h:$m";
     } catch (_) {
       return "--:--";
     }
