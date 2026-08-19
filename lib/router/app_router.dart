@@ -10,6 +10,7 @@ import "../screens/onboarding/location_permission_screen.dart";
 import "../screens/onboarding/prep_time_entry_screen.dart";
 import "../screens/onboarding/wellness_onboarding_screen.dart";
 import "../screens/onboarding/onboarding_complete_screen.dart";
+import "../screens/onboarding/permission_priming_screen.dart";
 import "../screens/home/home_screen.dart";
 import "../screens/notifications/notification_log_screen.dart";
 import "../screens/places/place_registration_screen.dart";
@@ -122,6 +123,30 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: "/onboarding/password-reset",
         builder: (c, s) => const PlaceholderScreen(title: "비밀번호 재설정"),
+      ),
+      GoRoute(
+        path: "/onboarding/priming/notification",
+        builder: (c, s) => PermissionPrimingScreen(
+          type: PermissionPrimingType.notification,
+          onAllow: () {/* TODO: OS 권한 요청 후 다음 단계 */},
+          onSkip: () => c.go("/home"),
+        ),
+      ),
+      GoRoute(
+        path: "/onboarding/priming/location",
+        builder: (c, s) => PermissionPrimingScreen(
+          type: PermissionPrimingType.location,
+          onAllow: () {/* TODO: OS 권한 요청 후 다음 단계 */},
+          onSkip: () => c.go("/home"),
+        ),
+      ),
+      GoRoute(
+        path: "/onboarding/priming/calendar",
+        builder: (c, s) => PermissionPrimingScreen(
+          type: PermissionPrimingType.calendar,
+          onAllow: () {/* TODO: OS 권한 요청 후 다음 단계 */},
+          onSkip: () => c.go("/onboarding/places"),
+        ),
       ),
 
       // ─── 기능 화면 (인증 필요) ───────────────────────────────────
