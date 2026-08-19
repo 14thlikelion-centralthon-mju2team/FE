@@ -48,8 +48,6 @@ enum PrepTimingAssessment {
 enum RushAssessment {
   @JsonValue("not_rushed")
   notRushed,
-  @JsonValue("slightly_rushed")
-  slightlyRushed,
-  @JsonValue("very_rushed")
-  veryRushed,
+  @JsonValue("rushed")
+  rushed,
 }

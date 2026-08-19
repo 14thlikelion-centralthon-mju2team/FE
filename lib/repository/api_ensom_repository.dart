@@ -96,22 +96,29 @@ class ApiEnsomRepository implements EnsomRepository {
     required EventAnchor anchorMode,
     required DateTime at,
   }) async {
-    final json = await _client.get<List<dynamic>>(
-      "/routes/search",
-      query: {
-        if (originPlaceId != null) "originPlaceId": originPlaceId,
-        if (originLat != null) "originLat": originLat,
-        if (originLng != null) "originLng": originLng,
-        "destLat": destLat,
-        "destLng": destLng,
-        "destName": destName,
-        "anchorMode": anchorMode == EventAnchor.departAt ? "depart_at" : "arrive_by",
-        "at": at.toIso8601String(),
-      },
-    );
-    return json
-        .map((e) => RouteOption.fromJson(e as Map<String, dynamic>))
-        .toList();
+    try {
+      final json = await _client.get<List<dynamic>>(
+        "/routes/search",
+        query: {
+          if (originPlaceId != null) "originPlaceId": originPlaceId,
+          if (originLat != null) "originLat": originLat,
+          if (originLng != null) "originLng": originLng,
+          "destLat": destLat,
+          "destLng": destLng,
+          "destName": destName,
+          "anchorMode": anchorMode == EventAnchor.departAt ? "depart_at" : "arrive_by",
+          "at": at.toIso8601String(),
+        },
+      );
+      return json
+          .map((e) => RouteOption.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } on ApiException catch (e) {
+      // BE에 엔드포인트가 아직 없으면 404 → 빈 리스트로 저하 동작.
+      // UI에서 빈 리스트를 받으면 "경로 검색을 사용할 수 없어요" 안내 표시.
+      if (e.statusCode == 404 || e.code == "NOT_FOUND") return [];
+      rethrow;
+    }
   }
 
   // -- 행동 기록 -----------------------------------------------------
@@ -454,16 +461,35 @@ class ApiEnsomRepository implements EnsomRepository {
     await _client.post<Map<String, dynamic>>(
       "/events/$eventId/feedback",
       body: {
-        "prepTimingAssessment": prepTimingAssessment.name,
-        "arrivalResult": arrivalResult.name,
-        "rushAssessment": rushAssessment.name,
+        "prepTimingAssessment": _prepTimingWireValue[prepTimingAssessment]!,
+        "arrivalResult": _arrivalResultWireValue[arrivalResult]!,
+        "rushAssessment": _rushWireValue[rushAssessment]!,
       },
     );
   }
 
-  /// v3.0의 `arrived` ActionType은 EVENT_EXECUTION으로 옮겨갔다고만
-  /// 명시돼 있고 실제 쓰기 엔드포인트가 API 명세에 없다 — 백엔드 확인
-  /// 필요(map_screen.dart의 기존 관례와 동일하게 TODO로 남긴다).
+  static const _prepTimingWireValue = {
+    PrepTimingAssessment.tooEarly: "too_early",
+    PrepTimingAssessment.appropriate: "appropriate",
+    PrepTimingAssessment.tooLate: "too_late",
+  };
+
+  static const _arrivalResultWireValue = {
+    ArrivalResult.early: "early",
+    ArrivalResult.onTime: "on_time",
+    ArrivalResult.rushed: "rushed",
+    ArrivalResult.late_: "late",
+    ArrivalResult.unknown: "unknown",
+  };
+
+  static const _rushWireValue = {
+    RushAssessment.notRushed: "not_rushed",
+    RushAssessment.rushed: "rushed",
+  };
+
+  /// 도착 처리: POST /plans/{planId}/actions (배치 엔드포인트)로 전송.
+  /// BE dev에 ARRIVED ActionType이 있으므로 행동 기록 경로를 사용한다.
+  /// TRD §9.2: 지오펜스 판정 결과를 서버에 전송.
   @override
   Future<void> reportArrival(
     String eventId,
@@ -471,10 +497,22 @@ class ApiEnsomRepository implements EnsomRepository {
     required String clientEventId,
     required ActionSource source,
     double? confidence,
-  }) =>
-      throw UnimplementedError(
-        "도착 처리 쓰기 엔드포인트가 API 명세에 없음 — 백엔드 확인 필요 (TODO)",
-      );
+  }) async {
+    await _client.post<Map<String, dynamic>>(
+      "/plans/$planId/actions",
+      body: {
+        "actions": [
+          {
+            "actionType": "arrived",
+            "actionSource": source.name,
+            "deviceTs": DateTime.now().toIso8601String(),
+            "clientEventId": clientEventId,
+            if (confidence != null) "confidence": confidence,
+          },
+        ],
+      },
+    );
+  }
 
   // -- 계정 --------------------------------------------------------
   @override

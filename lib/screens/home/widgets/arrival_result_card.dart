@@ -130,14 +130,9 @@ class _ArrivalResultCardState extends ConsumerState<ArrivalResultCard> {
                   onSelected: (_) => setState(() => _rush = RushAssessment.notRushed),
                 ),
                 ChoiceChip(
-                  label: const Text("조금 서둘렀어요"),
-                  selected: _rush == RushAssessment.slightlyRushed,
-                  onSelected: (_) => setState(() => _rush = RushAssessment.slightlyRushed),
-                ),
-                ChoiceChip(
-                  label: const Text("많이 서둘렀어요"),
-                  selected: _rush == RushAssessment.veryRushed,
-                  onSelected: (_) => setState(() => _rush = RushAssessment.veryRushed),
+                  label: const Text("서둘렀어요"),
+                  selected: _rush == RushAssessment.rushed,
+                  onSelected: (_) => setState(() => _rush = RushAssessment.rushed),
                 ),
               ],
             ),
