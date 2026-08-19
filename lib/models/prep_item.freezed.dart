@@ -240,7 +240,15 @@ _$PrepItemCopyWith<_PrepItem> get copyWith => __$PrepItemCopyWithImpl<_PrepItem>
 
 @override
 Map<String, dynamic> toJson() {
-  return _$PrepItemToJson(this, );
+  return {
+    'id': id,
+    'label': label,
+    'kind': kind.name,
+    'extraMin': extraMin,
+    'sensitive': sensitive,
+    'fromChip': fromChip,
+    'active': active,
+  };
 }
 
 @override

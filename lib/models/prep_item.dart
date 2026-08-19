@@ -1,31 +1,21 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 part 'prep_item.freezed.dart';
-part 'prep_item.g.dart';
 
 /// 챙기기 / 사용·섭취하기 / 구매하기 / 시간이 필요한 루틴 (PRD §11.3, ERD prep_kind).
 enum PrepKind {
-  @JsonValue('carry')
   carry,
-  @JsonValue('consume')
   consume,
-  @JsonValue('purchase')
   purchase,
-  @JsonValue('routine')
   routine,
 }
 
 /// 맞춤 준비 항목. 준비시간 화면 안의 한 섹션에서 등록되며
 /// 별도 온보딩 단계로 분리하지 않는다 (PRD §11.3).
 ///
-/// BE 응답 필드명과 FE 내부 필드명 매핑:
-///   BE prepRuleId    → FE id
-///   BE ruleName      → FE label
-///   BE actionType    → FE kind (carry/consume/purchase/timed_routine→routine)
-///   BE defaultMinutes → FE extraMin
-///   BE isSensitive   → FE sensitive
-///   BE isActive      → FE active
-///   BE fromChip      → FE fromChip (동일)
+/// fromJson/toJson 모두 수동 구현 — json_serializable codegen에 의존하지 않는다.
+/// BE 응답 필드명(prepRuleId/ruleName/actionType 등)과
+/// FE 필드명(id/label/kind 등) 양쪽 모두 대응한다.
 @freezed
 abstract class PrepItem with _$PrepItem {
   const factory PrepItem({
@@ -38,9 +28,9 @@ abstract class PrepItem with _$PrepItem {
     @Default(true) bool active,
   }) = _PrepItem;
 
-  /// BE 응답 필드명과 FE 필드명 양쪽 모두 지원하는 커스텀 factory.
-  /// BE가 DTO 매핑을 완료하면 FE 필드명으로 올 수 있고,
-  /// 매핑 전이면 원래 BE 필드명(prepRuleId, ruleName 등)으로 온다.
+  const PrepItem._();
+
+  /// BE/FE 양쪽 필드명 모두 파싱 가능.
   factory PrepItem.fromJson(Map<String, dynamic> json) {
     return PrepItem(
       id: (json['id'] ?? json['prepRuleId'] ?? '') as String,
@@ -53,13 +43,21 @@ abstract class PrepItem with _$PrepItem {
     );
   }
 
-  const PrepItem._();
+  /// FE → BE 요청 시 직렬화. FE 내부 필드명으로 보낸다.
+  /// (ApiEnsomRepository._prepItemToRequestBody()가 API 명세 필드명으로
+  /// 별도 변환하므로, 여기서는 FE 모델 그대로 직렬화.)
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'label': label,
+        'kind': kind.name,
+        'extraMin': extraMin,
+        'sensitive': sensitive,
+        'fromChip': fromChip,
+        'active': active,
+      };
 
   /// 서버 검증 규칙과 동일한 클라이언트측 가드.
   bool get isInvalidChipCombination => fromChip && sensitive;
-
-  /// FE → BE 요청 시 사용하는 직렬화 (API 명세 §6.1 필드명 기준)
-  Map<String, dynamic> toJson() => _$PrepItemToJson(this as _PrepItem);
 }
 
 /// BE의 actionType 값(CARRY/CONSUME/PURCHASE/TIMED_ROUTINE 또는
@@ -82,8 +80,7 @@ PrepKind _parseKind(dynamic value) {
   }
 }
 
-/// 추천 칩 목록. 민감·규제 품목(담배·주류·복용약 등)은 여기 포함하지 않는다
-/// (PRD §1.1 "추천 칩은 일반적인 준비물 위주로 제공", TR-10 추천 경계).
+/// 추천 칩 목록. 민감·규제 품목(담배·주류·복용약 등)은 여기 포함하지 않는다.
 const List<Map<String, dynamic>> kPrepItemQuickAddChips = [
   {'label': '영양제', 'kind': PrepKind.consume},
   {'label': '물·텀블러', 'kind': PrepKind.carry},
