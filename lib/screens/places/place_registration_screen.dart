@@ -6,6 +6,7 @@ import "package:hive_ce_flutter/hive_ce_flutter.dart";
 import "package:uuid/uuid.dart";
 import "../../local/place_cache_entry.dart";
 import "../../models/place.dart";
+import "../../providers/auth_providers.dart";
 import "../../repository/providers.dart";
 import "../../widgets/vium_button.dart";
 import "../../widgets/vium_card.dart";
@@ -142,7 +143,10 @@ class _PlaceRegistrationScreenState
         actions: [
           if (widget.isOnboarding)
             TextButton(
-              onPressed: () => context.go("/onboarding/priming/calendar"),
+              onPressed: () {
+                ref.read(secureStorageProvider).setOnboardingStep("calendar");
+                context.go("/onboarding/priming/calendar");
+              },
               child: const Text("완료"),
             ),
         ],

@@ -95,6 +95,7 @@ class _CalendarSyncScreenState extends ConsumerState<CalendarSyncScreen> {
       ).showSnackBar(const SnackBar(content: Text("캘린더를 연동했어요.")));
 
       if (widget.isOnboarding) {
+        ref.read(secureStorageProvider).setOnboardingStep("wellness");
         context.go("/onboarding/wellness");
       }
     } on ApiException catch (e) {
@@ -108,6 +109,7 @@ class _CalendarSyncScreenState extends ConsumerState<CalendarSyncScreen> {
       if (!mounted) return;
       setState(() => _error = "Google 인증 정보를 가져오지 못했어요. 다시 시도해주세요.");
     } finally {
+      await _googleSignIn.signOut();
       if (mounted) setState(() => _loading = false);
     }
   }
@@ -159,6 +161,7 @@ class _CalendarSyncScreenState extends ConsumerState<CalendarSyncScreen> {
   }
 
   void _continueWithoutCalendar() {
+    ref.read(secureStorageProvider).setOnboardingStep("wellness");
     context.go("/onboarding/wellness");
   }
 

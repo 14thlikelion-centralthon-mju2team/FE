@@ -19,6 +19,7 @@ class SecureStorageService {
   static const _kUserId = "user_id";
   static const _kInstallationId = "installation_id";
   static const _kOnboardingCompleted = "onboarding_completed";
+  static const _kOnboardingStep = "onboarding_step";
 
   Future<void> saveSession({
     required String accessToken,
@@ -58,6 +59,13 @@ class SecureStorageService {
   Future<void> setOnboardingCompleted(bool value) =>
       _storage.write(key: _kOnboardingCompleted, value: value.toString());
 
+  /// 온보딩 진행 단계 저장. 앱 강제 종료 후 복귀 시 마지막 단계로 복원한다.
+  Future<String?> get onboardingStep =>
+      _storage.read(key: _kOnboardingStep);
+
+  Future<void> setOnboardingStep(String step) =>
+      _storage.write(key: _kOnboardingStep, value: step);
+
   /// 로그아웃 시 전체 소거. TRD §14.3 "로그아웃 시 로컬 민감 데이터 제거"
   /// 원칙에 따라 세션뿐 아니라 이 서비스가 관리하는 모든 키를 지운다.
   /// 준비 항목·장소 캐시 등 다른 민감 캐시(Hive)는 이 서비스 책임이
@@ -68,6 +76,7 @@ class SecureStorageService {
       _storage.delete(key: _kRefreshToken),
       _storage.delete(key: _kUserId),
       _storage.delete(key: _kOnboardingCompleted),
+      _storage.delete(key: _kOnboardingStep),
     ]);
   }
 

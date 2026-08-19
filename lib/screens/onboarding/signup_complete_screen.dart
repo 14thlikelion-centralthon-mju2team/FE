@@ -1,5 +1,7 @@
 import "package:flutter/material.dart";
+import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:go_router/go_router.dart";
+import "../../providers/auth_providers.dart";
 import "../../theme/ensom_colors.dart";
 
 /// S-18 가입 완료.
@@ -7,11 +9,11 @@ import "../../theme/ensom_colors.dart";
 /// BE가 isNew=true를 반환한다. 로그인 분기에서 이 화면으로 보내고,
 /// [시작하기]를 누르면 S-03 준비 시간 온보딩으로 진행한다.
 /// 뒤로가기는 차단된다 — 가입 이전으로 돌아갈 수 없다.
-class SignupCompleteScreen extends StatelessWidget {
+class SignupCompleteScreen extends ConsumerWidget {
   const SignupCompleteScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return PopScope(
       canPop: false,
       child: Scaffold(
@@ -42,7 +44,12 @@ class SignupCompleteScreen extends StatelessWidget {
                 SizedBox(
                   width: double.infinity,
                   child: FilledButton(
-                    onPressed: () => context.go("/onboarding/prep-time"),
+                    onPressed: () {
+                      ref
+                          .read(secureStorageProvider)
+                          .setOnboardingStep("prep_time");
+                      context.go("/onboarding/prep-time");
+                    },
                     child: const Text("시작하기"),
                   ),
                 ),

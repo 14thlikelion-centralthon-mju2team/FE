@@ -84,7 +84,23 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           final isOnboardingFlow =
               path.startsWith("/onboarding/") && !isAuthPage && !isConsentPage;
           if (isOnboardingFlow) return null;
-          return "/onboarding/signup-complete";
+          // 저장된 온보딩 단계로 복원 — 앱 종료 후 재진입 시 진행 중
+          // 단계부터 다시 시작한다.
+          final step = authState.onboardingStep;
+          switch (step) {
+            case "prep_time":
+              return "/onboarding/prep-time";
+            case "places":
+              return "/onboarding/places";
+            case "calendar":
+              return "/onboarding/priming/calendar";
+            case "wellness":
+              return "/onboarding/wellness";
+            case "permissions":
+              return "/onboarding/complete";
+            default:
+              return "/onboarding/signup-complete";
+          }
 
         case AuthStatus.authenticated:
           // 인증 완료 — 온보딩/스플래시에 있으면 홈으로
@@ -166,7 +182,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (c, s) => PermissionPrimingScreen(
           type: PermissionPrimingType.calendar,
           onAllow: () => c.push("/calendar/sync?onboarding=true"),
-          onSkip: () => c.go("/onboarding/wellness"),
+          onSkip: () {
+            ref.read(secureStorageProvider).setOnboardingStep("wellness");
+            c.go("/onboarding/wellness");
+          },
         ),
       ),
 
@@ -287,11 +306,24 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 });
 
 // ─── 스플래시 (세션 확인 중 표시) ──────────────────────────────────
-class _SplashScreen extends ConsumerWidget {
+class _SplashScreen extends ConsumerStatefulWidget {
   const _SplashScreen();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_SplashScreen> createState() => _SplashScreenState();
+}
+
+class _SplashScreenState extends ConsumerState<_SplashScreen> {
+  bool _isRetrying = false;
+
+  Future<void> _retry() async {
+    setState(() => _isRetrying = true);
+    await ref.read(authNotifierProvider.notifier).retrySessionCheck();
+    if (mounted) setState(() => _isRetrying = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final authState = ref.watch(authNotifierProvider);
     final failed = authState.status == AuthStatus.sessionCheckFailed;
 
@@ -307,16 +339,14 @@ class _SplashScreen extends ConsumerWidget {
                 style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 32),
-              if (failed) ...[
+              if (failed && !_isRetrying) ...[
                 Text(
                   authState.errorMessage ?? "세션을 확인하지 못했어요.",
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 16),
                 FilledButton(
-                  onPressed: () => ref
-                      .read(authNotifierProvider.notifier)
-                      .retrySessionCheck(),
+                  onPressed: _retry,
                   child: const Text("다시 시도"),
                 ),
               ] else

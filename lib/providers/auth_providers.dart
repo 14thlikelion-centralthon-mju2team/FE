@@ -43,6 +43,7 @@ class AuthState {
     this.email,
     this.consentRequired = const [],
     this.onboardingRequired = false,
+    this.onboardingStep,
     this.errorMessage,
   });
 
@@ -51,6 +52,7 @@ class AuthState {
   final String? email;
   final List<String> consentRequired;
   final bool onboardingRequired;
+  final String? onboardingStep;
   final String? errorMessage;
 
   static const initial = AuthState(status: AuthStatus.unknown);
@@ -84,9 +86,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
       await apiClient.get<Map<String, dynamic>>("/me/bootstrap");
       final isOnboardingDone = await secureStorage.onboardingCompleted;
       if (!isOnboardingDone) {
-        state = const AuthState(
+        final step = await secureStorage.onboardingStep;
+        state = AuthState(
           status: AuthStatus.onboarding,
           onboardingRequired: true,
+          onboardingStep: step,
         );
         _syncFcm();
         return;

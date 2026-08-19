@@ -3,6 +3,7 @@ import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:go_router/go_router.dart";
 import "../../models/prep_item.dart";
 import "../../network/api_client.dart";
+import "../../providers/auth_providers.dart";
 import "../../repository/providers.dart";
 import "../../theme/ensom_colors.dart";
 
@@ -216,6 +217,7 @@ class _PrepTimeEntryScreenState extends ConsumerState<PrepTimeEntryScreen> {
         );
       }
 
+      ref.read(secureStorageProvider).setOnboardingStep("places");
       context.go("/onboarding/places");
     } on ApiException catch (e) {
       // settings PATCH 자체가 실패한 경우
@@ -235,6 +237,7 @@ class _PrepTimeEntryScreenState extends ConsumerState<PrepTimeEntryScreen> {
 
   void _skip() {
     // 맞춤 항목은 선택 사항 — 건너뛰어도 온보딩 완료를 막지 않음 (PRD §11.3)
+    ref.read(secureStorageProvider).setOnboardingStep("places");
     context.go("/onboarding/places");
   }
 
