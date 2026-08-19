@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ensom — 준비 항목 시트 + 캘린더 연동 관리 프로토타입</title>
+<style>
+  :root{
+    --lime:#c6f135;--lime-soft:#e4fb9b;--lime-ink:#4e6810;
+    --canvas:#ffffff;--surface-1:#ffffff;--surface-2:#eef0ea;--surface-neutral:#e9e9e6;
+    --hairline:#e3e5e0;--ink:#14150f;--ink-muted:#63655e;--ink-faint:#6f7269;
+    --panel:#15170f;--cta:#1f231a;
+    --font:'Pretendard','Apple SD Gothic Neo','Malgun Gothic',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:var(--font);background:#d9dcd3;color:var(--ink);padding:32px 20px 60px;-webkit-font-smoothing:antialiased;}
+  .page-head{max-width:1180px;margin:0 auto 22px;}
+  .page-head h1{font-size:22px;font-weight:700;letter-spacing:-.4px;}
+  .page-head p{font-size:13px;color:#55584f;margin-top:6px;line-height:1.55;}
+  .stage{max-width:1180px;margin:0 auto;display:flex;gap:36px;flex-wrap:wrap;align-items:flex-start;}
+  .phone{width:344px;height:730px;flex:0 0 auto;background:var(--canvas);border-radius:46px;border:9px solid #16170f;position:relative;overflow:hidden;box-shadow:0 20px 50px rgba(20,21,15,.26);}
+  .notch{position:absolute;top:0;left:50%;transform:translateX(-50%);width:112px;height:26px;background:#16170f;border-radius:0 0 16px 16px;z-index:60;}
+
+  .view{position:absolute;inset:0;display:none;flex-direction:column;}
+  .view.on{display:flex;}
+  .clickable{cursor:pointer;transition:transform .12s;}
+  .clickable:active{transform:scale(.985);}
+
+  /* trigger */
+  .trigwrap{padding:50px 18px;}
+  .trigbtn{background:var(--cta);color:#fff;font-family:var(--font);border:0;border-radius:16px;padding:16px;font-size:13.5px;font-weight:700;width:100%;margin-bottom:12px;cursor:pointer;}
+
+  /* sheet */
+  .sheetwrap{position:absolute;inset:0;z-index:70;display:flex;align-items:flex-end;pointer-events:none;}
+  .scrim{position:absolute;inset:0;background:rgba(20,21,15,0);transition:background .2s;}
+  .sheetwrap.on{pointer-events:auto;}
+  .sheetwrap.on .scrim{background:rgba(20,21,15,.45);}
+  .sheet{position:relative;width:100%;max-height:86%;overflow-y:auto;background:#fff;border-radius:26px 26px 0 0;padding:10px 20px calc(20px + env(safe-area-inset-bottom,0));transform:translateY(100%);transition:transform .24s cubic-bezier(.32,.72,0,1);z-index:2;}
+  .sheetwrap.on .sheet{transform:translateY(0);}
+  .handle{width:36px;height:4px;background:var(--surface-neutral);border-radius:99px;margin:4px auto 14px;}
+  .sheet-title{font-size:16px;font-weight:700;letter-spacing:-.2px;margin-bottom:16px;}
+
+  .field{margin-top:14px;}
+  .field label{font-size:11px;font-weight:600;color:var(--ink-muted);display:block;margin-bottom:7px;}
+  .field input{width:100%;border:1.4px solid var(--hairline);border-radius:12px;padding:11px 13px;font-size:13px;font-family:var(--font);background:var(--surface-1);}
+
+  .seg{display:flex;background:var(--surface-2);border-radius:13px;padding:3px;gap:3px;}
+  .seg .sitem{flex:1 1 0;text-align:center;font-size:11px;font-weight:600;padding:9px 3px;border-radius:10px;cursor:pointer;color:var(--ink-muted);line-height:1.3;}
+  .seg .sitem.on{background:var(--cta);color:#fff;}
+
+  .toggle{width:42px;height:25px;border-radius:999px;background:var(--surface-neutral);position:relative;cursor:pointer;flex:0 0 auto;transition:background .15s;}
+  .toggle .knob{position:absolute;top:2.5px;left:2.5px;width:20px;height:20px;border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);transition:left .15s, background .15s;}
+  .toggle.on{background:var(--cta);}
+  .toggle.on .knob{left:19.5px;background:var(--lime);}
+  .togrow{display:flex;justify-content:space-between;align-items:center;}
+
+  .scoperow{display:flex;gap:8px;margin-top:8px;}
+  .scopebtn{flex:1 1 0;border:1.6px solid var(--hairline);border-radius:14px;padding:13px 8px;text-align:center;font-size:12px;font-weight:700;cursor:pointer;color:var(--ink-muted);}
+  .scopebtn.on{border-color:var(--cta);background:var(--surface-2);color:var(--ink);}
+
+  .pbtn{font-family:var(--font);border:0;border-radius:999px;padding:13px 16px;font-size:14px;font-weight:700;cursor:pointer;width:100%;background:var(--cta);color:#fff;margin-top:20px;}
+
+  /* cal sync screen */
+  .topbar{flex:0 0 auto;margin:46px 2px 0;height:40px;background:transparent;color:var(--ink);display:flex;align-items:center;gap:10px;padding:0;}
+  .backbtn{width:32px;height:32px;border-radius:999px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;cursor:pointer;flex:0 0 auto;}
+  .backbtn svg{width:14px;height:14px;stroke:var(--ink);fill:none;stroke-width:2.1;}
+  .toptitle{color:var(--ink);font-size:16px;font-weight:700;letter-spacing:-.2px;}
+  .scroll{flex:1 1 auto;overflow-y:auto;padding:16px 18px 24px;}
+  .acctcard{background:var(--surface-1);border:1px solid var(--hairline);border-radius:18px;padding:14px;display:flex;align-items:center;gap:12px;}
+  .acctcard .aic{width:36px;height:36px;border-radius:999px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;flex:0 0 auto;}
+  .acctcard .at{flex:1 1 auto;min-width:0;}
+  .acctcard .an{font-size:13px;font-weight:700;}
+  .acctcard .asub{font-size:10.5px;color:var(--ink-faint);margin-top:2px;}
+  .disc{font-size:11.5px;font-weight:700;color:var(--ink-muted);cursor:pointer;white-space:nowrap;}
+  .sec-label{font-size:10.5px;font-weight:700;color:var(--ink-faint);letter-spacing:.4px;margin:18px 0 8px;text-transform:uppercase;}
+  .synclist{display:flex;flex-direction:column;gap:2px;}
+  .syncrow{display:flex;align-items:center;gap:10px;padding:11px 2px;}
+  .coldot{width:10px;height:10px;border-radius:999px;flex:0 0 auto;}
+  .syncrow .sn{flex:1 1 auto;font-size:13px;font-weight:600;}
+  .radiolist{display:flex;flex-direction:column;gap:0;}
+  .radiorow{display:flex;align-items:center;gap:10px;padding:11px 2px;cursor:pointer;}
+  .radio{width:18px;height:18px;border-radius:999px;border:2px solid var(--hairline);flex:0 0 auto;position:relative;}
+  .radio.on{border-color:var(--cta);}
+  .radio.on::after{content:'';position:absolute;inset:3px;border-radius:999px;background:var(--cta);}
+  .addacct{font-size:12.5px;font-weight:700;color:var(--ink-muted);text-decoration:underline;text-underline-offset:2px;cursor:pointer;margin-top:16px;display:inline-block;}
+
+  .hint{display:inline-block;background:#15170f;color:#c6f135;font-size:11.5px;font-weight:600;padding:6px 12px;border-radius:999px;margin-top:10px;}
+  .legend{max-width:340px;font-size:12px;color:#55584f;line-height:1.7;}
+  .legend b{color:var(--ink);}
+
+  /* ═ embed mode (used when loaded inside ensom_master_flow.html) ═ */
+  body.embed{background:transparent;padding:0;overflow:hidden;}
+  body.embed .page-head,body.embed .legend,body.embed .hint{display:none!important;}
+  body.embed .stage{margin:0;padding:0;gap:0;}
+  body.embed{height:100vh;}
+  body.embed .stage{height:100%;align-items:stretch;}
+  body.embed .phone{width:100%!important;height:100%!important;max-width:100%;border:0!important;border-radius:0!important;box-shadow:none!important;}
+  body.embed .notch{display:none!important;}
+</style>
+</head>
+<body>
+
+<div class="page-head">
+  <h1>Ensom — 준비 항목 추가 시트 + 캘린더 연동 관리 프로토타입</h1>
+  <p>루틴 구분을 선택하면 소요 시간 필드가 조건부로 나타나는 것과, 캘린더별 동기화 토글이 핵심.</p>
+</div>
+
+<div class="stage">
+  <div class="phone">
+    <div class="notch"></div>
+
+    <div class="view on" id="v-home">
+      <div class="trigwrap">
+        <button class="trigbtn" onclick="openSheet()">+ 준비 항목 추가 시트 열기</button>
+        <button class="trigbtn" style="background:var(--surface-2);color:var(--ink);" onclick="go('v-sync')">캘린더 연동 관리 화면 보기</button>
+      </div>
+    </div>
+
+    <!-- ═══ 준비 항목 추가 시트 ═══ -->
+    <div class="sheetwrap" id="s-prep">
+      <div class="scrim" onclick="closeSheet()"></div>
+      <div class="sheet">
+        <div class="handle"></div>
+        <div class="sheet-title">준비 항목 추가</div>
+
+        <div class="field">
+          <label>항목명</label>
+          <input type="text" placeholder="예: 우산 챙기기" value="우산 챙기기">
+        </div>
+
+        <div class="field">
+          <label>구분</label>
+          <div class="seg">
+            <div class="sitem on" onclick="pickKind(this,false)">챙기기</div>
+            <div class="sitem" onclick="pickKind(this,false)">사용·섭취하기</div>
+            <div class="sitem" onclick="pickKind(this,false)">구매하기</div>
+            <div class="sitem" onclick="pickKind(this,true)">시간이 필요한 루틴</div>
+          </div>
+        </div>
+
+        <div class="field" id="durField" style="display:none;">
+          <label>추가 소요 시간 (분)</label>
+          <input type="number" placeholder="예: 15" value="15">
+        </div>
+
+        <div class="field">
+          <div class="togrow">
+            <label style="margin:0;">잠금화면에서 항목명 숨기기</label>
+            <div class="toggle clickable" onclick="tg(this)"><div class="knob"></div></div>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>적용 범위</label>
+          <div class="scoperow">
+            <div class="scopebtn on" onclick="pickScope(this)">이번 일정에만</div>
+            <div class="scopebtn" onclick="pickScope(this)">기본 준비 항목으로 저장</div>
+          </div>
+        </div>
+
+        <button class="pbtn" onclick="closeSheet()">추가</button>
+      </div>
+    </div>
+
+    <!-- ═══ 캘린더 연동 관리 ═══ -->
+    <div class="view" id="v-sync">
+      <div class="topbar">
+        <div class="backbtn clickable" onclick="go('v-home')"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></div>
+        <div class="toptitle">캘린더 연동</div>
+      </div>
+      <div class="scroll">
+        <div class="acctcard">
+          <div class="aic"><svg width="16" height="16" viewBox="0 0 24 24" stroke="var(--ink-muted)" fill="none" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.5-7 8-7s8 3 8 7"/></svg></div>
+          <div class="at"><div class="an">dohyun@gmail.com</div><div class="asub">마지막 동기화 · 오늘 14:02</div></div>
+          <div class="disc">연결 해제</div>
+        </div>
+
+        <div class="sec-label">캘린더별 동기화</div>
+        <div class="synclist">
+          <div class="syncrow"><div class="coldot" style="background:#4f8ef7;"></div><div class="sn">개인</div><div class="toggle on clickable" onclick="tg(this)"><div class="knob"></div></div></div>
+          <div class="syncrow"><div class="coldot" style="background:#e3a13b;"></div><div class="sn">업무</div><div class="toggle on clickable" onclick="tg(this)"><div class="knob"></div></div></div>
+          <div class="syncrow"><div class="coldot" style="background:#9b6fd6;"></div><div class="sn">가족</div><div class="toggle clickable" onclick="tg(this)"><div class="knob"></div></div></div>
+        </div>
+
+        <div class="sec-label">기록할 캘린더</div>
+        <div class="radiolist">
+          <div class="radiorow" onclick="pickRadio(this)"><div class="radio on"></div><div class="sn">개인</div></div>
+          <div class="radiorow" onclick="pickRadio(this)"><div class="radio"></div><div class="sn">업무</div></div>
+        </div>
+
+        <div class="addacct">+ 다른 계정 연결</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="legend">
+    <p><b>준비 항목 시트</b> — 구분에서 "시간 필요 루틴"을 선택하면 소요 시간 입력 필드가 새로 나타나. 다른 구분에서는 그 필드가 없어.</p>
+    <p style="margin-top:8px;"><b>캘린더 연동 관리</b> — 캘린더별 토글, "기록할 캘린더" 라디오 선택이 실제로 동작해.</p>
+    <div class="hint">조건부 필드 · 토글 · 라디오 · 세그먼트 전부 클릭 가능</div>
+  </div>
+</div>
+
+<script>
+  function openSheet(){ document.getElementById('s-prep').classList.add('on'); }
+  function closeSheet(){ document.getElementById('s-prep').classList.remove('on'); }
+  function go(id){
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('on'));
+    document.getElementById(id).classList.add('on');
+  }
+  function pickKind(el, isRoutine){
+    el.parentNode.querySelectorAll('.sitem').forEach(s=>s.classList.remove('on'));
+    el.classList.add('on');
+    document.getElementById('durField').style.display = isRoutine ? 'block' : 'none';
+  }
+  function tg(el){ el.classList.toggle('on'); }
+  function pickScope(el){
+    el.parentNode.querySelectorAll('.scopebtn').forEach(s=>s.classList.remove('on'));
+    el.classList.add('on');
+  }
+  function pickRadio(el){
+    el.parentNode.querySelectorAll('.radio').forEach(r=>r.classList.remove('on'));
+    el.querySelector('.radio').classList.add('on');
+  }
+</script>
+
+<script>(function(){ if(window.self!==window.top){ document.body.classList.add('embed'); } })();</script>
+
+</body>
+</html>

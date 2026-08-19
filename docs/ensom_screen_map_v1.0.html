@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ensom — 화면 연결 맵</title>
+<style>
+  :root{
+    --lime:#c6f135;--lime-soft:#e4fb9b;--lime-ink:#4e6810;
+    --surface-1:#fff;--surface-2:#eef0ea;--hairline:#e3e5e0;
+    --ink:#14150f;--ink-muted:#63655e;--ink-faint:#6f7269;--cta:#1f231a;--caution:#e3a13b;
+    --font:'Pretendard','Apple SD Gothic Neo','Malgun Gothic',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:var(--font);background:#d9dcd3;color:var(--ink);-webkit-font-smoothing:antialiased;height:100vh;overflow:hidden;display:flex;flex-direction:column;}
+
+  header{flex:0 0 auto;padding:14px 20px 12px;background:#fff;border-bottom:1px solid var(--hairline);display:flex;align-items:center;gap:16px;flex-wrap:wrap;}
+  header h1{font-size:16px;font-weight:700;letter-spacing:-.3px;}
+  header .sub{font-size:11.5px;color:var(--ink-muted);}
+  .legend{display:flex;gap:12px;flex-wrap:wrap;margin-left:auto;}
+  .lg{display:flex;align-items:center;gap:5px;font-size:10.5px;color:var(--ink-muted);font-weight:600;}
+  .lg i{width:11px;height:11px;border-radius:3px;display:block;}
+  .ctrls{display:flex;gap:6px;}
+  .ctrls button{font-family:var(--font);font-size:11px;font-weight:700;border:1px solid var(--hairline);background:#fff;color:var(--ink-muted);border-radius:999px;padding:5px 11px;cursor:pointer;}
+  .ctrls button.on{background:var(--cta);color:#fff;border-color:var(--cta);}
+
+  .body{flex:1 1 auto;display:flex;min-height:0;}
+  .canvaswrap{flex:1 1 auto;overflow:auto;position:relative;background:
+    linear-gradient(#00000008 1px,transparent 1px) 0 0/28px 28px,
+    linear-gradient(90deg,#00000008 1px,transparent 1px) 0 0/28px 28px, #d9dcd3;}
+  #stage{position:relative;width:1790px;height:1390px;}
+  svg#wires{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;}
+  svg#wires path{fill:none;stroke:#9a9d94;stroke-width:1.5;}
+  svg#wires path.dim{stroke:#c3c6bd;}
+  svg#wires path.hot{stroke:var(--cta);stroke-width:2.4;}
+  svg#wires text{font-family:var(--font);font-size:9.5px;fill:#6f7269;font-weight:600;}
+  svg#wires text.hot{fill:var(--cta);}
+
+  .node{position:absolute;width:172px;background:#fff;border:1.5px solid var(--hairline);border-left-width:5px;border-radius:12px;padding:9px 11px;cursor:pointer;transition:transform .1s,box-shadow .12s,opacity .12s;box-shadow:0 1px 3px rgba(20,21,15,.07);}
+  .node:hover{transform:translateY(-1px);box-shadow:0 5px 14px rgba(20,21,15,.15);}
+  .node.sel{border-color:var(--cta);border-left-color:var(--cta);box-shadow:0 0 0 2.5px rgba(31,35,26,.16);}
+  .node.faded{opacity:.28;}
+  .node .id{font-size:9px;font-weight:700;color:var(--ink-faint);letter-spacing:.3px;}
+  .node .nm{font-size:12.5px;font-weight:700;letter-spacing:-.2px;margin-top:1px;line-height:1.3;}
+  .node .fl{font-size:9px;color:var(--ink-faint);margin-top:3px;line-height:1.3;word-break:break-all;}
+  .node.tab{background:var(--cta);border-color:var(--cta);border-left-color:var(--lime);}
+  .node.tab .nm{color:#fff;}
+  .node.tab .id,.node.tab .fl{color:rgba(255,255,255,.6);}
+  .node.gate{background:var(--surface-2);}
+
+  .grouplbl{position:absolute;font-size:10.5px;font-weight:700;color:var(--ink-faint);letter-spacing:1.2px;text-transform:uppercase;}
+  .groupbox{position:absolute;border:1.5px dashed #b9bcb3;border-radius:16px;pointer-events:none;}
+
+  .panel{flex:0 0 340px;background:#fff;border-left:1px solid var(--hairline);overflow-y:auto;padding:18px;}
+  .panel .ph{font-size:9.5px;font-weight:700;color:var(--ink-faint);letter-spacing:.4px;text-transform:uppercase;}
+  .panel h2{font-size:18px;font-weight:700;letter-spacing:-.3px;margin:3px 0 3px;line-height:1.3;}
+  .panel .file{font-size:10.5px;color:var(--ink-muted);background:var(--surface-2);border-radius:7px;padding:5px 8px;display:inline-block;margin-bottom:14px;word-break:break-all;}
+  .panel section{margin-top:15px;}
+  .panel section h3{font-size:10px;font-weight:700;color:var(--ink-faint);letter-spacing:.4px;text-transform:uppercase;margin-bottom:6px;}
+  .panel ul{list-style:none;}
+  .panel li{font-size:12px;line-height:1.6;color:var(--ink);padding:4px 0 4px 12px;position:relative;}
+  .panel li::before{content:'';position:absolute;left:0;top:12px;width:4px;height:4px;border-radius:99px;background:var(--ink-faint);}
+  .panel li b{font-weight:700;}
+  .panel li .to{color:var(--lime-ink);font-weight:700;cursor:pointer;text-decoration:underline;text-underline-offset:2px;}
+  .panel .warn{background:#faf0dd;border-radius:10px;padding:10px 11px;font-size:11.5px;line-height:1.6;color:#6b5010;}
+  .panel .empty{font-size:12px;color:var(--ink-muted);line-height:1.7;}
+  .tag{display:inline-block;font-size:9.5px;font-weight:700;border-radius:99px;padding:2px 7px;margin-right:4px;}
+  .tag.push{background:var(--surface-2);color:var(--ink-muted);}
+  .tag.tabt{background:var(--cta);color:#fff;}
+  .tag.sheet{background:var(--lime-soft);color:var(--lime-ink);}
+  .tag.repl{background:#faf0dd;color:#6b5010;}
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Ensom — 화면 연결 맵</h1>
+    <div class="sub">노드를 누르면 오른쪽에 진입·전이·조건이 나와요. 화살표에 붙은 글자가 전이를 일으키는 동작이에요.</div>
+  </div>
+  <div class="ctrls">
+    <button id="btnAll" class="on" onclick="setFilter('all',this)">전체</button>
+    <button onclick="setFilter('auth',this)">인증·온보딩</button>
+    <button onclick="setFilter('home',this)">홈</button>
+    <button onclick="setFilter('map',this)">지도</button>
+    <button onclick="setFilter('cal',this)">캘린더</button>
+    <button onclick="setFilter('set',this)">설정</button>
+    <button onclick="setFilter('perm',this)">권한</button>
+  </div>
+  <div class="legend">
+    <span class="lg"><i style="background:#63655e"></i>인증</span>
+    <span class="lg"><i style="background:#4e6810"></i>온보딩</span>
+    <span class="lg"><i style="background:#c6f135"></i>탭</span>
+    <span class="lg"><i style="background:#1f231a"></i>홈</span>
+    <span class="lg"><i style="background:#7c8f6a"></i>지도</span>
+    <span class="lg"><i style="background:#8a8d84"></i>캘린더</span>
+    <span class="lg"><i style="background:#a8ab9f"></i>설정</span>
+    <span class="lg"><i style="background:#e3a13b"></i>권한</span>
+  </div>
+</header>
+
+<div class="body">
+  <div class="canvaswrap">
+    <div id="stage">
+      <svg id="wires"><defs>
+        <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M0 0 L10 5 L0 10 z" fill="#9a9d94"/></marker>
+        <marker id="arh" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M0 0 L10 5 L0 10 z" fill="#1f231a"/></marker>
+      </defs></svg>
+    </div>
+  </div>
+  <div class="panel" id="panel">
+    <div class="ph">화면 연결 맵</div>
+    <h2>노드를 골라주세요</h2>
+    <div class="empty">
+      왼쪽 다이어그램에서 화면 하나를 누르면 그 화면의 진입 경로, 화면 안의 동작이 어디로 이어지는지, 뒤로가기가 어디로 가는지, 지켜야 할 조건을 보여드려요.<br><br>
+      상단 필터로 영역만 골라 볼 수 있어요.
+    </div>
+    <section>
+      <h3>전이 타입</h3>
+      <ul>
+        <li><span class="tag tabt">탭</span> 탭 전환. 스택을 쌓지 않음</li>
+        <li><span class="tag push">푸시</span> 스택에 쌓임. 뒤로가기로 복귀</li>
+        <li><span class="tag sheet">시트</span> 모달. 닫으면 뒤 화면 유지</li>
+        <li><span class="tag repl">교체</span> 스택 비우고 갈아탐. 복귀 불가</li>
+      </ul>
+    </section>
+  </div>
+</div>
+
+<script>
+/* ═══════════ 노드 정의 ═══════════
+   area: auth · onb · tab · home · map · cal · set · perm            */
+const AC = {auth:'#63655e', onb:'#4e6810', tab:'#c6f135', home:'#1f231a',
+            map:'#7c8f6a', cal:'#8a8d84', set:'#a8ab9f', perm:'#e3a13b'};
+
+const N = [
+// ── 진입·인증
+{id:'S-37',nm:'스플래시',f:'ensom_priming_splash.html',a:'auth',x:40,y:56,
+ into:['앱 실행 (매회)'],act:[],back:'없음',
+ cond:['온보딩 단계가 아님. 앱 켤 때마다 뜸','세션 검사 실패 시 로그인으로 보내지 않고 화면에 머물며 재시도 안내','슬로건은 넣지 않음 — 로그인 화면과 겹쳐 보임']},
+{id:'S-01',nm:'로그인',f:'ensom_auth.html · 칩 로그인',a:'auth',x:40,y:160,
+ into:['S-37 (세션 없음)','S-24 로그아웃','S-14F 탈퇴 완료','S-20 재설정 완료','전역 401 발생'],
+ act:[['이메일로 계속하기','같은 화면에서 폼 인라인 전개'],['Google로 계속하기','→S-02','repl'],['회원가입','→S-16','push'],['비밀번호 찾기','→S-19','push'],['개인정보 처리방침','→S-22','push'],['고객지원','→S-23','push']],
+ back:'없음 · 스택 최하단',
+ cond:['제공자는 이메일 + Google 두 가지만 (TRD D2)','오류 3종은 이 화면 위 배너로. 전면 오류로 갈아치우지 않음']},
+{id:'S-16',nm:'회원가입',f:'ensom_signup.html · 칩 회원가입',a:'auth',x:250,y:160,
+ into:['S-01 회원가입 링크'],
+ act:[['회원가입','→S-17','repl'],['Google 계정으로 가입','→S-02','repl'],['약관 보기 ›','→S-21','push'],['로그인','→S-01','back']],
+ back:'S-01',
+ cond:['약관 동의가 폼 안에 인라인 — 이메일 가입은 S-02를 거치지 않음','Google 가입은 약관 받을 자리가 없어 S-02 필수','활성화: 전 필드 + 비번 8자 + 확인 일치 + 필수약관 2개']},
+{id:'S-17',nm:'이메일 인증',f:'ensom_signup.html · 칩 이메일 인증',a:'auth',x:250,y:264,
+ into:['S-16 회원가입'],act:[['6자리 입력 후 확인','→S-18','repl'],['다시 보내기','재발송 + 카운트다운 재시작']],
+ back:'S-16 (입력값 유지)',cond:['6자리 미완성 시 확인 비활성','카운트다운 0 전에는 재발송 차단']},
+{id:'S-18',nm:'가입 완료',f:'ensom_signup.html · 칩 가입 완료',a:'auth',x:250,y:368,
+ into:['S-17 인증 성공'],act:[['시작하기','→S-03','repl']],
+ back:'차단 · 가입 이전으로 돌아갈 수 없음',cond:[]},
+{id:'S-19',nm:'비밀번호 찾기',f:'ensom_signup.html · 칩 비번 찾기',a:'auth',x:462,y:160,
+ into:['S-01 비밀번호 찾기'],act:[['재설정 메일 보내기','같은 화면에서 발송 완료로 전환']],
+ back:'S-01',cond:['S-20으로 앱 내에서 바로 넘어가지 않음 — 메일 링크로만 진입']},
+{id:'S-20',nm:'비밀번호 재설정',f:'ensom_signup.html · 칩 비번 재설정',a:'auth',x:462,y:264,
+ into:['재설정 메일의 링크'],act:[['비밀번호 변경','완료 상태로 전환'],['로그인하러 가기','→S-01','repl']],
+ back:'없음',cond:['링크 유효 30분. 만료 시 S-19로','변경 후 모든 기기 세션 무효화']},
+{id:'S-02',nm:'필수 약관 동의',f:'ensom_auth.html · 칩 약관 동의',a:'auth',x:40,y:264,
+ into:['소셜 로그인 최초 성공','약관 개정 시 (전역)'],
+ act:[['보기 ›','→S-21','push'],['동의하고 시작하기','신규→S-03 / 기존→S-06','repl']],
+ back:'차단 · 필수 미완료 상태에서 나갈 수 없음',
+ cond:['필수 3종: 이용약관 · 개인정보 수집·이용 · 위치기반','건너뛰기 버튼을 두지 않음 — 유일한 강제 게이트','전체 동의 ↔ 개별 항목 양방향 연동']},
+{id:'S-21',nm:'약관 본문',f:'ensom_auth.html · 칩 약관 본문',a:'auth',x:40,y:368,
+ into:['S-02 보기 ›','S-16 보기 ›'],act:[['세그먼트 3종','이용약관 / 개인정보 / 위치기반 전환']],
+ back:'직전 화면',cond:['필수 약관 3종을 한 화면에서 세그먼트로 전환']},
+{id:'S-22',nm:'개인정보 처리방침',f:'ensom_auth.html · 칩 개인정보',a:'auth',x:250,y:472,
+ into:['S-01 하단 링크','S-14E'],act:[],back:'직전 화면',
+ cond:['동의서와 별개로 상시 공개 문서']},
+{id:'S-23',nm:'고객지원',f:'ensom_auth.html · 칩 고객지원',a:'auth',x:462,y:472,
+ into:['S-01 하단 링크'],act:[['FAQ 행','아코디언 전개'],['문의 메일 보내기','메일 앱']],
+ back:'직전 화면',cond:[]},
+
+// ── 온보딩 (가로 체인)
+{id:'S-03',nm:'준비 시간 + 항목',f:'ensom_onboarding_prep.html',a:'onb',x:40,y:600,
+ into:['S-18','S-02','재로그인(온보딩 미완료)','S-14B 변경'],
+ act:[['빠른 추가 칩','항목 상세 시트','sheet'],['저장 / 나중에 설정할게요','→S-04','repl']],
+ back:'온보딩 중 차단 · 설정에서 왔으면 S-14B',
+ cond:['아무것도 안 골라도 진행 가능 — 두 버튼 항상 활성','잘 모르겠어요 → 기본 시드 30분 + seed_missing','복용약 선택 시 잠금화면 숨김 강제 ON, 해제 불가','소요시간 필드는 시간이 필요한 루틴일 때만 노출']},
+{id:'S-04',nm:'주요 장소 설정',f:'ensom_place_setup.html',a:'onb',x:250,y:600,
+ into:['S-03','S-14B + 장소 추가'],
+ act:[['이 위치로 저장','목록 복귀 + 토스트'],['다음 / 나중에','→S-34','repl']],
+ back:'S-03 또는 S-14B',cond:['좌표 암호화 저장','삭제는 소프트 삭제 — 과거 계획 스냅샷 영향 없음']},
+{id:'S-34',nm:'권한 프라이밍',f:'ensom_priming_splash.html',a:'perm',x:460,y:600,
+ into:['온보딩 각 단계','기능 최초 사용 시점'],
+ act:[['허용하러 가기','OS 다이얼로그 → 거부 시 S-35'],['나중에 / X','다음 단계로 그대로 진행']],
+ back:'다음 단계로 진행',
+ cond:['3종: 캘린더(S-04 직후) · 위치(첫 목적지 입력) · 알림(첫 계획 생성 후)','한 번에 몰아서 요청하지 않음 — 가치가 보이는 시점에 하나씩','거부해도 온보딩은 계속 진행. 진행을 막지 않음']},
+{id:'S-05',nm:'웰니스 관심 항목',f:'ensom_profile.html · v-well',a:'onb',x:670,y:600,
+ into:['온보딩 마지막(건너뛰기 가능)','S-14 웰니스'],
+ act:[['다음 / 나중에','→S-42','repl']],back:'S-14 또는 온보딩 이전 단계',
+ cond:['입력 안 해도 핵심 기능 정상 동작','앱이 재도포 주기를 판단하지 않는다는 문구는 기능을 꺼도 고정 노출']},
+{id:'S-42',nm:'온보딩 완료',f:'ensom_onboarding_end.html',a:'onb',x:880,y:600,
+ into:['S-05 이후'],act:[['시작하기','→S-06 + 코치마크','repl']],
+ back:'차단',cond:['코치마크 최대 2개, 한 번에 하나씩, 최초 1회만','과한 축하 연출 없이 조용한 완료감']},
+
+// ── 탭
+{id:'S-09',nm:'캘린더',f:'ensom_calendar.html',a:'tab',x:210,y:718,
+ into:['탭바'],
+ act:[['일정 행','→S-12','push'],['FAB +','→S-10','push'],['연동 관리','→S-41','push'],['리포트 카드','→S-15','push']],
+ back:'홈 탭',
+ cond:['동기화 일부 실패 시 전면 오류를 쓰지 않음 — 가진 데이터는 계속 보여주고 배너로만 알림','배너는 다크 패널 위쪽 흰 영역에 배치']},
+{id:'S-06',nm:'홈',f:'ensom_prototype.html',a:'tab',x:420,y:718,
+ into:['탭바','S-42','S-37','푸시 알림 탭'],
+ act:[['히어로/겹친 카드','→S-12','push'],['경로 확인','→S-08R','tab'],['+ 준비 항목 추가','→S-40','sheet'],['알림 아이콘','→S-07','sheet'],['일일 마무리 카드','→S-13','push']],
+ back:'앱 종료',
+ cond:['일정 0건이면 빈 상태 + CTA 2개 (일정 만들기 / 캘린더 연동하기)','뒤에 겹친 카드가 없으면 히어로 카드가 폭을 가득 채움','환경 데이터 없으면 웰니스 섹션을 통째로 생략 — 빈 문구 금지']},
+{id:'S-08',nm:'지도',f:'ensom_map_bookmark.html · 칩 기본 지도',a:'tab',x:650,y:718,
+ into:['탭바'],
+ act:[['검색 바','→S-38','push'],['북마크 아이콘','→S-30','push'],['빠른 칩 북마크','→S-32','sheet'],['목적지 확정','→S-08R'],['최근 목적지 별','북마크 토글']],
+ back:'홈 탭',
+ cond:['날씨·자외선 레이어, 방향 부채꼴, AR, 턴바이턴 없음','지도 유형 전환 버튼도 두지 않음']},
+{id:'S-14',nm:'프로필',f:'ensom_profile.html · v-list',a:'tab',x:1080,y:718,
+ into:['탭바'],
+ act:[['로그인 계정 정보','→S-24','push'],['권한 관리','→S-14A','push'],['준비 설정','→S-14B','push'],['알림','→S-14C','push'],['웰니스','→S-05','push'],['개인화','→S-14D','push'],['데이터','→S-14E','push']],
+ back:'홈 탭',cond:['하위 화면의 뒤로가기는 모두 S-14로 복귀']},
+
+// ── 홈 하위
+{id:'S-12',nm:'일정 상세',f:'ensom_detail.html',a:'home',x:420,y:830,
+ into:['S-06 카드','S-09 일정 행','푸시 알림'],
+ act:[['경로 변경','→S-39','sheet'],['+ 준비 항목 추가','→S-40','sheet'],['시각 편집','→S-43','sheet'],['일정 편집','→S-10','push'],['사후 평가','→S-44']],
+ back:'직전 화면 (S-06 또는 S-09)',
+ cond:['결과 섹션은 일정 종료 후에만 노출','사후 평가는 판정이 애매할 때만 — 정시 도착엔 섹션 자체가 없음','WIS 밴드는 표시하되 숫자를 강조하지 않음. 건강 점수 아님']},
+{id:'S-44',nm:'결과 · 사후 평가',f:'ensom_result_eval.html',a:'home',x:420,y:934,
+ into:['S-12 결과 섹션'],act:[['원인 선택 후 제출','보정 모델에 반영']],
+ back:'S-12',cond:['정시/촉박/명확지각/애매지각 4종','판정이 확실하면 질문 자체를 노출하지 않음']},
+{id:'S-40',nm:'준비 항목 시트',f:'ensom_prepitem_calsync.html',a:'home',x:420,y:1038,
+ into:['S-06 + 준비 항목 추가','S-12','S-14B + 항목 추가'],
+ act:[['구분 세그먼트','루틴 선택 시에만 소요시간 필드 노출'],['적용 범위','이번 일정만 / 기본 항목으로 저장'],['추가','시트 닫고 호출 화면에 반영']],
+ back:'시트 닫힘',cond:['조건부 필드는 애니메이션 없이 즉시 나타나고 사라짐']},
+{id:'S-07',nm:'알림 로그',f:'ensom_prototype.html · 패널',a:'home',x:420,y:1142,
+ into:['S-06 알림 아이콘'],act:[['로그 행','해당 일정으로 이동']],
+ back:'패널 닫힘',cond:['당일 기록만, 최신순','유형 · 발송 시각 · 발생 이유 · 반응 · 변경된 계획']},
+{id:'S-13',nm:'일일 마무리 (P1)',f:'ensom_p1_reports.html',a:'home',x:230,y:1142,
+ into:['당일 마지막 일정 종료 후 홈 카드'],act:[],back:'S-06',
+ cond:['관리 일정 0건이면 카드 미노출','야외 추정 불가면 숫자 없는 문장 — 수치를 지어내지 않음','민감 항목·복용약은 요약에서 원천 배제']},
+
+// ── 지도 하위
+{id:'S-08R',nm:'지도 경로 비교',f:'ensom_map.html',a:'map',x:650,y:830,
+ into:['S-08 목적지 확정','S-06 경로 확인','S-12 경로 섹션'],
+ act:[['시각 기준 토글','카드 재계산'],['경로 카드','선택 + 구간 펼침 + 폴리라인'],['캘린더에 추가','→S-10 (프리필)','push'],['상세 길안내','외부 지도 앱']],
+ back:'S-08',
+ cond:['교통수단 색은 카드가 선택·펼쳐졌을 때만 노출. 접힌 카드는 중립색','경로 조회 실패 시 전면 오류로 막지 않고 마지막 결과 + 배너']},
+{id:'S-38',nm:'장소 검색',f:'ensom_search.html',a:'map',x:650,y:934,
+ into:['S-08 검색 바','S-10 목적지 필드','S-04 주소 검색'],
+ act:[['결과 행','선택 값 반환 후 닫힘'],['지도에서 선택','핀 조정 단계']],
+ back:'직전 화면',cond:['결과 없음 상태 포함']},
+{id:'S-39',nm:'경로 변경 후보',f:'ensom_route_change.html',a:'map',x:650,y:1038,
+ into:['S-12 경로 변경'],act:[['후보 카드','선택'],['이 경로로 변경','계획 재계산 후 닫힘']],
+ back:'시트 닫힘',cond:['후보 최대 3종 — 가장 빠른 / 도보 적은 / 환승 적은']},
+{id:'S-30',nm:'북마크 목록',f:'ensom_map_bookmark.html · 칩 북마크 목록',a:'map',x:840,y:934,
+ into:['S-08 북마크 아이콘'],
+ act:[['북마크 행','목적지 설정 →S-08R','repl'],['편집','→S-31','push'],['폴더 세그먼트','리스트 필터']],
+ back:'S-08',cond:['폴더가 비면 빈 상태 노출']},
+{id:'S-31',nm:'북마크 편집',f:'ensom_map_bookmark.html · 칩 북마크 편집',a:'map',x:840,y:1038,
+ into:['S-30 편집'],act:[['항목 체크','1개 이상일 때만 하단 액션 바 노출'],['삭제','확인 다이얼로그'],['완료','→S-30','back']],
+ back:'S-30',cond:['삭제 버튼에 빨강을 쓰지 않음']},
+{id:'S-32',nm:'장소 빠른 선택',f:'ensom_map_bookmark.html · 칩 빠른 선택',a:'map',x:840,y:1142,
+ into:['S-08 빠른 칩','S-10 목적지','S-38'],
+ act:[['탭 3종','북마크 / 주요 장소 / 최근 전환'],['항목 선택 후 확인','값 반환 후 닫힘']],
+ back:'시트 닫힘',
+ cond:['화면이 아니라 값을 반환하는 공통 시트','자체적으로 화면을 전환하지 않음 — 호출한 화면이 결과를 받아 처리']},
+
+// ── 캘린더 하위
+{id:'S-10',nm:'일정 생성 · 수정',f:'ensom_event_create.html',a:'cal',x:210,y:830,
+ into:['S-09 FAB','S-08R 캘린더에 추가(프리필)','S-12 편집','S-06 빈 상태 CTA'],
+ act:[['시작 시각','퀵칩 또는 →S-43','sheet'],['장소 필요 3택','장소 필요일 때만 목적지 필드 노출'],['목적지','→S-32 또는 →S-38','sheet'],['저장','미지정→S-11 / 그 외→S-12'],['이 일정 삭제','확인 다이얼로그 (수정 모드만)']],
+ back:'직전 화면. 입력 중이면 확인 다이얼로그',
+ cond:['저장은 일정명이 있어야 활성화','지도 프리필로 들어오면 동일 정보를 다시 입력받지 않음','사용자가 지정한 장소 필요 여부는 자동 분류·동기화가 절대 덮어쓰지 않음','종일 일정은 계획 대상 제외 — 시각 지정 시 편입']},
+{id:'S-11',nm:'분류 확인 시트',f:'ensom_event_create.html · 시트',a:'cal',x:210,y:934,
+ into:['S-10 저장 시 장소 미지정','동기화 후 신뢰도 < 0.7','S-12'],
+ act:[['네, 장소가 있어요','장소 필요 확정'],['아니요, 온라인이에요','장소 불필요 확정'],['잘 모르겠어요','미해결로 남김']],
+ back:'시트 닫힘. 상태는 미해결 유지',
+ cond:['1회 응답 후 재질문 없음 — 이 규칙이 핵심','미응답 24시간 후 제목 원문 폐기, 질문은 유지']},
+{id:'S-41',nm:'캘린더 연동 관리',f:'ensom_prepitem_calsync.html · v-sync',a:'cal',x:210,y:1038,
+ into:['S-09 연동 관리','S-06 빈 상태 CTA'],
+ act:[['캘린더별 토글','개별 동기화 on/off'],['기록할 캘린더','라디오 선택'],['연결 해제','확인 다이얼로그']],
+ back:'S-09',cond:['외부 캘린더는 읽기 전용','참석자·본문 미수집. 제목은 분류에만 쓰고 즉시 폐기']},
+{id:'S-15',nm:'주간 리포트 (P1)',f:'ensom_p1_reports.html',a:'cal',x:30,y:1038,
+ into:['S-09 리포트 카드'],act:[],back:'S-09',
+ cond:['점수·등급·게이미피케이션 표현 금지','대응 API 미정 (E-18) — IA 자리만 확보']},
+
+// ── 설정 하위
+{id:'S-24',nm:'계정',f:'ensom_account.html · 칩 계정',a:'set',x:1080,y:830,
+ into:['S-14 로그인 계정 정보'],
+ act:[['아이디(이메일)','→S-26','push'],['비밀번호','→S-25','push'],['연결된 로그인 수단','→S-27','push'],['2단계 인증','→S-28','push'],['로그인 기록','→S-29','push'],['로그아웃','확인 후 →S-01','repl'],['회원 탈퇴','→S-14F','push']],
+ back:'S-14',cond:[]},
+{id:'S-25',nm:'비밀번호 변경',f:'ensom_account.html · 칩 비밀번호 변경',a:'set',x:1290,y:830,
+ into:['S-24 비밀번호'],act:[['변경하기','토스트 후 S-24 복귀']],
+ back:'S-24',cond:['조건 4가지 전부 충족 + 일치일 때만 활성화','변경 후 다른 기기 세션 무효화. 현재 기기는 유지']},
+{id:'S-26',nm:'이메일 변경',f:'ensom_account.html · 칩 이메일 변경',a:'set',x:1290,y:934,
+ into:['S-24 아이디'],act:[['인증 메일 보내기','같은 화면에서 발송 완료로 전환']],
+ back:'S-24',cond:['인증 완료 전까지 기존 이메일로 로그인']},
+{id:'S-27',nm:'로그인 수단',f:'ensom_account.html · 칩 로그인 수단',a:'set',x:1290,y:1038,
+ into:['S-24 연결된 로그인 수단'],act:[['연결 해제','확인 다이얼로그'],['연결','소셜 인증']],
+ back:'S-24',cond:['마지막 하나 남은 수단은 해제 불가 — 계정 접근 불능이 됨']},
+{id:'S-28',nm:'2단계 인증',f:'ensom_account.html · 칩 2단계 인증',a:'set',x:1290,y:1142,
+ into:['S-24 2단계 인증'],act:[['마스터 토글','켜면 인증 방법 · 백업 코드 영역 전개']],
+ back:'S-24',cond:[]},
+{id:'S-29',nm:'로그인 기록',f:'ensom_account.html · 칩 로그인 기록',a:'set',x:1500,y:934,
+ into:['S-24 로그인 기록'],act:[['개별 로그아웃','해당 기기 세션 종료'],['모두 로그아웃','확인 후 현재 기기만 남김']],
+ back:'S-24',cond:['최근 30일. 현재 기기는 항상 남김']},
+{id:'S-14A',nm:'권한 관리',f:'ensom_profile.html · v-perm',a:'set',x:1080,y:934,
+ into:['S-14 권한 관리'],act:[['각 권한 행','→S-36 또는 OS 설정','push'],['항상 위치 허용 토글','안내 카드 전개']],
+ back:'S-14',cond:['상태 배지는 허용/연동됨에만 라임소프트, 나머지는 중립']},
+{id:'S-14B',nm:'준비 설정',f:'ensom_profile.html · v-prep',a:'set',x:1080,y:1038,
+ into:['S-14 준비 설정'],
+ act:[['초기 준비 시간 변경','→S-03','push'],['장소 행 / + 장소 추가','→S-04','push'],['+ 항목 추가','→S-40','sheet']],
+ back:'S-14',cond:['CTA 없이 각 섹션이 그 자리에서 자동 저장']},
+{id:'S-14C',nm:'알림 설정',f:'ensom_profile.html · v-noti',a:'set',x:1080,y:1142,
+ into:['S-14 알림'],act:[['민감도 세그먼트','적게 / 보통 / 자주'],['잠금화면 숨기기','민감 항목 일반화 표시']],
+ back:'S-14',cond:[]},
+{id:'S-14D',nm:'개인화',f:'ensom_profile.html · v-personal',a:'set',x:1500,y:1038,
+ into:['S-14 개인화'],act:[['되돌리기','확인 다이얼로그'],['개인화 초기화','확인 다이얼로그']],
+ back:'S-14',cond:['되돌리면 그 기록은 이후 학습에서 제외','초기화해도 행동 기록은 유지됨을 명시']},
+{id:'S-14E',nm:'데이터',f:'ensom_profile.html · v-data',a:'set',x:1500,y:1142,
+ into:['S-14 데이터'],act:[['행동 기록 삭제','확인 다이얼로그'],['계정 삭제','→S-14F','push']],
+ back:'S-14',cond:['행동 기록 삭제 대응 API 없음 (E-12)']},
+{id:'S-14F',nm:'회원 탈퇴 2단계',f:'ensom_profile.html · v-withdraw1/2',a:'set',x:1290,y:1246,
+ into:['S-24 회원 탈퇴','S-14E 계정 삭제'],
+ act:[['탈퇴할게요','2단계 재확인'],['탈퇴하기','완료 후 →S-01','repl']],
+ back:'S-24',
+ cond:['라임·강조색·빨강 모두 쓰지 않음','동의 이력은 법정 보존 기간 유지됨을 명시','재가입해도 복구되지 않음을 고지']},
+
+// ── 권한
+{id:'S-33',nm:'권한 현황',f:'ensom_permission.html · 칩 권한 현황',a:'perm',x:690,y:472,
+ into:['S-14A','설정'],act:[['상태 배지','허용 / 거부 / 미결정 순환'],['켜기','→S-36','push']],
+ back:'S-14',cond:['권한별로 허용·거부·미결정 3상태 분기']},
+{id:'S-35',nm:'권한 거부 안내',f:'ensom_permission.html · 칩 거부 3종',a:'perm',x:900,y:472,
+ into:['S-34에서 거부','거부 상태로 기능 사용 시도'],
+ act:[['설정에서 켜기','→S-36','push'],['지금은 괜찮아요','대체 수단으로 계속 진행']],
+ back:'직전 화면',
+ cond:['거부해도 앱을 막지 않음 — 대체 수단을 항상 함께 안내','위치: 출발했어요 직접 탭 / 알림: 홈 카드 확인 / 캘린더: 일정 직접 생성']},
+{id:'S-36',nm:'OS 설정 안내',f:'ensom_permission.html · 칩 OS 설정 안내',a:'perm',x:1110,y:472,
+ into:['S-35 설정에서 켜기','S-14A','S-33'],
+ act:[['설정 앱 열기','OS 설정으로 이동']],
+ back:'직전 화면',cond:['설정을 바꾸고 돌아오면 자동 반영']},
+
+// ── 공통
+{id:'S-43',nm:'날짜·시간 선택기',f:'ensom_pickers.html',a:'home',x:420,y:1246,
+ into:['S-10 시작 시각','S-12 시각 편집','S-40 소요시간'],
+ act:[['확인','값 반환 후 닫힘']],back:'시트 닫힘',
+ cond:['드래그에 반드시 버튼 대안을 제공']}
+];
+
+const E = [
+ ['S-37','S-01','세션 없음'],['S-37','S-06','세션 유효'],['S-37','S-02','약관 미완료'],
+ ['S-01','S-16','회원가입'],['S-01','S-19','비번 찾기'],['S-01','S-02','Google'],
+ ['S-01','S-22',''],['S-01','S-23',''],
+ ['S-16','S-17','회원가입'],['S-17','S-18','인증'],['S-18','S-03','시작하기'],
+ ['S-16','S-21','보기'],['S-02','S-21','보기'],
+ ['S-19','S-20','메일 링크'],['S-20','S-01','완료'],
+ ['S-02','S-03','신규'],['S-02','S-06','기존 회원'],
+ ['S-03','S-04','저장/나중에'],['S-04','S-34','다음'],['S-34','S-05',''],['S-05','S-42','다음'],['S-42','S-06','시작하기'],
+ ['S-34','S-35','거부'],['S-35','S-36','설정에서 켜기'],['S-33','S-36','켜기'],
+ ['S-06','S-12','카드'],['S-06','S-08R','경로 확인'],['S-06','S-40','+ 항목'],['S-06','S-07','알림'],['S-06','S-13',''],
+ ['S-12','S-39','경로 변경'],['S-12','S-44','사후 평가'],['S-12','S-10','편집'],['S-12','S-43','시각'],
+ ['S-08','S-08R','목적지'],['S-08','S-38','검색'],['S-08','S-30','북마크'],['S-08','S-32','빠른 칩'],
+ ['S-30','S-31','편집'],['S-08R','S-10','캘린더에 추가'],
+ ['S-09','S-12','일정 행'],['S-09','S-10','FAB'],['S-09','S-41','연동'],['S-09','S-15','리포트'],
+ ['S-10','S-11','미지정 저장'],['S-10','S-32','목적지'],['S-10','S-43','시각'],
+ ['S-14','S-24','계정'],['S-14','S-14A','권한'],['S-14','S-14B','준비'],['S-14','S-14C','알림'],['S-14','S-05','웰니스'],['S-14','S-14D','개인화'],['S-14','S-14E','데이터'],
+ ['S-24','S-25',''],['S-24','S-26',''],['S-24','S-27',''],['S-24','S-28',''],['S-24','S-29',''],['S-24','S-14F','탈퇴'],
+ ['S-14A','S-36',''],['S-14B','S-04','+ 장소'],['S-14B','S-03','변경'],['S-14B','S-40','+ 항목'],['S-14E','S-14F','계정 삭제'],
+ ['S-14F','S-01','완료'],['S-24','S-01','로그아웃']
+];
+
+const NW=172, NH=62;
+const byId = {}; N.forEach(n=>byId[n.id]=n);
+const stage = document.getElementById('stage');
+const wires = document.getElementById('wires');
+
+// ── 그룹 박스
+[['진입 · 인증',20,32,640,510,'auth'],
+ ['온보딩',20,572,1040,92,'onb'],
+ ['권한',670,444,620,92,'perm']].forEach(([lbl,x,y,w,h])=>{
+  const b=document.createElement('div'); b.className='groupbox';
+  b.style.cssText=`left:${x}px;top:${y}px;width:${w}px;height:${h}px;`;
+  stage.appendChild(b);
+  const t=document.createElement('div'); t.className='grouplbl';
+  t.style.cssText=`left:${x+10}px;top:${y-16}px;`; t.textContent=lbl; stage.appendChild(t);
+});
+
+// ── 노드
+N.forEach(n=>{
+  const d=document.createElement('div');
+  d.className='node'+(n.a==='tab'?' tab':'');
+  d.style.cssText=`left:${n.x}px;top:${n.y}px;border-left-color:${AC[n.a]};`;
+  d.dataset.id=n.id;
+  d.innerHTML=`<div class="id">${n.id}</div><div class="nm">${n.nm}</div><div class="fl">${n.f}</div>`;
+  d.onclick=()=>select(n.id);
+  stage.appendChild(d);
+});
+
+// ── 선 그리기
+function anchor(a,b){
+  const ax=a.x+NW/2, ay=a.y+NH/2, bx=b.x+NW/2, by=b.y+NH/2;
+  const dx=bx-ax, dy=by-ay;
+  function edge(n,sx,sy){
+    const hw=NW/2, hh=NH/2;
+    if(sx===0&&sy===0) return [n.x+hw,n.y+hh];
+    const tx = sx? hw/Math.abs(sx) : Infinity;
+    const ty = sy? hh/Math.abs(sy) : Infinity;
+    const t=Math.min(tx,ty);
+    return [n.x+hw+sx*t, n.y+hh+sy*t];
+  }
+  const [x1,y1]=edge(a,dx,dy);
+  const [x2,y2]=edge(b,-dx,-dy);
+  return [x1,y1,x2,y2];
+}
+const wireEls=[];
+E.forEach(([f,t,lbl])=>{
+  const a=byId[f], b=byId[t]; if(!a||!b) return;
+  const [x1,y1,x2,y2]=anchor(a,b);
+  const mx=(x1+x2)/2, my=(y1+y2)/2;
+  const cx=mx+(y2-y1)*0.07, cy=my-(x2-x1)*0.07;
+  const p=document.createElementNS('http://www.w3.org/2000/svg','path');
+  p.setAttribute('d',`M${x1} ${y1} Q${cx} ${cy} ${x2} ${y2}`);
+  p.setAttribute('marker-end','url(#ar)');
+  wires.appendChild(p);
+  let tx=null;
+  if(lbl){
+    tx=document.createElementNS('http://www.w3.org/2000/svg','text');
+    tx.setAttribute('x',cx); tx.setAttribute('y',cy-3);
+    tx.setAttribute('text-anchor','middle'); tx.textContent=lbl;
+    wires.appendChild(tx);
+  }
+  wireEls.push({f,t,p,tx});
+});
+
+// ── 선택
+let sel=null;
+function select(id){
+  sel=id; const n=byId[id];
+  document.querySelectorAll('.node').forEach(d=>{
+    d.classList.toggle('sel', d.dataset.id===id);
+  });
+  const rel=new Set([id]);
+  wireEls.forEach(w=>{
+    const hot=(w.f===id||w.t===id);
+    w.p.classList.toggle('hot',hot); w.p.classList.toggle('dim',!hot);
+    w.p.setAttribute('marker-end', hot?'url(#arh)':'url(#ar)');
+    if(w.tx) w.tx.classList.toggle('hot',hot);
+    if(hot){ rel.add(w.f); rel.add(w.t); }
+  });
+  document.querySelectorAll('.node').forEach(d=>d.classList.toggle('faded',!rel.has(d.dataset.id)));
+
+  const TAG={push:'push',tab:'tabt',sheet:'sheet',repl:'repl',back:'push'};
+  const TAGN={push:'푸시',tab:'탭',sheet:'시트',repl:'교체',back:'뒤로'};
+  const link=s=>s.replace(/(→?)(S-[0-9]+[A-Z]*)/g,(m,ar,id)=>byId[id]?`${ar}<span class="to" onclick="event.stopPropagation();select('${id}')">${id} ${byId[id].nm}</span>`:m);
+
+  let h=`<div class="ph">${n.a==='tab'?'탭 루트':'화면'}</div><h2>${n.id} · ${n.nm}</h2><div class="file">${n.f}</div>`;
+  h+=`<section><h3>진입</h3><ul>${n.into.length?n.into.map(x=>`<li>${link(x)}</li>`).join(''):'<li>—</li>'}</ul></section>`;
+  if(n.act.length) h+=`<section><h3>액션 → 목적지</h3><ul>${n.act.map(a=>{
+    const tg=a[2]?`<span class="tag ${TAG[a[2]]}">${TAGN[a[2]]}</span>`:'';
+    return `<li><b>${a[0]}</b><br>${tg}${link(a[1])}</li>`;}).join('')}</ul></section>`;
+  h+=`<section><h3>뒤로</h3><ul><li>${link(n.back)}</li></ul></section>`;
+  if(n.cond.length) h+=`<section><h3>조건 · 예외</h3><div class="warn">${n.cond.map(c=>'· '+c).join('<br>')}</div></section>`;
+  document.getElementById('panel').innerHTML=h;
+}
+
+// ── 필터
+const AREAF={auth:['auth','onb'],home:['home','tab'],map:['map','tab'],cal:['cal','tab'],set:['set','tab'],perm:['perm']};
+function setFilter(k,btn){
+  document.querySelectorAll('.ctrls button').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  if(k==='all'){
+    document.querySelectorAll('.node').forEach(d=>d.classList.remove('faded'));
+    wireEls.forEach(w=>{w.p.classList.remove('dim','hot'); if(w.tx) w.tx.classList.remove('hot');});
+    return;
+  }
+  const keep=new Set(N.filter(n=>AREAF[k].includes(n.a)).map(n=>n.id));
+  document.querySelectorAll('.node').forEach(d=>d.classList.toggle('faded',!keep.has(d.dataset.id)));
+  wireEls.forEach(w=>{
+    const on=keep.has(w.f)&&keep.has(w.t);
+    w.p.classList.toggle('dim',!on); w.p.classList.remove('hot');
+    if(w.tx) w.tx.classList.toggle('hot',false);
+  });
+}
+
+select('S-06');
+</script>
+</body>
+</html>

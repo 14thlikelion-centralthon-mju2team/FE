@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ensom — 홈 카드 스택 프로토타입</title>
+<style>
+  :root{
+    --accent-lime:#c6f135;
+    --accent-lime-soft:#e4fb9b;
+    --accent-lime-ink:#4e6810;
+    --canvas:#ffffff;
+    --canvas-soft:#f5f6f3;
+    --surface-1:#ffffff;
+    --surface-2:#eef0ea;
+    --surface-neutral:#e9e9e6;
+    --hairline:#e3e5e0;
+    --ink:#14150f;
+    --ink-muted:#63655e;
+    --ink-faint:#6f7269;
+    --on-ink:#ffffff;
+    --topbar-fill:#14150f;
+    --cta-fill:#1f231a;
+    --caution:#e3a13b;
+    --wellness-fill:#e4fb9b;
+    --wellness-ink:#4e6810;
+    --font:'Pretendard','Apple SD Gothic Neo','Malgun Gothic',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{
+    font-family:var(--font);
+    background:#dfe2da;
+    color:var(--ink);
+    padding:32px 20px 60px;
+    -webkit-font-smoothing:antialiased;
+  }
+  .page-head{max-width:1180px;margin:0 auto 24px;}
+  .page-head h1{font-size:22px;font-weight:700;letter-spacing:-.4px;}
+  .page-head p{font-size:13px;color:#5c5f56;margin-top:6px;line-height:1.5;}
+
+  /* ---- controls ---- */
+  .controls{
+    max-width:1180px;margin:0 auto 28px;
+    display:flex;flex-wrap:wrap;gap:20px;
+    background:#fff;border-radius:16px;padding:16px 18px;
+  }
+  .ctrl-group{display:flex;flex-direction:column;gap:8px;}
+  .ctrl-label{font-size:11px;font-weight:600;letter-spacing:.4px;color:#7a7d74;text-transform:uppercase;}
+  .seg{display:flex;background:var(--surface-2);border-radius:999px;padding:4px;gap:2px;}
+  .seg button{
+    font-family:var(--font);font-size:13px;font-weight:600;
+    border:0;background:transparent;color:var(--ink-muted);
+    padding:8px 14px;border-radius:999px;cursor:pointer;white-space:nowrap;
+  }
+  .seg button.on{background:var(--cta-fill);color:#fff;}
+
+  /* ---- phone ---- */
+  .stage{max-width:1180px;margin:0 auto;display:flex;gap:36px;flex-wrap:wrap;align-items:flex-start;}
+  .phone{
+    width:340px;height:718px;flex:0 0 auto;
+    background:var(--canvas);
+    border-radius:44px;
+    border:9px solid #1b1c17;
+    position:relative;overflow:hidden;
+    box-shadow:0 18px 44px rgba(20,21,15,.22);
+  }
+  .notch{
+    position:absolute;top:0;left:50%;transform:translateX(-50%);
+    width:112px;height:26px;background:#1b1c17;
+    border-radius:0 0 16px 16px;z-index:40;
+  }
+  .screen{position:absolute;inset:0;display:flex;flex-direction:column;padding:44px 20px 0;overflow:hidden;}
+
+  /* top app bar */
+  .topbar{
+    height:40px;background:transparent;color:var(--ink);
+    display:flex;align-items:center;
+    justify-content:space-between;padding:0 2px;flex:0 0 auto;
+  }
+  .wordmark{font-size:15px;font-weight:700;letter-spacing:1.4px;display:inline-flex;align-items:center;color:var(--ink);}
+  .wordmark .wm-o, .wm-o{width:.78em;height:.78em;margin:0 1px;flex:0 0 auto;}
+  .tb-icons{display:flex;gap:6px;}
+  .tb-ico{
+    width:32px;height:32px;border-radius:999px;
+    background:var(--surface-2);
+    display:flex;align-items:center;justify-content:center;
+    cursor:pointer;transition:transform .12s;
+  }
+  .tb-ico:active{transform:scale(.92);}
+  .tb-ico svg{width:16px;height:16px;stroke:var(--ink);fill:none;stroke-width:1.7;}
+
+  /* greeting */
+  .greet-row{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-top:22px;flex:0 0 auto;}
+  .greet h2{font-size:23px;font-weight:700;letter-spacing:-.5px;line-height:1.25;}
+  .greet p{font-size:12.5px;color:var(--ink-muted);margin-top:5px;}
+  .weather{
+    background:var(--surface-2);border-radius:14px;padding:9px 11px;min-width:92px;flex:0 0 auto;
+    cursor:pointer;transition:transform .12s;
+  }
+  .weather:active{transform:scale(.97);}
+  .weather .loc{font-size:9.5px;color:var(--ink-muted);font-weight:600;}
+  .weather .temp{font-size:22px;font-weight:700;color:var(--ink);line-height:1.1;margin-top:1px;}
+  .weather .desc{font-size:9px;color:var(--ink-muted);margin-top:3px;line-height:1.3;}
+
+  /* ---- weather weekly panel ---- */
+  .wxPanel{position:absolute;inset:0;z-index:120;background:var(--canvas);display:none;flex-direction:column;transform:translateY(100%);transition:transform .22s ease;}
+  .wxPanel.on{display:flex;transform:translateY(0);}
+  .wxTop{flex:0 0 auto;padding:44px 20px 0;}
+  .wxBar{display:flex;align-items:center;gap:10px;height:40px;}
+  .wxBack{width:32px;height:32px;border-radius:999px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;cursor:pointer;flex:0 0 auto;}
+  .wxBack svg{width:14px;height:14px;stroke:var(--ink);fill:none;stroke-width:2.1;}
+  .wxTitle{font-size:15px;font-weight:700;letter-spacing:-.2px;}
+  .wxScroll{flex:1 1 auto;overflow-y:auto;padding:6px 20px 26px;}
+  .wxScroll::-webkit-scrollbar{display:none;}
+
+  .wxHero{background:linear-gradient(160deg,var(--surface-2),var(--canvas-soft));border-radius:26px;padding:20px 20px 18px;margin-top:12px;text-align:center;}
+  .wxHero .wloc{font-size:12px;font-weight:600;color:var(--ink-muted);}
+  .wxHero .wtemp{font-size:52px;font-weight:700;color:var(--ink);line-height:1.05;margin-top:6px;letter-spacing:-1.5px;}
+  .wxHero .wdesc{font-size:12.5px;color:var(--ink-muted);margin-top:4px;}
+  .wxHero .whilo{font-size:11.5px;color:var(--ink-muted);margin-top:8px;font-weight:600;}
+  .wxStatRow{display:flex;gap:8px;margin-top:14px;}
+  .wxStat{flex:1 1 0;background:var(--surface-2);border-radius:16px;padding:11px 10px;text-align:center;}
+  .wxStat .wsl{font-size:9.5px;color:var(--ink-faint);font-weight:600;}
+  .wxStat .wsv{font-size:14.5px;font-weight:700;margin-top:4px;}
+  .wxStat .wsc{font-size:9px;color:var(--ink-faint);margin-top:2px;}
+
+  .wxSecLabel{font-size:11px;font-weight:600;color:var(--ink-faint);letter-spacing:.3px;margin:22px 0 4px;}
+  .wxDayRow{display:flex;align-items:center;gap:10px;padding:12px 2px;border-bottom:1px solid var(--hairline);}
+  .wxDayRow:last-child{border-bottom:none;}
+  .wxDayRow.today .wdName{color:var(--ink);font-weight:700;}
+  .wdName{font-size:13px;font-weight:600;color:var(--ink-muted);width:52px;flex:0 0 auto;}
+  .wdToday{display:inline-block;width:5px;height:5px;border-radius:999px;background:var(--accent-lime);margin-left:4px;vertical-align:middle;}
+  .wdIcon{width:26px;height:26px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;}
+  .wdIcon svg{width:22px;height:22px;}
+  .wdPop{font-size:10.5px;color:var(--ink-muted);font-weight:600;width:32px;flex:0 0 auto;text-align:right;}
+  .wdRange{flex:1 1 auto;display:flex;align-items:center;gap:8px;}
+  .wdLo{font-size:12.5px;color:var(--ink-faint);width:22px;text-align:right;}
+  .wdTrack{flex:1 1 auto;height:4px;background:var(--surface-neutral);border-radius:999px;position:relative;overflow:hidden;}
+  .wdFill{position:absolute;top:0;bottom:0;background:linear-gradient(90deg,var(--ink-faint),var(--caution));border-radius:999px;}
+  .wdHi{font-size:12.5px;font-weight:700;width:22px;}
+
+  .wxNote{margin-top:18px;background:var(--surface-2);border-radius:14px;padding:12px 13px;font-size:11px;color:var(--ink-muted);line-height:1.55;}
+
+  /* ---- hero card stack ---- */
+  .stack-wrap{position:relative;margin-top:20px;flex:0 0 auto;}
+  .behind{
+    position:absolute;
+    border-radius:28px;
+    box-shadow:0 2px 10px rgba(20,21,15,.10);
+    display:flex;align-items:center;justify-content:flex-end;
+    padding-right:6px;
+    cursor:pointer;
+  }
+  .behind.b1{top:9px;bottom:9px;left:24px;right:19px;background:var(--surface-2);z-index:2;}
+  .behind.b2{top:18px;bottom:18px;left:34px;right:0;background:var(--surface-neutral);z-index:1;}
+  .behind .vtime{
+    writing-mode:vertical-rl;
+    font-size:9.5px;font-weight:600;color:var(--ink-faint);
+    letter-spacing:.4px;
+  }
+
+  .hero{
+    position:relative;z-index:3;
+    background:var(--accent-lime);
+    border-radius:28px;padding:18px 18px 20px;
+    display:flex;flex-direction:column;gap:12px;
+    transition:background .25s, margin-right .25s;
+    margin-right:38px;
+    cursor:pointer;
+  }
+  .hero.solo{margin-right:0;}
+  .hero.empty{background:var(--surface-1);border:1px solid var(--hairline);cursor:default;}
+  .hero-top{display:flex;justify-content:space-between;align-items:center;}
+  .badge{
+    background:rgba(255,255,255,.62);color:var(--ink);
+    font-size:11.5px;font-weight:600;
+    padding:5px 11px;border-radius:999px;
+  }
+  .badge.caution{background:var(--caution);color:var(--ink);}
+  .hero-icons{display:flex;gap:6px;}
+  .h-ico{
+    width:29px;height:29px;border-radius:999px;background:rgba(20,21,15,.10);
+    display:flex;align-items:center;justify-content:center;
+    cursor:pointer;
+  }
+  .h-ico svg{width:14px;height:14px;stroke:var(--ink);fill:none;stroke-width:1.8;}
+
+  .hero-msg{font-size:27px;font-weight:700;letter-spacing:-.8px;line-height:1.2;word-break:keep-all;}
+  .hero-msg .num{font-size:40px;letter-spacing:-1.4px;}
+  .hero-sub{font-size:12.5px;color:rgba(20,21,15,.72);line-height:1.45;word-break:keep-all;}
+  .hero-foot{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;margin-top:2px;}
+  .hero-meta{font-size:12px;font-weight:600;color:rgba(20,21,15,.8);line-height:1.45;}
+  .cta{
+    background:var(--cta-fill);color:#fff;
+    font-size:13.5px;font-weight:600;font-family:var(--font);
+    border:0;border-radius:999px;padding:12px 20px;cursor:pointer;
+    white-space:nowrap;flex:0 0 auto;
+  }
+  .cta.ghost{background:var(--surface-2);color:var(--ink);}
+  .empty-ctas{display:flex;gap:8px;margin-top:4px;}
+
+  .stack-more{
+    text-align:center;font-size:11.5px;font-weight:600;color:var(--ink-muted);
+    margin-top:14px;
+  }
+
+  /* sections */
+  .scroll{flex:1 1 auto;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:100px;}
+  .scroll::-webkit-scrollbar{display:none;}
+  .sec-label{font-size:11px;font-weight:600;color:var(--ink-faint);letter-spacing:.3px;margin:0 0 8px;}
+  .sec{margin-top:20px;}
+  .chips{display:flex;flex-wrap:wrap;gap:7px;}
+  .chip{
+    background:var(--surface-2);color:var(--ink);
+    font-size:12.5px;padding:9px 13px;border-radius:14px;
+    cursor:pointer;transition:transform .1s;
+    display:flex;align-items:center;gap:6px;
+  }
+  .chip:active{transform:scale(.96);}
+  .chip .ck{width:14px;height:14px;border-radius:999px;border:1.6px solid var(--ink-faint);flex:0 0 auto;display:flex;align-items:center;justify-content:center;}
+  .chip .ck svg{width:9px;height:9px;stroke:#fff;fill:none;stroke-width:3;opacity:0;}
+  .chip.done{background:var(--surface-neutral);color:var(--ink-faint);text-decoration:line-through;}
+  .chip.done .ck{background:var(--ink-muted);border-color:var(--ink-muted);}
+  .chip.done .ck svg{opacity:1;}
+  .wtag{
+    background:var(--wellness-fill);color:var(--wellness-ink);
+    font-size:11.5px;font-weight:500;padding:6px 11px;border-radius:999px;
+    display:inline-block;
+  }
+  .wtags{display:flex;flex-wrap:wrap;gap:6px;}
+
+  /* tab bar */
+  .tabbar{
+    position:absolute;left:26px;right:26px;bottom:16px;height:60px;
+    background:var(--surface-2);border-radius:999px;
+    box-shadow:0 6px 20px rgba(20,21,15,.12);
+    display:flex;align-items:center;justify-content:space-around;z-index:30;
+  }
+  .tab{display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--ink-faint);}
+  .tab.on{color:var(--ink);}
+  .tab svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.8;}
+  .tab span{font-size:10px;font-weight:500;}
+  .fade{
+    position:absolute;left:0;right:0;bottom:0;height:110px;z-index:20;
+    background:linear-gradient(to bottom,rgba(255,255,255,0),var(--canvas) 62%);
+    pointer-events:none;
+  }
+
+  /* notes panel */
+  .notes{
+    flex:1 1 300px;min-width:290px;background:#fff;border-radius:16px;padding:20px 22px;
+  }
+  .notes h3{font-size:14px;font-weight:700;margin-bottom:12px;}
+  .notes h4{font-size:12px;font-weight:700;margin:16px 0 6px;color:var(--ink);}
+  .notes p,.notes li{font-size:12.5px;line-height:1.65;color:#4c4f47;}
+  .notes ul{padding-left:16px;}
+  .notes li{margin-bottom:5px;}
+  .swatch{display:inline-block;width:11px;height:11px;border-radius:3px;vertical-align:-1px;margin-right:5px;}
+
+  /* ---- 준비 항목 추가 시트 ---- */
+  .psWrap{position:absolute;inset:0;z-index:130;display:flex;align-items:flex-end;pointer-events:none;}
+  .psWrap.on{pointer-events:auto;}
+  .psScrim{position:absolute;inset:0;background:rgba(20,21,15,0);transition:background .2s;}
+  .psWrap.on .psScrim{background:rgba(20,21,15,.45);}
+  .psSheet{position:relative;width:100%;max-height:82%;overflow-y:auto;background:#fff;border-radius:26px 26px 0 0;padding:10px 20px 24px;transform:translateY(100%);transition:transform .24s cubic-bezier(.32,.72,0,1);z-index:2;}
+  .psWrap.on .psSheet{transform:translateY(0);}
+  .psHandle{width:36px;height:4px;background:var(--surface-neutral);border-radius:99px;margin:4px auto 14px;}
+  .psTitle{font-size:16px;font-weight:700;letter-spacing:-.2px;margin-bottom:16px;}
+  .psField{margin-top:14px;}
+  .psField label{font-size:11px;font-weight:600;color:var(--ink-muted);display:block;margin-bottom:7px;}
+  .psField input{width:100%;border:1.4px solid var(--hairline);border-radius:12px;padding:11px 13px;font-size:13px;font-family:var(--font);background:var(--surface-1);}
+  .psSeg{display:flex;background:var(--surface-2);border-radius:13px;padding:3px;gap:3px;}
+  .psSeg .psItem{flex:1 1 0;text-align:center;font-size:11px;font-weight:600;padding:9px 3px;border-radius:10px;cursor:pointer;color:var(--ink-muted);line-height:1.3;}
+  .psSeg .psItem.on{background:var(--cta-fill);color:#fff;}
+  .psTogRow{display:flex;justify-content:space-between;align-items:center;}
+  .psToggle{width:42px;height:25px;border-radius:999px;background:var(--surface-2);position:relative;cursor:pointer;flex:0 0 auto;transition:background .15s;}
+  .psToggle .psKnob{position:absolute;top:2.5px;left:2.5px;width:20px;height:20px;border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);transition:left .15s, background .15s;}
+  .psToggle.on{background:var(--cta-fill);}
+  .psToggle.on .psKnob{left:19.5px;background:var(--accent-lime);}
+  .psScope{display:flex;gap:8px;margin-top:8px;}
+  .psScopeBtn{flex:1 1 0;border:1.6px solid var(--hairline);border-radius:14px;padding:13px 8px;text-align:center;font-size:12px;font-weight:700;cursor:pointer;color:var(--ink-muted);}
+  .psScopeBtn.on{border-color:var(--cta-fill);background:var(--cta-fill);color:#fff;}
+  .psSaveBtn{font-family:var(--font);border:0;border-radius:999px;padding:13px 16px;font-size:14px;font-weight:700;cursor:pointer;width:100%;background:var(--cta-fill);color:#fff;margin-top:20px;}
+
+  /* ---- 알림 로그 패널 ---- */
+  .nlPanel{position:absolute;inset:0;z-index:130;background:var(--canvas);display:none;flex-direction:column;transform:translateY(100%);transition:transform .22s ease;}
+  .nlPanel.on{display:flex;transform:translateY(0);}
+  .nlTop{flex:0 0 auto;padding:44px 20px 0;}
+  .nlBar{display:flex;align-items:center;gap:10px;height:40px;}
+  .nlBack{width:32px;height:32px;border-radius:999px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;cursor:pointer;flex:0 0 auto;}
+  .nlBack svg{width:14px;height:14px;stroke:var(--ink);fill:none;stroke-width:2.1;}
+  .nlTitle{font-size:15px;font-weight:700;letter-spacing:-.2px;}
+  .nlScroll{flex:1 1 auto;overflow-y:auto;padding:6px 20px 26px;}
+  .nlEmpty{flex:1 1 auto;display:flex;align-items:center;justify-content:center;padding-bottom:60px;}
+  .nlEmpty p{font-size:13px;color:var(--ink-faint);}
+  .nlRow{border-bottom:1px solid var(--hairline);padding:14px 0;}
+  .nlRow:last-child{border-bottom:none;}
+  .nlHead{display:flex;align-items:center;gap:8px;}
+  .nlBadge{font-size:10px;font-weight:700;padding:4px 9px;border-radius:999px;background:var(--surface-2);color:var(--ink-muted);white-space:nowrap;}
+  .nlBadge.rush{background:var(--caution);color:var(--ink);}
+  .nlBadge.change{background:var(--caution);color:var(--ink);}
+  .nlBadge.wellness{background:var(--wellness-fill);color:var(--wellness-ink);}
+  .nlTime{font-size:11px;color:var(--ink-faint);margin-left:auto;white-space:nowrap;}
+  .nlBody{font-size:13px;font-weight:600;margin-top:8px;line-height:1.4;}
+  .nlReason{font-size:11px;color:var(--ink-muted);margin-top:4px;}
+  .nlReact{font-size:11px;color:var(--ink-faint);margin-top:6px;}
+  .nlChange{margin-top:8px;background:var(--surface-2);border-radius:12px;padding:8px 11px;font-size:11px;color:var(--ink-muted);display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+  .nlChange b{color:var(--ink);font-weight:700;}
+  .nlChange svg{width:11px;height:11px;stroke:var(--ink-faint);fill:none;stroke-width:2.4;flex:0 0 auto;}
+  .nlBadgeDot{width:6px;height:6px;border-radius:999px;background:var(--ink-faint);flex:0 0 auto;}
+
+  /* ═ embed mode (used when loaded inside ensom_master_flow.html) ═ */
+  body.embed{background:transparent;padding:0;overflow:hidden;}
+  body.embed .page-head,body.embed .legend,body.embed .hint,body.embed .controls{display:none!important;}
+  body.embed .stage{margin:0;padding:0;gap:0;}
+  body.embed{height:100vh;}
+  body.embed .stage{height:100%;align-items:stretch;}
+  body.embed .phone{width:100%!important;height:100%!important;max-width:100%;border:0!important;border-radius:0!important;box-shadow:none!important;}
+  body.embed .notch{display:none!important;}
+</style>
+</head>
+<body>
+
+<div class="page-head">
+  <h1>Ensom — 홈 카드 스택 프로토타입</h1>
+  <p>DESIGN.md 토큰 값을 그대로 적용해 렌더링한 화면입니다. 클로드 디자인에 돌리기 전에 구조와 색 배분을 먼저 검증하는 용도예요. 아래 컨트롤로 상태와 일정 개수를 바꿔볼 수 있습니다.</p>
+</div>
+
+<div class="controls">
+  <div class="ctrl-group">
+    <div class="ctrl-label">홈 상태 (PRD §10.2)</div>
+    <div class="seg" id="stateSeg">
+      <button data-state="ease">여유</button>
+      <button data-state="start" class="on">준비 시작</button>
+      <button data-state="depart">출발 임박</button>
+      <button data-state="rush">촉박</button>
+      <button data-state="wellness">웰니스</button>
+    </div>
+  </div>
+  <div class="ctrl-group">
+    <div class="ctrl-label">오늘 일정 개수</div>
+    <div class="seg" id="countSeg">
+      <button data-count="0">0개</button>
+      <button data-count="1">1개</button>
+      <button data-count="2">2개</button>
+      <button data-count="3" class="on">3개</button>
+      <button data-count="5">5개</button>
+    </div>
+  </div>
+</div>
+
+<div class="stage">
+  <div class="phone">
+    <div class="notch"></div>
+    <div class="screen">
+      <div class="topbar">
+        <div class="wordmark">ENS<svg class="wm-o" viewBox="0 0 32 32"><circle cx="16" cy="16" r="11" fill="none" stroke="#4e6810" stroke-width="7"/><circle cx="16" cy="16" r="11" fill="none" stroke="#c6f135" stroke-width="7" stroke-dasharray="47 22" transform="rotate(-90 16 16)" stroke-linecap="round"/></svg>M</div>
+        <div class="tb-icons">
+          <div class="tb-ico clickable" onclick="openPrepSheet()"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></div>
+          <div class="tb-ico clickable" onclick="openNotiLog()"><svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 01-3.4 0"/></svg></div>
+        </div>
+      </div>
+
+      <div class="greet-row">
+        <div class="greet">
+          <h2 id="greetTitle">좋은 오후예요,<br>김도현 님</h2>
+          <p id="greetSub">오늘 일정 3개</p>
+        </div>
+        <div class="weather clickable" onclick="openWeather()">
+          <div class="loc">서울특별시</div>
+          <div class="temp">31°</div>
+          <div class="desc">부분적으로 흐림<br>최고 31° 최저 23°</div>
+        </div>
+      </div>
+
+      <div class="stack-wrap" id="stackWrap">
+        <div class="behind b2" id="behind2" onclick="openEventDetail('b2')"><span class="vtime" id="b2text">19:00</span></div>
+        <div class="behind b1" id="behind1" onclick="openEventDetail('b1')"><span class="vtime" id="b1text">16:30</span></div>
+        <div class="hero" id="hero" onclick="openEventDetail('hero')">
+          <div class="hero-top">
+            <div class="badge" id="heroBadge">준비 시작</div>
+            <div class="hero-icons">
+              <div class="h-ico" onclick="openHeroRoute(event)"><svg viewBox="0 0 24 24"><path d="M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3z"/><path d="M9 3v15M15 6v15"/></svg></div>
+              <div class="h-ico" onclick="event.stopPropagation();openEventDetail('hero')"><svg viewBox="0 0 24 24"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/></svg></div>
+            </div>
+          </div>
+          <div class="hero-msg" id="heroMsg"></div>
+          <div class="hero-sub" id="heroSub"></div>
+          <div class="hero-foot">
+            <div class="hero-meta" id="heroMeta">14:00 · 강남역 3번 출구</div>
+            <button class="cta" id="heroCta">준비 시작</button>
+          </div>
+          <div class="empty-ctas" id="emptyCtas" style="display:none">
+            <button class="cta">일정 만들기</button>
+            <button class="cta ghost">캘린더 연동</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="stack-more" id="stackMore" style="display:none">오늘 일정 5개 모두 보기 →</div>
+
+      <div class="scroll">
+        <div class="sec" id="prepSec">
+          <div class="sec-label">준비 항목</div>
+          <div class="chips" id="prepChips">
+            <div class="chip" onclick="toggleChip(this)"><span class="ck"><svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></span>물 챙기기</div>
+            <div class="chip" onclick="toggleChip(this)"><span class="ck"><svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></span>충전기</div>
+            <div class="chip done" onclick="toggleChip(this)"><span class="ck"><svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></span>우산</div>
+          </div>
+        </div>
+        <div class="sec" id="wellSec">
+          <div class="sec-label">환경 웰니스</div>
+          <div class="wtags" id="wtags">
+            <span class="wtag">선크림 바르기 · 자외선 높음</span>
+            <span class="wtag">물 챙기기 · 기온 31°</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="wxPanel" id="wxPanel">
+        <div class="wxTop">
+          <div class="wxBar">
+            <div class="wxBack" onclick="closeWeather()"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></div>
+            <div class="wxTitle">날씨</div>
+          </div>
+        </div>
+        <div class="wxScroll">
+          <div class="wxHero">
+            <div class="wloc">서울특별시</div>
+            <div class="wtemp">31°</div>
+            <div class="wdesc">부분적으로 흐림</div>
+            <div class="whilo">최고 31° · 최저 23°</div>
+          </div>
+          <div class="wxStatRow">
+            <div class="wxStat"><div class="wsl">자외선</div><div class="wsv">매우 높음</div><div class="wsc">지수 9</div></div>
+            <div class="wxStat"><div class="wsl">미세먼지</div><div class="wsv">보통</div><div class="wsc">PM2.5 28</div></div>
+            <div class="wxStat"><div class="wsl">강수확률</div><div class="wsv">20%</div><div class="wsc">오후 한때</div></div>
+          </div>
+
+          <div class="wxSecLabel">7일간의 예보</div>
+          <div id="wxDays"></div>
+
+          <div class="wxNote">기온·강수 정보는 참고용이며, 실제 준비 계획은 일정 시각과 이동 경로를 함께 반영해 계산돼요.</div>
+        </div>
+      </div>
+
+      <div class="psWrap" id="psWrap">
+        <div class="psScrim" onclick="closePrepSheet()"></div>
+        <div class="psSheet">
+          <div class="psHandle"></div>
+          <div class="psTitle">준비 항목 추가</div>
+
+          <div class="psField">
+            <label>항목명</label>
+            <input type="text" id="psNameInput" placeholder="예: 우산 챙기기">
+          </div>
+
+          <div class="psField">
+            <label>구분</label>
+            <div class="psSeg">
+              <div class="psItem on" onclick="psPickKind(this,false)">챙기기</div>
+              <div class="psItem" onclick="psPickKind(this,false)">사용·섭취</div>
+              <div class="psItem" onclick="psPickKind(this,false)">구매하기</div>
+              <div class="psItem" onclick="psPickKind(this,true)">시간 필요 루틴</div>
+            </div>
+          </div>
+
+          <div class="psField" id="psDurField" style="display:none;">
+            <label>추가 소요 시간 (분)</label>
+            <input type="number" placeholder="예: 15">
+          </div>
+
+          <div class="psField">
+            <div class="psTogRow">
+              <label style="margin:0;">잠금화면에서 항목명 숨기기</label>
+              <div class="psToggle" onclick="psToggle(this)"><div class="psKnob"></div></div>
+            </div>
+          </div>
+
+          <div class="psField">
+            <label>적용 범위</label>
+            <div class="psScope">
+              <div class="psScopeBtn on" onclick="psPickScope(this)">이번 일정에만</div>
+              <div class="psScopeBtn" onclick="psPickScope(this)">기본 준비 항목으로 저장</div>
+            </div>
+          </div>
+
+          <button class="psSaveBtn" onclick="psSave()">추가</button>
+        </div>
+      </div>
+
+      <div class="nlPanel" id="nlPanel">
+        <div class="nlTop">
+          <div class="nlBar">
+            <div class="nlBack" onclick="closeNotiLog()"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></div>
+            <div class="nlTitle">알림 로그</div>
+          </div>
+        </div>
+        <div class="nlScroll">
+          <div class="nlRow">
+            <div class="nlHead"><span class="nlBadge">여유</span><span class="nlTime">오전 9시 10분</span></div>
+            <div class="nlBody">30분 뒤 외출 준비를 시작할 예정이에요.</div>
+            <div class="nlReason">팀 스탠드업 준비 시작 시점 도달</div>
+          </div>
+          <div class="nlRow">
+            <div class="nlHead"><span class="nlBadge wellness">웰니스</span><span class="nlTime">오전 11시 45분</span></div>
+            <div class="nlBody">자외선이 높아요 · 선크림을 챙겨보세요.</div>
+            <div class="nlReason">자외선 지수 9 · 야외 이동 예정</div>
+            <div class="nlReact">✓ 완료로 표시함</div>
+          </div>
+          <div class="nlRow">
+            <div class="nlHead"><span class="nlBadge change">돌발</span><span class="nlTime">오후 12시 10분</span></div>
+            <div class="nlBody">교통 상황이 바뀌어 출발 시간이 조정됐어요.</div>
+            <div class="nlReason">2호선 지연 · 예상 도착 +8분</div>
+            <div class="nlChange"><b>준비 시작</b> 12:40 <svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg> <b>12:35</b>로 변경됨</div>
+            <div class="nlReact">확인함</div>
+          </div>
+          <div class="nlRow">
+            <div class="nlHead"><span class="nlBadge rush">촉박</span><span class="nlTime">오후 1시 15분</span></div>
+            <div class="nlBody">지금 출발하는 것이 좋아요.</div>
+            <div class="nlReason">목표 도착 시각까지 남은 여유 5분 미만</div>
+            <div class="nlReact">출발했어요</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="fade"></div>
+      <div class="tabbar">
+        <div class="tab"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4M3 11h18"/></svg><span>캘린더</span></div>
+        <div class="tab on"><svg viewBox="0 0 24 24"><path d="M3 10l9-7 9 7v10a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg><span>홈</span></div>
+        <div class="tab"><svg viewBox="0 0 24 24"><path d="M9 3L3 6v15l6-3 6 3 6-3V3l-6 3z"/><path d="M9 3v15M15 6v15"/></svg><span>지도</span></div>
+        <div class="tab"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg><span>프로필</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <h3>이 프로토타입에서 확인할 것</h3>
+
+    <h4>1. 라임 면적</h4>
+    <p>히어로 카드가 화면의 약 30%를 차지합니다. 이전 결과물(40~50%)보다 줄였어요. 상태를 바꿔봐도 카드 높이가 크게 변하지 않는지 보세요.</p>
+
+    <h4>2. 뒤 카드가 오른쪽으로 삐져나옴</h4>
+    <p>레퍼런스대로 뒤 카드를 <b>오른쪽</b>으로 밀었습니다. 위아래로도 살짝 좁혀서 계단처럼 보이게 했어요.</p>
+    <p style="margin-top:8px;">라임 카드 가로 폭을 줄여서 뒤 카드가 화면 밖으로 나가지 않게 했습니다. 삐져나오는 폭은 한 장당 19px이고, <b>뒤 카드 개수에 따라 라임 카드 폭이 자동으로 줄어듭니다</b> — 1장이면 19px, 2장이면 38px. 그래서 일정이 1개일 때는 라임 카드가 화면 폭을 꽉 채우고, 3개일 때만 좁아져요. 개수를 바꿔가며 라임 카드가 너무 좁아 보이지 않는지 확인해 보세요.</p>
+    <p style="margin-top:8px;"><span class="swatch" style="background:#eef0ea"></span>surface-2 → <span class="swatch" style="background:#e9e9e6"></span>surface-neutral 순으로 뒤로 갈수록 어둡습니다. 레퍼런스는 뒤 카드가 진회색이었지만 "다크 컨테이너 금지" 규칙과 충돌해서 연회색으로 잡았어요.</p>
+
+    <h4>3. 상태 구분이 색 없이 되는가</h4>
+    <p>5개 상태 모두 라임을 유지하고, 타이포 크기·정보량으로만 긴박도를 표현합니다. <b>출발 임박</b>은 숫자가 가장 크고 보조 정보가 줄어들며, <b>촉박</b>만 배지가 앰버로 바뀝니다. 상태를 번갈아 눌러보면서 구분이 되는지 판단해 보세요.</p>
+
+    <h4>4. 한글 줄바꿈</h4>
+    <p><code>word-break:keep-all</code>을 적용해서 조사가 다음 줄로 넘어가지 않습니다. 이전 결과물의 "20분 뒤 준비 / 를 시작하세요" 문제가 재현되는지 확인용이에요.</p>
+
+    <h4>5. 일정 개수별 레이아웃</h4>
+    <p>0개일 때 히어로가 흰 카드로 바뀌고, 5개일 때 뒤 카드는 2장까지만 쌓이고 "모두 보기"로 넘어갑니다. 개수를 바꿔도 카드 시작 위치가 흔들리지 않는지 보세요.</p>
+
+    <h4>남은 판단</h4>
+    <ul>
+      <li>뒤 카드에 시각만 노출할지, 일정명까지 노출할지</li>
+      <li>뒤 카드 회색을 한 단계 더 진하게 갈지</li>
+      <li>웰니스 태그 2개가 라임 카드와 같이 있을 때 라임이 과한지</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+const STATES = {
+  ease:{badge:'여유',badgeCaution:false,msg:'아직 여유가 있어요.',sub:'오후 12시 40분부터 준비하면 충분합니다.',cta:'준비 알림 받기',big:null},
+  start:{badge:'준비 시작',badgeCaution:false,msg:'뒤 준비를 시작하세요',sub:'오후 1시 20분에 출발하면 제시간에 도착할 수 있어요.',cta:'준비 시작',big:'20분'},
+  depart:{badge:'출발 임박',badgeCaution:false,msg:'뒤 출발하세요',sub:'현재 경로로 오후 1시 52분 도착 예정입니다.',cta:'출발했어요',big:'8분'},
+  rush:{badge:'촉박',badgeCaution:true,msg:'지금 출발하는 것이 좋아요.',sub:'가장 빠른 기본 경로를 다시 확인했어요.',cta:'경로 확인',big:null},
+  wellness:{badge:'웰니스',badgeCaution:false,msg:'오늘 야외 이동이 길어요.',sub:'출발 전 선크림과 물을 확인해 주세요.',cta:'준비 항목 확인',big:null}
+};
+const EVENTS = ['16:30','19:00'];
+
+let cur = 'start', count = 3;
+
+const EVENT_DETAILS = {
+  hero:{title:'강남역 미팅', date:'8월 19일 수', time:'14:00–15:00', place:'강남역 3번 출구', badge:'준비 시작'},
+  b1:{title:'디자인 리뷰', date:'8월 19일 수', time:'16:30–17:30', place:'온라인 · Zoom', badge:'예정'},
+  b2:{title:'저녁 약속', date:'8월 19일 수', time:'19:00–20:30', place:'홍대입구역 9번 출구', badge:'예정'}
+};
+function openEventDetail(key){
+  if(key==='hero' && count===0) return;
+  const d = EVENT_DETAILS[key];
+  if(!d) return;
+  window.parent.postMessage({ensom:true, action:'openDetail', payload:d}, '*');
+}
+function openHeroRoute(e){
+  if(e) e.stopPropagation();
+  if(count===0) return;
+  const d = EVENT_DETAILS.hero;
+  window.parent.postMessage({ensom:true, action:'showRouteOnMap', payload:{dest:d.place, originLabel:'현재 위치', eventTitle:d.title, eventTime:d.time}}, '*');
+}
+
+function render(){
+  const s = STATES[cur];
+  const hero = document.getElementById('hero');
+  const isEmpty = count === 0;
+
+  hero.classList.toggle('empty', isEmpty);
+  document.getElementById('emptyCtas').style.display = isEmpty ? 'flex' : 'none';
+  document.getElementById('heroCta').style.display = isEmpty ? 'none' : 'block';
+  document.getElementById('heroMeta').style.display = isEmpty ? 'none' : 'block';
+  document.querySelector('.hero-icons').style.display = isEmpty ? 'none' : 'flex';
+  document.getElementById('prepSec').style.display = isEmpty ? 'none' : 'block';
+  document.getElementById('wellSec').style.display = isEmpty ? 'none' : 'block';
+
+  const badge = document.getElementById('heroBadge');
+  const msg = document.getElementById('heroMsg');
+  const sub = document.getElementById('heroSub');
+
+  if(isEmpty){
+    badge.style.display='none';
+    msg.innerHTML = '관리할 다음 일정이 없어요';
+    msg.style.fontSize = '21px';
+    sub.textContent = '일정을 추가하면 준비 시작 시각을 알려드릴게요.';
+  } else {
+    badge.style.display='block';
+    badge.textContent = s.badge;
+    badge.classList.toggle('caution', s.badgeCaution);
+    msg.style.fontSize = '';
+    msg.innerHTML = s.big
+      ? '<span class="num">'+s.big+'</span> '+s.msg
+      : s.msg;
+    sub.textContent = s.sub;
+    document.getElementById('heroCta').textContent = s.cta;
+  }
+
+  // 웰니스 상태일 때 태그 강조
+  document.getElementById('wtags').style.opacity = (cur==='wellness') ? '1' : '.9';
+
+  // stack
+  const behindCount = Math.min(Math.max(count-1,0),2);
+  const PEEK = 19;
+  hero.style.marginRight = (behindCount*PEEK)+'px';
+  const b1 = document.getElementById('behind1'), b2 = document.getElementById('behind2');
+  b1.style.right = ((behindCount-1)*PEEK)+'px';
+  b2.style.right = '0px';
+  b1.style.display = behindCount>=1 ? 'flex':'none';
+  b2.style.display = behindCount>=2 ? 'flex':'none';
+  document.getElementById('b1text').textContent = EVENTS[0];
+  document.getElementById('b2text').textContent = EVENTS[1];
+  document.getElementById('stackMore').style.display = count>3 ? 'block':'none';
+  document.getElementById('greetSub').textContent = count===0 ? '오늘 등록된 일정이 없어요' : ('오늘 일정 '+count+'개');
+}
+
+document.querySelectorAll('#stateSeg button').forEach(b=>{
+  b.onclick=()=>{
+    document.querySelectorAll('#stateSeg button').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on'); cur=b.dataset.state; render();
+  };
+});
+document.querySelectorAll('#countSeg button').forEach(b=>{
+  b.onclick=()=>{
+    document.querySelectorAll('#countSeg button').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on'); count=+b.dataset.count; render();
+  };
+});
+render();
+
+/* ---- weekly weather panel ---- */
+const WX_ICONS = {
+  sun:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="5" fill="#e3a13b" stroke="none"/><g stroke="#e3a13b" stroke-width="1.8" stroke-linecap="round"><path d="M12 1.5v3M12 19.5v3M22.5 12h-3M4.5 12h-3M19.4 4.6l-2.1 2.1M6.7 17.3l-2.1 2.1M19.4 19.4l-2.1-2.1M6.7 6.7L4.6 4.6"/></g></svg>',
+  pcloud:'<svg viewBox="0 0 24 24"><circle cx="10" cy="10" r="4.2" fill="#e3a13b" stroke="none"/><path d="M7 19h9.5a3.5 3.5 0 000-7 5 5 0 00-9.3-1.6A4 4 0 007 19z" fill="var(--ink-faint)" stroke="none"/></svg>',
+  cloud:'<svg viewBox="0 0 24 24"><path d="M6 18h11a4 4 0 000-8 5.5 5.5 0 00-10.6-1.6A4.5 4.5 0 006 18z" fill="var(--ink-muted)" stroke="none"/></svg>',
+  rain:'<svg viewBox="0 0 24 24"><path d="M6 14h11a4 4 0 000-8 5.5 5.5 0 00-10.6-1.6A4.5 4.5 0 006 14z" fill="var(--ink-muted)" stroke="none"/><g stroke="var(--ink-muted)" stroke-width="1.8" stroke-linecap="round"><path d="M8 17.5l-1.3 2.5M12 17.5l-1.3 2.5M16 17.5l-1.3 2.5"/></g></svg>'
+};
+const WX_DAYS = [
+  {d:'오늘',date:'8/19',icon:'pcloud',hi:31,lo:23,pop:10,desc:'부분적으로 흐림'},
+  {d:'목',date:'8/20',icon:'sun',hi:33,lo:24,pop:0,desc:'맑음'},
+  {d:'금',date:'8/21',icon:'cloud',hi:29,lo:22,pop:30,desc:'흐림'},
+  {d:'토',date:'8/22',icon:'rain',hi:26,lo:21,pop:80,desc:'비'},
+  {d:'일',date:'8/23',icon:'cloud',hi:27,lo:21,pop:40,desc:'흐림'},
+  {d:'월',date:'8/24',icon:'sun',hi:30,lo:23,pop:5,desc:'맑음'},
+  {d:'화',date:'8/25',icon:'pcloud',hi:32,lo:24,pop:15,desc:'부분적으로 흐림'}
+];
+function renderWeekDays(){
+  const wrap = document.getElementById('wxDays');
+  if(!wrap || wrap.dataset.done) return;
+  const allLo = Math.min(...WX_DAYS.map(d=>d.lo));
+  const allHi = Math.max(...WX_DAYS.map(d=>d.hi));
+  const span = allHi - allLo;
+  wrap.innerHTML = WX_DAYS.map((d,i)=>{
+    const leftPct = ((d.lo - allLo)/span)*100;
+    const widthPct = ((d.hi - d.lo)/span)*100;
+    return '<div class="wxDayRow'+(i===0?' today':'')+'">'
+      + '<div class="wdName">'+d.d+(i===0?'<span class="wdToday"></span>':'')+'</div>'
+      + '<div class="wdIcon">'+WX_ICONS[d.icon]+'</div>'
+      + '<div class="wdPop">'+(d.pop>0 ? d.pop+'%' : '')+'</div>'
+      + '<div class="wdRange"><span class="wdLo">'+d.lo+'°</span>'
+      + '<div class="wdTrack"><div class="wdFill" style="left:'+leftPct.toFixed(1)+'%;width:'+widthPct.toFixed(1)+'%;"></div></div>'
+      + '<span class="wdHi">'+d.hi+'°</span></div>'
+      + '</div>';
+  }).join('');
+  wrap.dataset.done = '1';
+}
+function openWeather(){
+  renderWeekDays();
+  document.getElementById('wxPanel').classList.add('on');
+}
+function closeWeather(){
+  document.getElementById('wxPanel').classList.remove('on');
+}
+
+/* ---- 준비 항목 체크 ---- */
+function toggleChip(el){
+  el.classList.toggle('done');
+}
+
+/* ---- 준비 항목 추가 시트 ---- */
+function openPrepSheet(){
+  document.getElementById('psWrap').classList.add('on');
+}
+function closePrepSheet(){
+  document.getElementById('psWrap').classList.remove('on');
+}
+function psPickKind(el, showDur){
+  el.parentNode.querySelectorAll('.psItem').forEach(x=>x.classList.remove('on'));
+  el.classList.add('on');
+  document.getElementById('psDurField').style.display = showDur ? 'block' : 'none';
+}
+function psPickScope(el){
+  el.parentNode.querySelectorAll('.psScopeBtn').forEach(x=>x.classList.remove('on'));
+  el.classList.add('on');
+}
+function psToggle(el){
+  el.classList.toggle('on');
+}
+function psSave(){
+  const input = document.getElementById('psNameInput');
+  const name = input.value.trim() || '새 준비 항목';
+  const chips = document.getElementById('prepChips');
+  const div = document.createElement('div');
+  div.className = 'chip';
+  div.innerHTML = '<span class="ck"><svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></span>' + name;
+  div.onclick = function(){ toggleChip(div); };
+  chips.appendChild(div);
+  input.value = '';
+  closePrepSheet();
+}
+
+/* ---- 알림 로그 ---- */
+function openNotiLog(){
+  document.getElementById('nlPanel').classList.add('on');
+}
+function closeNotiLog(){
+  document.getElementById('nlPanel').classList.remove('on');
+}
+</script>
+
+<script>(function(){ if(window.self!==window.top){ document.body.classList.add('embed'); } })();</script>
+
+</body>
+</html>

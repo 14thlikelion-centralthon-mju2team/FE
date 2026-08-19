@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ensom — 캘린더 동기화 실패 배너 프로토타입</title>
+<style>
+  :root{
+    --lime:#c6f135;--ink:#14150f;--ink-muted:#63655e;--ink-faint:#6f7269;
+    --surface-1:#fff;--surface-2:#eef0ea;--surface-neutral:#e9e9e6;--hairline:#e3e5e0;
+    --panel:#15170f;--cta:#1f231a;
+    --font:'Pretendard','Apple SD Gothic Neo','Malgun Gothic',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:var(--font);background:#d9dcd3;color:var(--ink);padding:32px 20px 60px;-webkit-font-smoothing:antialiased;}
+  .page-head{max-width:1180px;margin:0 auto 22px;}
+  .page-head h1{font-size:22px;font-weight:700;letter-spacing:-.4px;}
+  .page-head p{font-size:13px;color:#55584f;margin-top:6px;line-height:1.55;}
+  .stage{max-width:1180px;margin:0 auto;display:flex;gap:36px;flex-wrap:wrap;align-items:flex-start;}
+  .phone{width:344px;height:730px;flex:0 0 auto;background:var(--canvas,#fff);border-radius:46px;border:9px solid #16170f;position:relative;overflow:hidden;box-shadow:0 20px 50px rgba(20,21,15,.26);display:flex;flex-direction:column;padding:46px 18px 0;}
+  .notch{position:absolute;top:0;left:50%;transform:translateX(-50%);width:112px;height:26px;background:#16170f;border-radius:0 0 16px 16px;z-index:60;}
+
+  .selrow{position:absolute;top:8px;left:0;right:0;display:flex;gap:4px;justify-content:center;padding:0 12px;z-index:99;}
+  .selrow button{font-family:var(--font);font-size:10px;font-weight:700;border:0;border-radius:999px;padding:6px 9px;background:var(--surface-2);color:var(--ink-muted);cursor:pointer;}
+  .selrow button.on{background:var(--cta);color:#fff;}
+
+  .word{font-size:13px;font-weight:700;letter-spacing:1.6px;display:inline-flex;align-items:center;}
+  .wm-o{width:.78em;height:.78em;margin:0 1px;flex:0 0 auto;}
+
+  .banner{margin-top:14px;background:var(--surface-2);border-radius:15px;padding:11px 13px;display:flex;align-items:center;justify-content:space-between;gap:10px;}
+  .banner.hidden{display:none;}
+  .banner p{font-size:11.5px;font-weight:600;color:var(--ink-muted);}
+  .banner .retry{font-size:11px;font-weight:700;color:var(--ink);text-decoration:underline;text-underline-offset:2px;cursor:pointer;white-space:nowrap;}
+  .banner .sp{width:13px;height:13px;border:2px solid var(--surface-neutral);border-top-color:var(--ink-muted);border-radius:999px;animation:spin 1s linear infinite;flex:0 0 auto;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .banner-row{display:flex;align-items:center;gap:8px;}
+
+  .panel{background:var(--panel);border-radius:26px;padding:15px;margin-top:14px;}
+  .p-month{color:#fff;font-size:15px;font-weight:700;}
+  .dowrow{display:grid;grid-template-columns:repeat(7,1fr);margin:12px 0 6px;}
+  .dowrow span{text-align:center;font-size:9px;font-weight:600;color:rgba(255,255,255,.38);}
+  .dgrid{display:grid;grid-template-columns:repeat(7,1fr);row-gap:5px;}
+  .dot{width:27px;height:27px;margin:0 auto;border-radius:999px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:rgba(255,255,255,.6);}
+  .dot.today{background:var(--lime);color:var(--ink);font-weight:700;}
+
+  .sec-label{font-size:10.5px;font-weight:700;color:var(--ink-faint);letter-spacing:.4px;margin:16px 0 8px;text-transform:uppercase;}
+  .ecard{background:var(--surface-1);border:1px solid var(--hairline);border-radius:16px;padding:12px 13px;margin-bottom:9px;}
+  .ecard .et{font-size:13px;font-weight:700;}
+  .ecard .ep{font-size:11px;color:var(--ink-muted);margin-top:3px;}
+  .eskel{background:linear-gradient(90deg,var(--surface-2) 25%,var(--surface-neutral) 37%,var(--surface-2) 63%);background-size:400% 100%;animation:shimmer 1.6s infinite;border-radius:16px;height:52px;margin-bottom:9px;}
+  @keyframes shimmer{0%{background-position:100% 0;}100%{background-position:0 0;}}
+
+  .hint{display:inline-block;background:#15170f;color:#c6f135;font-size:11.5px;font-weight:600;padding:6px 12px;border-radius:999px;margin-top:10px;}
+  .legend{max-width:340px;font-size:12px;color:#55584f;line-height:1.7;}
+  .legend b{color:var(--ink);}
+
+  /* ═ embed mode (used when loaded inside ensom_master_flow.html) ═ */
+  body.embed{background:transparent;padding:0;overflow:hidden;}
+  body.embed .page-head,body.embed .legend,body.embed .hint{display:none!important;}
+  body.embed .stage{margin:0;padding:0;gap:0;}
+  body.embed{height:100vh;}
+  body.embed .stage{height:100%;align-items:stretch;}
+  body.embed .phone{width:100%!important;height:100%!important;max-width:100%;border:0!important;border-radius:0!important;box-shadow:none!important;}
+  body.embed .notch{display:none!important;}
+</style>
+</head>
+<body>
+
+<div class="page-head">
+  <h1>Ensom — 캘린더 동기화 실패 배너 프로토타입</h1>
+  <p>일부 일정만 실패했을 때 전면 오류로 덮지 않고, 인라인 배너 + 나머지 데이터는 그대로 보여주는 패턴.</p>
+</div>
+
+<div class="stage">
+  <div class="phone">
+    <div class="selrow">
+      <button class="on" onclick="show(0,this)">정상</button>
+      <button onclick="show(1,this)">동기화 중</button>
+      <button onclick="show(2,this)">일부 실패</button>
+    </div>
+
+    <span class="word">ENS<svg class="wm-o" viewBox="0 0 32 32"><circle cx="16" cy="16" r="11" fill="none" stroke="#4e6810" stroke-width="7"/><circle cx="16" cy="16" r="11" fill="none" stroke="#c6f135" stroke-width="7" stroke-dasharray="47 22" transform="rotate(-90 16 16)" stroke-linecap="round"/></svg>M</span>
+    <div class="banner hidden" id="b-syncing">
+      <div class="banner-row"><div class="sp"></div><p>일정을 가져오는 중</p></div>
+    </div>
+    <div class="banner hidden" id="b-fail">
+      <p>일부 일정을 가져오지 못했어요 · 14:20 기준</p>
+      <span class="retry">다시 시도</span>
+    </div>
+
+    <div class="panel">
+      <div class="p-month">2026년 8월</div>
+      <div class="dowrow"><span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span></div>
+      <div class="dgrid">
+        <span></span><span></span><span></span><span></span><span></span><span></span><div class="dot">1</div>
+        <div class="dot">2</div><div class="dot">3</div><div class="dot">4</div><div class="dot">5</div><div class="dot">6</div><div class="dot">7</div><div class="dot">8</div>
+        <div class="dot">9</div><div class="dot">10</div><div class="dot">11</div><div class="dot">12</div><div class="dot">13</div><div class="dot">14</div><div class="dot">15</div>
+        <div class="dot">16</div><div class="dot">17</div><div class="dot">18</div><div class="dot today">19</div><div class="dot">20</div><div class="dot">21</div><div class="dot">22</div>
+      </div>
+    </div>
+
+    <div class="sec-label">오늘 일정</div>
+    <div id="listArea">
+      <div class="ecard"><div class="et">강남역 미팅</div><div class="ep">13:00 - 14:00 · 강남역</div></div>
+      <div class="ecard"><div class="et">디자인 리뷰</div><div class="ep">16:30 - 17:00 · 온라인</div></div>
+    </div>
+  </div>
+
+  <div class="legend">
+    <p><b>정상</b> — 배너 없이 평소대로.</p>
+    <p style="margin-top:6px;"><b>동기화 중</b> — 배너 자리에 스피너, 일정 리스트는 skeleton-block.</p>
+    <p style="margin-top:6px;"><b>일부 실패</b> — 배너 + 재시도, 가져온 일정은 그대로 유지(전면 오류로 안 덮음).</p>
+    <div class="hint">3개 상태 칩으로 전환</div>
+  </div>
+</div>
+
+<script>
+  const NORMAL_LIST = `
+    <div class="ecard"><div class="et">강남역 미팅</div><div class="ep">13:00 - 14:00 · 강남역</div></div>
+    <div class="ecard"><div class="et">디자인 리뷰</div><div class="ep">16:30 - 17:00 · 온라인</div></div>`;
+  const SKELETON_LIST = `<div class="eskel"></div><div class="eskel"></div>`;
+
+  function show(i, btn){
+    document.querySelectorAll('.selrow button').forEach(b=>b.classList.remove('on'));
+    btn.classList.add('on');
+    document.getElementById('b-syncing').classList.add('hidden');
+    document.getElementById('b-fail').classList.add('hidden');
+    if(i===0){ document.getElementById('listArea').innerHTML = NORMAL_LIST; }
+    if(i===1){ document.getElementById('b-syncing').classList.remove('hidden'); document.getElementById('listArea').innerHTML = SKELETON_LIST; }
+    if(i===2){ document.getElementById('b-fail').classList.remove('hidden'); document.getElementById('listArea').innerHTML = NORMAL_LIST; }
+  }
+</script>
+
+<script>(function(){ if(window.self!==window.top){ document.body.classList.add('embed'); } })();</script>
+
+</body>
+</html>

@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ensom — 권한 거부 · 기능 제한 프로토타입</title>
+<style>
+  :root{
+    --lime:#c6f135;--lime-soft:#e4fb9b;--lime-ink:#4e6810;
+    --canvas:#ffffff;--surface-1:#ffffff;--surface-2:#eef0ea;--surface-neutral:#e9e9e6;
+    --hairline:#e3e5e0;--ink:#14150f;--ink-muted:#63655e;--ink-faint:#6f7269;
+    --panel:#15170f;--cta:#1f231a;--caution:#e3a13b;
+    --font:'Pretendard','Apple SD Gothic Neo','Malgun Gothic',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:var(--font);background:#d9dcd3;color:var(--ink);padding:32px 20px 60px;-webkit-font-smoothing:antialiased;}
+  .page-head{max-width:1180px;margin:0 auto 22px;}
+  .page-head h1{font-size:22px;font-weight:700;letter-spacing:-.4px;}
+  .page-head p{font-size:13px;color:#55584f;margin-top:6px;line-height:1.55;}
+  .stage{max-width:1180px;margin:0 auto;display:flex;gap:36px;flex-wrap:wrap;align-items:flex-start;}
+  .phone{width:344px;height:730px;flex:0 0 auto;background:var(--canvas);border-radius:46px;border:9px solid #16170f;position:relative;overflow:hidden;box-shadow:0 20px 50px rgba(20,21,15,.26);}
+  .notch{position:absolute;top:0;left:50%;transform:translateX(-50%);width:112px;height:26px;background:#16170f;border-radius:0 0 16px 16px;z-index:60;}
+  .selrow{position:absolute;top:8px;left:0;right:0;display:flex;flex-wrap:wrap;gap:4px;justify-content:center;padding:0 12px;z-index:99;}
+  .selrow button{font-family:var(--font);font-size:9.5px;font-weight:700;border:0;border-radius:999px;padding:5px 8px;background:var(--surface-2);color:var(--ink-muted);cursor:pointer;}
+  .selrow button.on{background:var(--cta);color:#fff;}
+  .view{position:absolute;inset:0;display:none;flex-direction:column;}
+  .view.on{display:flex;}
+  .scroll{flex:1 1 auto;overflow-y:auto;padding:8px 18px 24px;}
+  .scroll::-webkit-scrollbar{display:none;}
+
+  /* ── priming layout (ensom_priming_splash.html 재사용) ── */
+  .primewrap{flex:1 1 auto;display:flex;flex-direction:column;padding:66px 24px 26px;overflow-y:auto;}
+  .primewrap::-webkit-scrollbar{display:none;}
+  .xbtn{width:28px;height:28px;border-radius:999px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;margin-bottom:18px;cursor:pointer;flex:0 0 auto;}
+  .xbtn svg{width:12px;height:12px;stroke:var(--ink);fill:none;stroke-width:2.2;}
+  .icowrap{width:64px;height:64px;border-radius:999px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;margin-bottom:18px;align-self:center;flex:0 0 auto;}
+  .icowrap svg{width:28px;height:28px;stroke:var(--ink-faint);fill:none;stroke-width:1.7;}
+  .icowrap svg .slash{stroke:var(--ink-faint);stroke-width:1.7;}
+  .icowrap.off svg{opacity:.55;}
+  .primewrap h2{font-size:19px;font-weight:700;letter-spacing:-.3px;text-align:center;margin-bottom:11px;line-height:1.35;word-break:keep-all;}
+  .primewrap p{font-size:12.5px;color:var(--ink-muted);line-height:1.6;text-align:center;word-break:keep-all;}
+  .infocard{background:var(--surface-2);border-radius:14px;padding:13px 15px;margin-top:16px;font-size:11.5px;color:var(--ink-muted);line-height:1.55;word-break:keep-all;}
+  .spacer{flex:1 1 auto;min-height:14px;}
+  /* 버튼 3개짜리 캘린더 거부 화면은 조금 더 조밀하게 */
+  #v3 .primewrap{padding-bottom:20px;}
+  #v3 .infocard{margin-top:12px;}
+  #v3 .card{margin-top:12px;}
+  #v3 .spacer{min-height:10px;}
+  .primewrap .sec-label{font-size:10.5px;font-weight:700;color:var(--ink-faint);letter-spacing:.4px;text-align:left;line-height:1.4;margin:0 0 8px;}
+
+  /* ── 공통 컴포넌트 ── */
+  .topbar{flex:0 0 auto;margin:64px 2px 0;height:40px;background:transparent;color:var(--ink);display:flex;align-items:center;gap:10px;padding:0 16px;}
+  .backbtn{width:32px;height:32px;border-radius:999px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;cursor:pointer;flex:0 0 auto;}
+  .backbtn svg{width:14px;height:14px;stroke:var(--ink);fill:none;stroke-width:2.1;}
+  .toptitle{color:var(--ink);font-size:16px;font-weight:700;letter-spacing:-.2px;}
+  .pill{font-size:10.5px;font-weight:700;padding:4px 9px;border-radius:999px;white-space:nowrap;cursor:pointer;border:0;font-family:var(--font);}
+  .pill.pos{background:var(--lime-soft);color:var(--lime-ink);}
+  .pill.neu{background:var(--surface-2);color:var(--ink-muted);}
+  .pill.cau{background:var(--caution);color:var(--ink);}
+  .pbtn{font-family:var(--font);border:0;border-radius:999px;padding:13px 16px;font-size:14px;font-weight:700;cursor:pointer;width:100%;}
+  .pbtn.primary{background:var(--cta);color:#fff;}
+  .pbtn.secondary{background:var(--surface-2);color:var(--ink);}
+  .pbtn.text{background:transparent;color:var(--ink-muted);text-decoration:underline;text-underline-offset:2px;font-size:12.5px;padding:11px 4px;}
+  .card{background:var(--surface-1);border:1px solid var(--hairline);border-radius:18px;padding:14px;margin-top:16px;}
+  .card.soft{background:var(--surface-2);border:none;}
+  .sec-label{font-size:10.5px;font-weight:700;color:var(--ink-faint);letter-spacing:.4px;margin:0 0 8px;text-transform:uppercase;}
+  .caption{font-size:10.5px;color:var(--ink-faint);line-height:1.5;}
+  .div{height:1px;background:var(--hairline);margin:14px 0;}
+  .lrow{display:flex;align-items:center;gap:12px;padding:12px 2px;}
+  .lrow .li{width:34px;height:34px;border-radius:999px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;flex:0 0 auto;}
+  .lrow .li svg{width:15px;height:15px;stroke:var(--ink-muted);fill:none;stroke-width:1.8;}
+  .lrow .ltext{flex:1 1 auto;min-width:0;}
+  .lrow .ltitle{font-size:14px;font-weight:600;}
+  .lrow .lsub{font-size:11px;color:var(--ink-faint);margin-top:2px;}
+  .lrow .chev{width:14px;height:14px;stroke:var(--ink-faint);fill:none;stroke-width:2;flex:0 0 auto;}
+  .toast{position:absolute;left:16px;right:16px;bottom:60px;background:var(--cta);color:#fff;font-size:12.5px;font-weight:600;padding:13px 16px;border-radius:16px;z-index:90;transform:translateY(20px);opacity:0;pointer-events:none;transition:all .2s;}
+  .toast.on{transform:translateY(0);opacity:1;}
+
+  /* ── 기능 제한 배너 ── */
+  .wbanner{position:relative;background:var(--surface-2);border-radius:14px;padding:12px 14px 12px 17px;display:flex;align-items:flex-start;gap:10px;margin-top:10px;overflow:hidden;}
+  .wbanner::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--caution);}
+  .wbanner .wt{font-size:12.5px;font-weight:700;letter-spacing:-.2px;word-break:keep-all;}
+  .wbanner .ws{font-size:11px;color:var(--ink-muted);margin-top:3px;line-height:1.45;word-break:keep-all;}
+  .wbanner .wi{width:26px;height:26px;border-radius:999px;background:var(--surface-1);display:flex;align-items:center;justify-content:center;flex:0 0 auto;margin-top:1px;}
+  .wbanner .wi svg{width:13px;height:13px;stroke:var(--ink-faint);fill:none;stroke-width:1.8;}
+  .wbanner .wbody{flex:1 1 auto;min-width:0;}
+  .wbanner .wact{background:transparent;border:0;font-family:var(--font);font-size:11.5px;font-weight:700;color:var(--ink);text-decoration:underline;text-underline-offset:2px;cursor:pointer;flex:0 0 auto;padding:2px 0;align-self:center;}
+  .wbanner .wx{width:20px;height:20px;border-radius:999px;background:transparent;border:0;display:flex;align-items:center;justify-content:center;cursor:pointer;flex:0 0 auto;padding:0;align-self:flex-start;}
+  .wbanner .wx svg{width:10px;height:10px;stroke:var(--ink-faint);fill:none;stroke-width:2.2;}
+  .banner-scope{margin-top:14px;font-size:10px;font-weight:700;color:var(--ink-faint);letter-spacing:.4px;}
+  .restorewrap{margin-top:16px;text-align:center;}
+
+  /* ── 권한 현황 카드 ── */
+  .permhead{display:flex;align-items:center;gap:11px;}
+  .permhead .pi{width:34px;height:34px;border-radius:999px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;flex:0 0 auto;}
+  .permhead .pi svg{width:16px;height:16px;stroke:var(--ink-muted);fill:none;stroke-width:1.8;}
+  .permhead .pname{flex:1 1 auto;font-size:14px;font-weight:700;letter-spacing:-.2px;}
+  .permhead .chev{width:14px;height:14px;stroke:var(--ink-faint);fill:none;stroke-width:2;flex:0 0 auto;}
+  .permdesc{font-size:11.5px;color:var(--ink-muted);line-height:1.5;margin-top:9px;word-break:keep-all;}
+  .permnote{font-size:10.5px;color:var(--ink-faint);line-height:1.5;margin-top:8px;word-break:keep-all;}
+  .permalt{background:var(--surface-2);border-radius:12px;padding:11px 12px;margin-top:10px;font-size:11px;color:var(--ink-muted);line-height:1.5;word-break:keep-all;}
+  .permbtnwrap{margin-top:10px;}
+  .linkbtn{background:transparent;border:0;font-family:var(--font);font-size:12px;font-weight:700;color:var(--ink);text-decoration:underline;text-underline-offset:2px;cursor:pointer;padding:2px 0;margin-top:8px;}
+
+  /* ── 대체 수단 체크 리스트 ── */
+  .altlist{margin:0;}
+  .altitem{display:flex;align-items:flex-start;gap:9px;padding:5px 0;}
+  .altitem .ck{width:16px;height:16px;border-radius:999px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;flex:0 0 auto;margin-top:1px;}
+  .altitem .ck svg{width:9px;height:9px;stroke:var(--ink-faint);fill:none;stroke-width:2.6;}
+  .altitem span{font-size:11.5px;color:var(--ink-muted);line-height:1.5;word-break:keep-all;}
+
+  /* ── OS 설정 안내 ── */
+  .steps{margin-top:14px;}
+  .step{display:flex;gap:12px;position:relative;padding-bottom:14px;}
+  .step:last-child{padding-bottom:0;}
+  .step .num{width:24px;height:24px;border-radius:999px;background:var(--cta);color:#fff;font-size:11.5px;font-weight:700;display:flex;align-items:center;justify-content:center;flex:0 0 auto;z-index:2;}
+  .step .line{position:absolute;left:11.5px;top:24px;bottom:0;width:1px;background:var(--hairline);z-index:1;}
+  .step .stext{font-size:12.5px;color:var(--ink-muted);line-height:1.5;padding-top:4px;word-break:keep-all;}
+  .step .stext b{color:var(--ink);font-weight:700;}
+  .mock{padding:0;overflow:hidden;}
+  .mock .mhead{display:flex;align-items:center;gap:6px;padding:10px 13px;border-bottom:1px solid var(--hairline);font-size:11.5px;color:var(--ink-faint);}
+  .mock .mhead b{color:var(--ink);font-weight:700;font-size:12.5px;margin-left:4px;}
+  .mrow{display:flex;align-items:center;gap:8px;padding:11px 13px;border-bottom:1px solid var(--hairline);}
+  .mrow:last-child{border-bottom:0;}
+  .mrow .mname{flex:1 1 auto;font-size:12.5px;font-weight:600;}
+  .mrow .mval{font-size:11.5px;color:var(--ink-faint);}
+  .mrow .chev{width:12px;height:12px;stroke:var(--ink-faint);fill:none;stroke-width:2;flex:0 0 auto;}
+  .mrow.hi{background:var(--lime-soft);}
+  .mrow.hi .mval{color:var(--lime-ink);}
+  .mrow .here{font-size:10px;font-weight:700;color:var(--lime-ink);background:var(--canvas);border-radius:999px;padding:2px 7px;}
+
+  .hint{display:inline-block;background:#15170f;color:#c6f135;font-size:11.5px;font-weight:600;padding:6px 12px;border-radius:999px;margin-top:10px;}
+  .legend{max-width:340px;font-size:12px;color:#55584f;line-height:1.7;}
+  .legend b{color:var(--ink);}
+
+  body.embed{background:transparent;padding:0;overflow:hidden;}
+  body.embed .page-head,body.embed .legend,body.embed .hint{display:none!important;}
+  body.embed .stage{margin:0;padding:0;gap:0;}
+  body.embed{height:100vh;}
+  body.embed .stage{height:100%;align-items:stretch;}
+  body.embed .phone{width:100%!important;height:100%!important;max-width:100%;border:0!important;border-radius:0!important;box-shadow:none!important;}
+  body.embed .notch{display:none!important;}
+</style>
+</head>
+<body>
+
+<div class="page-head">
+  <h1>Ensom — 권한 거부 · 기능 제한 프로토타입</h1>
+  <p>권한 프라이밍 다음 단계. 사용자가 권한을 거부했거나 상태에 따라 기능이 제한될 때의 화면 6종. 거부해도 앱이 막히지 않고 언제나 대체 경로를 함께 안내합니다.</p>
+</div>
+
+<div class="stage">
+  <div class="phone">
+    <div class="notch"></div>
+    <div class="selrow">
+      <button class="on" onclick="show(0,this)">권한 현황</button>
+      <button onclick="show(1,this)">위치 거부</button>
+      <button onclick="show(2,this)">알림 거부</button>
+      <button onclick="show(3,this)">캘린더 거부</button>
+      <button onclick="show(4,this)">OS 설정 안내</button>
+      <button onclick="show(5,this)">기능 제한 배너</button>
+    </div>
+
+    <!-- ═══ 0. 권한 현황 ═══ -->
+    <div class="view on" id="v0">
+      <div class="topbar">
+        <div class="backbtn"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></div>
+        <div class="toptitle">권한</div>
+      </div>
+      <div class="scroll">
+        <p class="caption" style="margin-top:4px;">Ensom이 사용하는 권한이에요. 필요할 때만 요청하고, 거부해도 다른 방법으로 쓸 수 있어요.</p>
+
+        <div class="card" id="perm-calendar">
+          <div class="permhead">
+            <div class="pi"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/></svg></div>
+            <div class="pname">캘린더</div>
+            <button class="pill pos" data-role="pill" onclick="cyclePerm('calendar')">허용됨</button>
+            <svg class="chev" data-role="chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>
+          </div>
+          <div class="permdesc" data-role="desc">다음 일정과 장소를 자동으로 인식해요</div>
+          <div data-role="extra"></div>
+        </div>
+
+        <div class="card" id="perm-location">
+          <div class="permhead">
+            <div class="pi"><svg viewBox="0 0 24 24"><path d="M12 2C7.6 2 4 5.6 4 10c0 6 8 12 8 12s8-6 8-12c0-4.4-3.6-8-8-8z"/><circle cx="12" cy="10" r="2.6"/></svg></div>
+            <div class="pname">위치</div>
+            <button class="pill neu" data-role="pill" onclick="cyclePerm('location')">앱 사용 중일 때</button>
+            <svg class="chev" data-role="chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>
+          </div>
+          <div class="permdesc" data-role="desc">출발지 이탈과 목적지 도착 확인에만 사용해요</div>
+          <div data-role="extra"></div>
+        </div>
+
+        <div class="card" id="perm-notify">
+          <div class="permhead">
+            <div class="pi"><svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 01-3.4 0"/></svg></div>
+            <div class="pname">알림</div>
+            <button class="pill cau" data-role="pill" onclick="cyclePerm('notify')">허용 안 함</button>
+            <svg class="chev" data-role="chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>
+          </div>
+          <div class="permdesc" data-role="desc">준비 시작·출발 시각을 알려드려요</div>
+          <div data-role="extra"></div>
+        </div>
+
+        <div class="div"></div>
+        <p class="caption">상태 배지를 누르면 허용됨 · 허용 안 함 · 미결정 상태를 차례로 볼 수 있어요 (QA용 데모).</p>
+      </div>
+    </div>
+
+    <!-- ═══ 1. 위치 권한 거부 ═══ -->
+    <div class="view" id="v1">
+      <div class="primewrap">
+        <div class="xbtn"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></div>
+        <div class="icowrap off"><svg viewBox="0 0 24 24"><path d="M12 2C7.6 2 4 5.6 4 10c0 6 8 12 8 12s8-6 8-12c0-4.4-3.6-8-8-8z"/><circle cx="12" cy="10" r="2.6"/><path class="slash" d="M4 21L20 3"/></svg></div>
+        <h2>위치 접근이<br>꺼져 있어요</h2>
+        <p>출발·도착을 자동으로 확인하려면 위치 접근이 필요해요. 지금은 직접 '출발했어요'를 눌러서 기록할 수 있어요.</p>
+        <div class="infocard">위치 정보는 준비·이동 시간 계산에만 사용되고 암호화되어 저장돼요</div>
+        <div class="card">
+          <p class="sec-label">위치 없이도 할 수 있어요</p>
+          <div class="altlist">
+            <div class="altitem"><span class="ck"><svg viewBox="0 0 24 24"><path d="M4 12.5l5.5 5.5L20 6.5"/></svg></span><span>홈 카드에서 '출발했어요'를 눌러 기록</span></div>
+            <div class="altitem"><span class="ck"><svg viewBox="0 0 24 24"><path d="M4 12.5l5.5 5.5L20 6.5"/></svg></span><span>도착 후 짧은 확인 질문에 1번 답하기</span></div>
+            <div class="altitem"><span class="ck"><svg viewBox="0 0 24 24"><path d="M4 12.5l5.5 5.5L20 6.5"/></svg></span><span>준비 시간은 그대로 학습돼요</span></div>
+          </div>
+        </div>
+        <div class="spacer"></div>
+        <button class="pbtn primary" onclick="show(4)">설정에서 켜기</button>
+        <button class="pbtn text">지금은 괜찮아요</button>
+      </div>
+    </div>
+
+    <!-- ═══ 2. 알림 권한 거부 ═══ -->
+    <div class="view" id="v2">
+      <div class="primewrap">
+        <div class="xbtn"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></div>
+        <div class="icowrap off"><svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 01-3.4 0"/><path class="slash" d="M4 21L20 3"/></svg></div>
+        <h2>알림이<br>꺼져 있어요</h2>
+        <p>준비 시작과 출발 시각을 미리 알려드릴 수 없어요. 앱을 직접 열어서 확인해야 해요.</p>
+        <div class="infocard">필요한 순간에만 보내드려요 — 일정당 최대 3번이에요</div>
+        <div class="card">
+          <p class="sec-label">알림 없이도 할 수 있어요</p>
+          <div class="altlist">
+            <div class="altitem"><span class="ck"><svg viewBox="0 0 24 24"><path d="M4 12.5l5.5 5.5L20 6.5"/></svg></span><span>홈 화면에서 다음 일정의 준비 시각 확인</span></div>
+            <div class="altitem"><span class="ck"><svg viewBox="0 0 24 24"><path d="M4 12.5l5.5 5.5L20 6.5"/></svg></span><span>위젯으로 잠금화면에서 바로 보기</span></div>
+            <div class="altitem"><span class="ck"><svg viewBox="0 0 24 24"><path d="M4 12.5l5.5 5.5L20 6.5"/></svg></span><span>캘린더 탭에서 오늘 일정 전체 보기</span></div>
+          </div>
+        </div>
+        <div class="spacer"></div>
+        <button class="pbtn primary" onclick="show(4)">설정에서 켜기</button>
+        <button class="pbtn text">지금은 괜찮아요</button>
+      </div>
+    </div>
+
+    <!-- ═══ 3. 캘린더 권한 거부 ═══ -->
+    <div class="view" id="v3">
+      <div class="primewrap">
+        <div class="xbtn"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></div>
+        <div class="icowrap off"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/><path class="slash" d="M4 21L20 3"/></svg></div>
+        <h2>캘린더를<br>읽을 수 없어요</h2>
+        <p>외부 캘린더 일정을 자동으로 가져올 수 없어요. 앱 안에서 일정을 직접 만들면 똑같이 준비 계획을 세워드려요.</p>
+        <div class="infocard">일정의 시간과 장소만 읽어와요 — 참석자·본문 내용은 저장하지 않아요</div>
+        <div class="card">
+          <p class="sec-label">캘린더 연동 없이도 할 수 있어요</p>
+          <div class="altlist">
+            <div class="altitem"><span class="ck"><svg viewBox="0 0 24 24"><path d="M4 12.5l5.5 5.5L20 6.5"/></svg></span><span>캘린더 탭에서 일정 직접 만들기</span></div>
+            <div class="altitem"><span class="ck"><svg viewBox="0 0 24 24"><path d="M4 12.5l5.5 5.5L20 6.5"/></svg></span><span>지도에서 경로를 찾고 바로 일정으로 저장</span></div>
+            <div class="altitem"><span class="ck"><svg viewBox="0 0 24 24"><path d="M4 12.5l5.5 5.5L20 6.5"/></svg></span><span>만든 일정도 똑같이 준비 계획이 생겨요</span></div>
+          </div>
+        </div>
+        <div class="spacer"></div>
+        <button class="pbtn primary" onclick="toast('캘린더 탭의 일정 만들기로 이동해요')">일정 직접 만들기</button>
+        <button class="pbtn secondary" style="margin-top:8px;" onclick="show(4)">설정에서 켜기</button>
+        <button class="pbtn text">지금은 괜찮아요</button>
+      </div>
+    </div>
+
+    <!-- ═══ 4. OS 설정 안내 ═══ -->
+    <div class="view" id="v4">
+      <div class="topbar">
+        <div class="backbtn" onclick="show(1)"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></div>
+        <div class="toptitle">설정에서 켜기</div>
+      </div>
+      <div class="scroll">
+        <h2 style="font-size:18px;font-weight:700;letter-spacing:-.3px;line-height:1.35;margin:6px 0 2px;word-break:keep-all;">설정 앱에서 이렇게 바꿔주세요</h2>
+
+        <div class="steps">
+          <div class="step"><div class="line"></div><div class="num">1</div><div class="stext">설정 앱을 열어요</div></div>
+          <div class="step"><div class="line"></div><div class="num">2</div><div class="stext"><b>Ensom</b> 을 찾아 눌러요</div></div>
+          <div class="step"><div class="num">3</div><div class="stext"><b>위치</b> 를 눌러 '앱을 사용하는 동안'을 골라요</div></div>
+        </div>
+
+        <div class="card mock">
+          <div class="mhead">‹ 설정 <b>Ensom</b></div>
+          <div class="mrow hi">
+            <div class="mname">위치</div>
+            <div class="here">여기</div>
+            <div class="mval">안 함</div>
+            <svg class="chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>
+          </div>
+          <div class="mrow">
+            <div class="mname">알림</div>
+            <div class="mval">끔</div>
+            <svg class="chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>
+          </div>
+          <div class="mrow">
+            <div class="mname">Siri 및 검색</div>
+            <svg class="chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>
+          </div>
+        </div>
+
+        <p class="caption" style="margin-top:14px;">설정을 바꾸고 돌아오면 자동으로 반영돼요</p>
+
+        <div style="margin-top:16px;">
+          <button class="pbtn primary" id="openSettings" onclick="toast('실제 앱에서는 설정으로 이동해요')">설정 앱 열기</button>
+          <button class="pbtn text" onclick="show(0)">돌아가기</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ 5. 기능 제한 배너 ═══ -->
+    <div class="view" id="v5">
+      <div class="scroll" style="padding-top:64px;">
+        <p class="caption">권한이 없을 때 각 화면에 이런 배너가 뜹니다</p>
+
+        <div id="bannerList">
+          <div class="banner-scope" data-banner="1">홈</div>
+          <div class="wbanner" data-banner="1">
+            <span class="wi"><svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 01-3.4 0"/></svg></span>
+            <div class="wbody"><div class="wt">알림이 꺼져 있어요</div><div class="ws">준비 시각을 직접 확인해 주세요</div></div>
+            <button class="wact" onclick="show(4)">켜기</button>
+            <button class="wx" onclick="closeBanner(1)" aria-label="배너 닫기"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+          </div>
+
+          <div class="banner-scope" data-banner="2">캘린더 탭</div>
+          <div class="wbanner" data-banner="2">
+            <span class="wi"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/></svg></span>
+            <div class="wbody"><div class="wt">외부 캘린더가 연동되지 않았어요</div><div class="ws">앱에서 만든 일정만 보여요</div></div>
+            <button class="wact" onclick="show(4)">연동</button>
+            <button class="wx" onclick="closeBanner(2)" aria-label="배너 닫기"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+          </div>
+
+          <div class="banner-scope" data-banner="3">지도</div>
+          <div class="wbanner" data-banner="3">
+            <span class="wi"><svg viewBox="0 0 24 24"><path d="M12 2C7.6 2 4 5.6 4 10c0 6 8 12 8 12s8-6 8-12c0-4.4-3.6-8-8-8z"/><circle cx="12" cy="10" r="2.6"/></svg></span>
+            <div class="wbody"><div class="wt">위치 접근이 꺼져 있어요</div><div class="ws">출발지를 직접 골라주세요</div></div>
+            <button class="wact" onclick="show(4)">켜기</button>
+            <button class="wx" onclick="closeBanner(3)" aria-label="배너 닫기"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+          </div>
+
+          <div class="banner-scope" data-banner="4">일정 상세</div>
+          <div class="wbanner" data-banner="4">
+            <span class="wi"><svg viewBox="0 0 24 24"><path d="M12 2C7.6 2 4 5.6 4 10c0 6 8 12 8 12s8-6 8-12c0-4.4-3.6-8-8-8z"/><path d="M9 10.5l2 2 4-4"/></svg></span>
+            <div class="wbody"><div class="wt">자동 도착 확인을 쓸 수 없어요</div><div class="ws">도착 후 직접 알려주세요</div></div>
+            <button class="wact" onclick="show(4)">켜기</button>
+            <button class="wx" onclick="closeBanner(4)" aria-label="배너 닫기"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+          </div>
+        </div>
+
+        <div class="restorewrap" id="restoreWrap" style="display:none;">
+          <button class="pbtn text" id="restoreBtn" onclick="restoreBanners()">모두 닫았어요 · 다시 보기</button>
+        </div>
+
+        <div class="div"></div>
+        <p class="caption">배너는 사용자가 닫으면 그 세션 동안 다시 뜨지 않아요. 전면 오류 화면으로 막지 않습니다.</p>
+      </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+  </div>
+
+  <div class="legend">
+    <p><b>권한 현황</b> — 상태 배지를 누르면 허용됨 → 허용 안 함 → 미결정 → 허용됨 순으로 순환하고, 카드 안의 대체 안내와 버튼이 상태에 맞게 바뀝니다.</p>
+    <p style="margin-top:8px;"><b>거부 화면 3종</b> — 프라이밍 화면과 같은 레이아웃. 아이콘은 사선으로 꺼진 상태를 표현하고, 항상 "…없이도 할 수 있어요" 대체 수단을 함께 보여줍니다. 캘린더는 대체 경로(일정 직접 만들기)를 1순위 버튼으로 둡니다.</p>
+    <p style="margin-top:8px;"><b>기능 제한 배너</b> — 전면 차단 대신 인라인 배너. ×로 닫으면 사라지고, 모두 닫으면 다시 보기 버튼이 나타납니다.</p>
+    <div class="hint">6개 상태 칩으로 전환</div>
+  </div>
+</div>
+
+<script>
+  function show(i, btn){
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('on'));
+    document.getElementById('v'+i).classList.add('on');
+    document.querySelectorAll('.selrow button').forEach(b=>b.classList.remove('on'));
+    if(btn) btn.classList.add('on'); else document.querySelectorAll('.selrow button')[i].classList.add('on');
+  }
+
+  var toastTimer = null;
+  function toast(msg){
+    var t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('on');
+    if(toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(function(){ t.classList.remove('on'); toastTimer = null; }, 2000);
+  }
+
+  /* ── 권한 현황: 상태 전환 데모 ── */
+  var ORDER = ['granted','denied','undetermined'];
+  var PERMS = {
+    calendar: {
+      el:'perm-calendar',
+      desc:{
+        granted:'다음 일정과 장소를 자동으로 인식해요',
+        denied:'다음 일정과 장소를 자동으로 인식해요',
+        undetermined:'다음 일정과 장소를 자동으로 인식해요'
+      },
+      granted:{pill:'허용됨', cls:'pos'},
+      denied:{pill:'허용 안 함', cls:'cau',
+        alt:'캘린더 연동이 꺼져 있어요. 캘린더 탭에서 일정을 직접 만들면 똑같이 준비 계획이 생겨요.',
+        btn:'캘린더 연동하기'},
+      undetermined:{pill:'아직 묻지 않음', cls:'neu', note:'필요한 순간에 물어볼게요'}
+    },
+    location: {
+      el:'perm-location',
+      desc:{
+        granted:'출발지 이탈과 목적지 도착 확인에만 사용해요',
+        denied:'출발지 이탈과 목적지 도착 확인에만 사용해요',
+        undetermined:'출발지 이탈과 목적지 도착 확인에만 사용해요'
+      },
+      granted:{pill:'앱 사용 중일 때', cls:'neu',
+        note:"자동 출발·도착 확인을 쓰려면 '항상 허용'이 필요해요",
+        link:'항상 허용으로 바꾸기'},
+      denied:{pill:'허용 안 함', cls:'cau',
+        alt:"위치 접근이 꺼져 있어요. 홈 카드에서 '출발했어요'를 눌러 직접 기록할 수 있어요.",
+        btn:'위치 켜기'},
+      undetermined:{pill:'아직 묻지 않음', cls:'neu', note:'필요한 순간에 물어볼게요'}
+    },
+    notify: {
+      el:'perm-notify',
+      desc:{
+        granted:'준비 시작·출발 시각을 알려드려요',
+        denied:'준비 시작·출발 시각을 알려드려요',
+        undetermined:'준비 시작·출발 시각을 알려드려요'
+      },
+      granted:{pill:'허용됨', cls:'pos'},
+      denied:{pill:'허용 안 함', cls:'cau',
+        alt:'알림이 꺼져 있어요. 앱을 열면 홈 카드에서 준비 시각을 확인할 수 있어요.',
+        btn:'알림 켜기'},
+      undetermined:{pill:'아직 묻지 않음', cls:'neu', note:'필요한 순간에 물어볼게요'}
+    }
+  };
+  var permState = {calendar:'granted', location:'granted', notify:'denied'};
+
+  function renderPerm(key){
+    var cfg = PERMS[key], st = permState[key], s = cfg[st];
+    var card = document.getElementById(cfg.el);
+    var pill = card.querySelector('[data-role="pill"]');
+    var desc = card.querySelector('[data-role="desc"]');
+    var extra = card.querySelector('[data-role="extra"]');
+    var chev = card.querySelector('[data-role="chev"]');
+
+    pill.textContent = s.pill;
+    pill.className = 'pill ' + s.cls;
+    pill.setAttribute('data-state', st);
+    desc.textContent = cfg.desc[st];
+    chev.style.display = (st === 'granted') ? '' : 'none';
+
+    var html = '';
+    if(s.note){ html += '<div class="permnote">' + s.note + '</div>'; }
+    if(s.alt){ html += '<div class="permalt">' + s.alt + '</div>'; }
+    if(s.link){ html += '<button class="linkbtn" onclick="toast(\'실제 앱에서는 설정으로 이동해요\')">' + s.link + '</button>'; }
+    if(s.btn){ html += '<div class="permbtnwrap"><button class="pbtn secondary" onclick="show(4)">' + s.btn + '</button></div>'; }
+    extra.innerHTML = html;
+  }
+
+  function cyclePerm(key){
+    var i = ORDER.indexOf(permState[key]);
+    permState[key] = ORDER[(i + 1) % ORDER.length];
+    renderPerm(key);
+  }
+
+  Object.keys(PERMS).forEach(renderPerm);
+
+  /* ── 기능 제한 배너 ── */
+  function closeBanner(n){
+    document.querySelectorAll('#bannerList [data-banner="' + n + '"]').forEach(function(el){
+      el.style.display = 'none';
+    });
+    syncRestore();
+  }
+  function restoreBanners(){
+    document.querySelectorAll('#bannerList [data-banner]').forEach(function(el){
+      el.style.display = '';
+    });
+    syncRestore();
+  }
+  function syncRestore(){
+    var left = 0;
+    document.querySelectorAll('#bannerList .wbanner').forEach(function(el){
+      if(el.style.display !== 'none') left++;
+    });
+    document.getElementById('restoreWrap').style.display = (left === 0) ? '' : 'none';
+  }
+  syncRestore();
+</script>
+
+<script>(function(){ if(window.self!==window.top){ document.body.classList.add('embed'); } })();</script>
+
+</body>
+</html>

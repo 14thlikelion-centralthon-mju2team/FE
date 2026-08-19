@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="ko"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ensom — 지도 기본화면 + 북마크 프로토타입</title>
+<style>
+  :root{
+    --lime:#c6f135;--lime-soft:#e4fb9b;--lime-ink:#4e6810;
+    --canvas:#ffffff;--surface-1:#ffffff;--surface-2:#eef0ea;--surface-neutral:#e9e9e6;
+    --hairline:#e3e5e0;--ink:#14150f;--ink-muted:#63655e;--ink-faint:#6f7269;
+    --panel:#15170f;--cta:#1f231a;--caution:#e3a13b;
+    --font:'Pretendard','Apple SD Gothic Neo','Malgun Gothic',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:var(--font);background:#d9dcd3;color:var(--ink);padding:32px 20px 60px;-webkit-font-smoothing:antialiased;}
+  .page-head{max-width:1180px;margin:0 auto 22px;}
+  .page-head h1{font-size:22px;font-weight:700;letter-spacing:-.4px;}
+  .page-head p{font-size:13px;color:#55584f;margin-top:6px;line-height:1.55;}
+  .stage{max-width:1180px;margin:0 auto;display:flex;gap:36px;flex-wrap:wrap;align-items:flex-start;}
+  .phone{width:344px;height:730px;flex:0 0 auto;background:var(--canvas);border-radius:46px;border:9px solid #16170f;position:relative;overflow:hidden;box-shadow:0 20px 50px rgba(20,21,15,.26);}
+  .notch{position:absolute;top:0;left:50%;transform:translateX(-50%);width:112px;height:26px;background:#16170f;border-radius:0 0 16px 16px;z-index:60;}
+  .selrow{position:absolute;top:8px;left:0;right:0;display:flex;flex-wrap:wrap;gap:3px;justify-content:center;padding:0 8px;z-index:99;}
+  .selrow button{font-family:var(--font);font-size:9px;font-weight:700;border:0;border-radius:999px;padding:5px 6px;background:var(--surface-2);color:var(--ink-muted);cursor:pointer;white-space:nowrap;}
+  .selrow button.on{background:var(--cta);color:#fff;}
+  .view{position:absolute;inset:0;display:none;flex-direction:column;}
+  .view.on{display:flex;}
+  .scroll{flex:1 1 auto;overflow-y:auto;padding:8px 18px 24px;}
+  .scroll::-webkit-scrollbar{display:none;}
+
+  /* ── 공통 컴포넌트 ── */
+  .topbar{flex:0 0 auto;margin:46px 2px 0;height:40px;background:transparent;color:var(--ink);display:flex;align-items:center;gap:10px;padding:0 16px;}
+  .backbtn{width:32px;height:32px;border-radius:999px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;cursor:pointer;flex:0 0 auto;}
+  .backbtn svg{width:14px;height:14px;stroke:var(--ink);fill:none;stroke-width:2.1;}
+  .toptitle{color:var(--ink);font-size:16px;font-weight:700;letter-spacing:-.2px;flex:1 1 auto;}
+  .topact{font-size:12.5px;font-weight:700;color:var(--ink-muted);cursor:pointer;flex:0 0 auto;padding:6px 4px;}
+  .pill{font-size:10.5px;font-weight:700;padding:4px 9px;border-radius:999px;white-space:nowrap;}
+  .pill.neu{background:var(--surface-2);color:var(--ink-muted);}
+  .pill.pos{background:var(--lime-soft);color:var(--lime-ink);}
+  .pbtn{font-family:var(--font);border:0;border-radius:999px;padding:13px 16px;font-size:14px;font-weight:700;cursor:pointer;width:100%;}
+  .pbtn.primary{background:var(--cta);color:#fff;}
+  .pbtn.secondary{background:var(--surface-2);color:var(--ink);}
+  .pbtn.text{background:transparent;color:var(--ink-muted);text-decoration:underline;text-underline-offset:2px;font-size:12.5px;padding:11px 4px;}
+  .pbtn:disabled{opacity:.4;cursor:not-allowed;}
+  .lrow{display:flex;align-items:center;gap:12px;padding:13px 2px;cursor:pointer;}
+  .lrow .li{width:34px;height:34px;border-radius:999px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;flex:0 0 auto;}
+  .lrow .li svg{width:15px;height:15px;stroke:var(--ink-muted);fill:none;stroke-width:1.8;}
+  .lrow .ltext{flex:1 1 auto;min-width:0;}
+  .lrow .ltitle{font-size:14px;font-weight:600;}
+  .lrow .lsub{font-size:11px;color:var(--ink-faint);margin-top:2px;}
+  .lrow .chev{width:14px;height:14px;stroke:var(--ink-faint);fill:none;stroke-width:2;flex:0 0 auto;}
+  .seg{display:flex;background:var(--surface-2);border-radius:13px;padding:3px;gap:3px;}
+  .seg .sitem{flex:1 1 0;text-align:center;font-size:12.5px;font-weight:600;padding:9px 0;border-radius:10px;cursor:pointer;color:var(--ink-muted);}
+  .seg .sitem.on{background:var(--cta);color:#fff;}
+  #bmList .lsub,#editList .lsub{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  #bmList .ltitle,#editList .ltitle{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  #editList .lrow{gap:10px;}
+  #folderSeg .sitem{font-size:10.5px;white-space:nowrap;letter-spacing:-.4px;padding:9px 2px;}
+  .card{background:var(--surface-1);border:1px solid var(--hairline);border-radius:18px;padding:14px;}
+  .card.soft{background:var(--surface-2);border:none;}
+  .caption{font-size:10.5px;color:var(--ink-faint);line-height:1.5;}
+  .div{height:1px;background:var(--hairline);margin:14px 0;}
+  .chiprow{display:flex;gap:7px;flex-wrap:wrap;}
+  .chip{background:var(--surface-2);color:var(--ink);font-size:12px;font-weight:600;padding:8px 13px;border-radius:12px;cursor:pointer;}
+  .chip.on{background:var(--cta);color:#fff;}
+  .toast{position:absolute;left:16px;right:16px;bottom:100px;background:var(--cta);color:#fff;font-size:12.5px;font-weight:600;padding:13px 16px;border-radius:16px;z-index:90;transform:translateY(20px);opacity:0;pointer-events:none;transition:all .2s;}
+  .toast.on{transform:translateY(0);opacity:1;}
+  .scrim{position:absolute;inset:0;background:rgba(20,21,15,.45);z-index:80;display:none;align-items:center;justify-content:center;}
+  .scrim.on{display:flex;}
+  .dialog{background:#fff;border-radius:22px;padding:22px 18px;margin:0 18px;}
+  .dialog h3{font-size:16px;font-weight:700;margin-bottom:8px;letter-spacing:-.2px;}
+  .dialog p{font-size:12.5px;color:var(--ink-muted);line-height:1.55;}
+  .btnrow{display:flex;gap:8px;margin-top:14px;}
+  .btnrow .pbtn{flex:1 1 0;}
+
+  /* ── 지도 ── */
+  .map{position:absolute;inset:0;overflow:hidden;}
+  .map svg.base{width:100%;height:100%;display:block;}
+  .maplabel{font-size:8.5px;font-weight:600;fill:#6b6d64;font-family:var(--font);}
+  .maplabel.big{font-size:9.5px;fill:#55574f;}
+  .poi{font-size:7.5px;fill:#8a8c82;font-family:var(--font);}
+
+  .mk{position:absolute;transform:translate(-50%,-50%);z-index:18;display:flex;flex-direction:column;align-items:center;gap:3px;pointer-events:none;}
+  .mk .ico{width:26px;height:26px;border-radius:999px;background:var(--surface-1);border:1px solid var(--hairline);box-shadow:0 2px 7px rgba(20,21,15,.16);display:flex;align-items:center;justify-content:center;}
+  .mk .ico svg{width:13px;height:13px;stroke:var(--ink);fill:none;stroke-width:1.8;}
+  .mk .mlabel{font-size:9.5px;font-weight:700;color:var(--ink);background:rgba(255,255,255,.9);padding:2px 7px;border-radius:999px;white-space:nowrap;}
+  .mk.bm .ico{width:21px;height:21px;background:var(--surface-1);}
+  .mk.bm .ico svg{width:11px;height:11px;fill:var(--ink-muted);stroke:none;}
+  .mk.bm .mlabel{font-size:8.5px;font-weight:600;color:var(--ink-muted);background:rgba(255,255,255,.82);padding:1px 6px;}
+  .mk.cur .curwrap{width:36px;height:36px;border-radius:999px;background:rgba(198,241,53,.30);display:flex;align-items:center;justify-content:center;}
+  .mk.cur .curdot{width:14px;height:14px;border-radius:999px;background:var(--lime);border:2.5px solid #fff;box-shadow:0 1px 5px rgba(20,21,15,.3);}
+  .mk.sel .selwrap{width:38px;height:38px;border-radius:999px;background:rgba(198,241,53,.28);display:flex;align-items:center;justify-content:center;transform:translateY(-3px);}
+  .mk.sel .seldot{width:20px;height:20px;border-radius:999px;background:var(--lime);border:3px solid #fff;box-shadow:0 4px 10px rgba(20,21,15,.26);}
+  .mk.sel .mlabel{background:var(--cta);color:#fff;font-size:10px;}
+
+  .msearch{position:absolute;top:52px;left:16px;right:16px;height:44px;z-index:22;background:#fff;border-radius:999px;display:flex;align-items:center;gap:9px;padding:0 8px 0 16px;box-shadow:0 2px 12px rgba(20,21,15,.13);}
+  .msearch .mg{width:15px;height:15px;stroke:var(--ink-faint);fill:none;stroke-width:2;flex:0 0 auto;}
+  .msearch .ph{font-size:13px;color:var(--ink-faint);flex:1 1 auto;}
+  .msico{width:30px;height:30px;border-radius:999px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;cursor:pointer;flex:0 0 auto;}
+  .msico svg{width:14px;height:14px;stroke:var(--ink);fill:none;stroke-width:1.8;}
+  .mchips{position:absolute;top:104px;left:16px;right:16px;z-index:22;display:flex;gap:7px;}
+  .mchip{display:flex;align-items:center;gap:5px;background:#fff;border-radius:999px;padding:7px 12px;font-size:11.5px;font-weight:600;color:var(--ink);box-shadow:0 2px 8px rgba(20,21,15,.11);cursor:pointer;}
+  .mchip svg{width:12px;height:12px;stroke:var(--ink-muted);fill:none;stroke-width:1.8;}
+  .mctrl{position:absolute;right:16px;bottom:352px;z-index:21;width:40px;height:40px;border-radius:999px;background:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 12px rgba(20,21,15,.13);cursor:pointer;}
+  .mctrl svg{width:17px;height:17px;stroke:var(--ink);fill:none;stroke-width:1.9;}
+
+  .sheet{position:absolute;left:0;right:0;bottom:0;z-index:30;background:#fff;border-radius:28px 28px 0 0;box-shadow:0 -4px 24px rgba(20,21,15,.13);padding:9px 18px 86px;max-height:78%;display:flex;flex-direction:column;}
+  .handle{width:36px;height:4px;border-radius:999px;background:#d3d5cc;margin:0 auto 12px;flex:0 0 auto;}
+  .sheetscroll{overflow-y:auto;flex:1 1 auto;}
+  .sheetscroll::-webkit-scrollbar{width:0;}
+  .sheettitle{font-size:16px;font-weight:700;letter-spacing:-.3px;}
+  .seclabel{font-size:10.5px;font-weight:700;color:var(--ink-faint);letter-spacing:.4px;margin:14px 0 2px;}
+
+  .starbtn{width:32px;height:32px;border-radius:999px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex:0 0 auto;color:var(--ink-faint);}
+  .starbtn svg{width:17px;height:17px;}
+  .starbtn.on{color:var(--lime-ink);background:var(--lime-soft);}
+
+  .actrow{display:flex;gap:8px;margin-top:14px;}
+  .actbtn{flex:1 1 0;background:var(--surface-2);border-radius:16px;padding:11px 4px;display:flex;flex-direction:column;align-items:center;gap:5px;cursor:pointer;color:var(--ink-muted);}
+  .actbtn svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.8;}
+  .actbtn span{font-size:10.5px;font-weight:700;color:var(--ink);}
+  .actbtn.on{background:var(--lime-soft);color:var(--lime-ink);}
+  .actbtn.on svg{fill:currentColor;stroke:none;}
+  .actbtn.on span{color:var(--lime-ink);}
+
+  .folderbox{display:none;margin-top:14px;background:var(--surface-2);border-radius:16px;padding:12px 13px;}
+  .folderbox.on{display:block;}
+  .folderbox .ft{font-size:12px;font-weight:700;margin-bottom:9px;}
+  .folderbox .chip{background:#fff;}
+  .folderbox .chip.on{background:var(--cta);color:#fff;}
+
+  .empty{text-align:center;padding:46px 24px;}
+  .empty svg{width:34px;height:34px;stroke:#c9ccc2;fill:none;stroke-width:1.6;margin-bottom:12px;}
+  .empty .et{font-size:13.5px;font-weight:700;color:var(--ink-muted);}
+  .empty .es{margin-top:6px;}
+
+  .ckbox{width:22px;height:22px;border-radius:999px;border:1.6px solid var(--hairline);background:#fff;display:flex;align-items:center;justify-content:center;flex:0 0 auto;}
+  .ckbox svg{width:12px;height:12px;stroke:#fff;fill:none;stroke-width:2.4;opacity:0;}
+  .lrow.picked .ckbox{background:var(--cta);border-color:var(--cta);}
+  .lrow.picked .ckbox svg{opacity:1;}
+  .lrow.picked{background:var(--surface-2);border-radius:14px;padding-left:8px;padding-right:8px;}
+  .drag{width:16px;height:16px;stroke:var(--ink-faint);fill:none;stroke-width:1.9;flex:0 0 auto;}
+
+  .actionbar{position:absolute;left:0;right:0;bottom:0;z-index:45;background:#fff;border-top:1px solid var(--hairline);padding:12px 16px 20px;display:none;align-items:center;gap:10px;}
+  .actionbar.on{display:flex;}
+  .actionbar .cnt{font-size:12.5px;font-weight:700;flex:1 1 auto;}
+  .actionbar .pbtn{width:auto;flex:0 0 auto;}
+
+  .banner{margin:0 18px;background:var(--surface-2);border-radius:16px;padding:12px 14px;display:flex;align-items:center;gap:9px;}
+  .banner svg{width:15px;height:15px;stroke:var(--ink-muted);fill:none;stroke-width:1.8;flex:0 0 auto;}
+  .banner span{font-size:12px;font-weight:600;color:var(--ink);}
+  .sinput{width:100%;height:40px;border-radius:999px;border:1px solid var(--hairline);background:var(--surface-1);padding:0 15px;font-family:var(--font);font-size:13px;color:var(--ink);outline:none;}
+  .sinput:focus{border-color:var(--cta);}
+  .sinput::placeholder{color:var(--ink-faint);}
+  .lrow.chosen{background:var(--lime-soft);border-radius:14px;padding-left:8px;padding-right:8px;}
+  .lrow.chosen .li{background:#fff;}
+
+  .tabbar{position:absolute;left:24px;right:24px;bottom:15px;height:58px;background:var(--surface-2);border-radius:999px;box-shadow:0 6px 22px rgba(20,21,15,.16);display:flex;align-items:center;justify-content:space-around;z-index:40;}
+  .tab{display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--ink-faint);}
+  .tab.on{color:var(--ink);}
+  .tab svg{width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:1.8;}
+  .tab span{font-size:9.5px;font-weight:600;}
+
+  .hint{display:inline-block;background:#15170f;color:#c6f135;font-size:11.5px;font-weight:600;padding:6px 12px;border-radius:999px;margin-top:10px;}
+  .legend{max-width:340px;font-size:12px;color:#55584f;line-height:1.7;}
+  .legend b{color:var(--ink);}
+  body.embed{background:transparent;padding:0;overflow:hidden;}
+  body.embed .page-head,body.embed .legend,body.embed .hint{display:none!important;}
+  body.embed .stage{margin:0;padding:0;gap:0;}
+  body.embed{height:100vh;}
+  body.embed .stage{height:100%;align-items:stretch;}
+  body.embed .phone{width:100%!important;height:100%!important;max-width:100%;border:0!important;border-radius:0!important;box-shadow:none!important;}
+  body.embed .notch{display:none!important;}
+</style></head><body>
+<div class="page-head">
+  <h1>Ensom — 지도 기본화면 + 북마크 프로토타입</h1>
+  <p>검색 전 지도 기본 상태와 북마크 저장·목록·편집·빠른 선택까지. 지도는 독립 내비게이션이 아니라 일정 계획을 완성하기 위한 보조 화면입니다.</p>
+</div>
+<div class="stage">
+  <div class="phone">
+    <div class="notch"></div>
+    <div class="selrow">
+      <button class="on" onclick="show(0,this)">기본 지도</button>
+      <button onclick="show(1,this)">북마크 저장</button>
+      <button onclick="show(2,this)">북마크 목록</button>
+      <button onclick="show(3,this)">북마크 편집</button>
+      <button onclick="show(4,this)">빠른 선택</button>
+    </div>
+
+    <!-- ══════════ v0 기본 지도 ══════════ -->
+    <div class="view on" id="v0">
+      <div class="map">
+        <svg class="base" viewBox="0 0 326 712" preserveAspectRatio="xMidYMid slice">
+          <rect width="326" height="712" fill="#f2f0e9"/>
+          <path d="M8 120 L110 108 L146 150 L128 214 L38 226 L2 176 Z" fill="#dfe4d6"/>
+          <path d="M196 96 L300 88 L318 150 L246 178 L188 148 Z" fill="#dfe4d6"/>
+          <circle cx="58" cy="618" r="46" fill="#dfe4d6"/>
+          <path d="M-10 512 Q90 482 170 520 T340 502" stroke="#dcdfe2" stroke-width="16" fill="none"/>
+          <g fill="#e9e6dd">
+            <rect x="150" y="228" width="52" height="40" rx="3"/><rect x="212" y="228" width="46" height="40" rx="3"/>
+            <rect x="150" y="278" width="52" height="46" rx="3"/><rect x="212" y="278" width="46" height="46" rx="3"/>
+            <rect x="42" y="256" width="56" height="44" rx="3"/><rect x="42" y="310" width="56" height="40" rx="3"/>
+            <rect x="108" y="336" width="48" height="42" rx="3"/><rect x="166" y="336" width="60" height="42" rx="3"/>
+            <rect x="236" y="336" width="52" height="42" rx="3"/><rect x="60" y="396" width="60" height="44" rx="3"/>
+            <rect x="130" y="396" width="54" height="44" rx="3"/><rect x="194" y="396" width="60" height="44" rx="3"/>
+            <rect x="86" y="652" width="70" height="44" rx="3"/><rect x="180" y="608" width="80" height="52" rx="3"/>
+          </g>
+          <g stroke="#ffffff" fill="none" stroke-linecap="round">
+            <path d="M-10 240 H340" stroke-width="13"/><path d="M-10 330 H340" stroke-width="10"/>
+            <path d="M-10 388 H340" stroke-width="13"/><path d="M-10 460 H340" stroke-width="9"/>
+            <path d="M138 -10 V712" stroke-width="12"/><path d="M36 90 V712" stroke-width="9"/>
+            <path d="M232 90 V712" stroke-width="10"/><path d="M296 200 V712" stroke-width="7"/>
+          </g>
+          <g stroke="#ffffff" fill="none" stroke-width="5" stroke-linecap="round" opacity=".85">
+            <path d="M-10 286 H340"/><path d="M-10 424 H340"/><path d="M-10 560 H340"/>
+            <path d="M86 200 V712"/><path d="M186 200 V712"/><path d="M266 240 V712"/>
+          </g>
+          <path d="M-10 300 Q120 300 180 260 T340 246" stroke="#cfd2cb" stroke-width="2.4" fill="none" opacity=".75"/>
+          <text class="maplabel big" x="140" y="352">경복궁역</text>
+          <text class="maplabel" x="26" y="240">시청역</text>
+          <text class="maplabel" x="238" y="462">을지로입구역</text>
+          <text class="poi" x="26" y="146">경복궁</text>
+          <text class="poi" x="114" y="226">국립민속박물관</text>
+          <text class="poi" x="30" y="622">남산공원</text>
+        </svg>
+
+        <div class="mk" style="left:14%;top:26%">
+          <div class="ico"><svg viewBox="0 0 24 24"><path d="M3 10l9-7 9 7v10a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg></div>
+          <div class="mlabel">집</div>
+        </div>
+        <div class="mk" style="left:76%;top:25%">
+          <div class="ico"><svg viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 012-2h4a2 2 0 012 2v2"/></svg></div>
+          <div class="mlabel">직장</div>
+        </div>
+        <div class="mk bm" style="left:46%;top:25%">
+          <div class="ico"><svg viewBox="0 0 24 24"><path d="M12 3l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.8 6.2 20.9l1.1-6.5L2.6 9.8l6.5-.9z"/></svg></div>
+          <div class="mlabel">서울대병원</div>
+        </div>
+        <div class="mk bm" style="left:73%;top:33.5%">
+          <div class="ico"><svg viewBox="0 0 24 24"><path d="M12 3l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.8 6.2 20.9l1.1-6.5L2.6 9.8l6.5-.9z"/></svg></div>
+          <div class="mlabel">강남역 3번 출구</div>
+        </div>
+        <div class="mk bm" style="left:18%;top:43%">
+          <div class="ico"><svg viewBox="0 0 24 24"><path d="M12 3l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.8 6.2 20.9l1.1-6.5L2.6 9.8l6.5-.9z"/></svg></div>
+          <div class="mlabel">성수동 카페</div>
+        </div>
+        <div class="mk cur" style="left:45%;top:37.5%">
+          <div class="curwrap"><div class="curdot"></div></div>
+          <div class="mlabel">현재 위치</div>
+        </div>
+      </div>
+
+      <div class="msearch">
+        <svg class="mg" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.6-3.6"/></svg>
+        <div class="ph">장소, 주소 검색</div>
+        <div class="msico" id="toBookmarks"><svg viewBox="0 0 24 24"><path d="M12 3l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.8 6.2 20.9l1.1-6.5L2.6 9.8l6.5-.9z"/></svg></div>
+      </div>
+      <div class="mchips">
+        <div class="mchip"><svg viewBox="0 0 24 24"><path d="M3 10l9-7 9 7v10a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>집</div>
+        <div class="mchip"><svg viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>직장</div>
+        <div class="mchip" id="chipBm"><svg viewBox="0 0 24 24"><path d="M12 3l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.8 6.2 20.9l1.1-6.5L2.6 9.8l6.5-.9z"/></svg>북마크</div>
+      </div>
+      <div class="mctrl"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2.2"/><path d="M12 1.6v3.4M12 19v3.4M1.6 12h3.4M19 12h3.4"/></svg></div>
+
+      <div class="sheet">
+        <div class="handle"></div>
+        <div class="sheetscroll">
+          <div class="sheettitle">어디로 갈까요?</div>
+          <div class="seclabel">최근 목적지</div>
+          <div id="recentList"></div>
+        </div>
+      </div>
+
+      <div class="tabbar">
+        <div class="tab"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4M3 11h18"/></svg><span>캘린더</span></div>
+        <div class="tab"><svg viewBox="0 0 24 24"><path d="M3 10l9-7 9 7v10a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg><span>홈</span></div>
+        <div class="tab on"><svg viewBox="0 0 24 24"><path d="M9 3L3 6v15l6-3 6 3 6-3V3l-6 3z"/><path d="M9 3v15M15 6v15"/></svg><span>지도</span></div>
+        <div class="tab"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg><span>프로필</span></div>
+      </div>
+    </div>
+
+    <!-- ══════════ v1 북마크 저장 ══════════ -->
+    <div class="view" id="v1">
+      <div class="map">
+        <svg class="base" viewBox="0 0 326 712" preserveAspectRatio="xMidYMid slice">
+          <rect width="326" height="712" fill="#f2f0e9"/>
+          <path d="M8 120 L110 108 L146 150 L128 214 L38 226 L2 176 Z" fill="#dfe4d6"/>
+          <path d="M196 96 L300 88 L318 150 L246 178 L188 148 Z" fill="#dfe4d6"/>
+          <path d="M-10 402 Q90 372 170 410 T340 392" stroke="#dcdfe2" stroke-width="16" fill="none"/>
+          <g fill="#e9e6dd">
+            <rect x="150" y="228" width="52" height="40" rx="3"/><rect x="212" y="228" width="46" height="40" rx="3"/>
+            <rect x="42" y="256" width="56" height="44" rx="3"/><rect x="42" y="310" width="56" height="40" rx="3"/>
+            <rect x="108" y="306" width="48" height="42" rx="3"/><rect x="196" y="306" width="60" height="42" rx="3"/>
+            <rect x="60" y="120" width="60" height="44" rx="3"/><rect x="236" y="200" width="52" height="42" rx="3"/>
+          </g>
+          <g stroke="#ffffff" fill="none" stroke-linecap="round">
+            <path d="M-10 214 H340" stroke-width="13"/><path d="M-10 296 H340" stroke-width="10"/>
+            <path d="M-10 356 H340" stroke-width="13"/>
+            <path d="M138 -10 V712" stroke-width="12"/><path d="M36 90 V712" stroke-width="9"/>
+            <path d="M232 90 V712" stroke-width="10"/>
+          </g>
+          <g stroke="#ffffff" fill="none" stroke-width="5" stroke-linecap="round" opacity=".85">
+            <path d="M-10 260 H340"/><path d="M-10 330 H340"/><path d="M86 120 V712"/><path d="M186 120 V712"/>
+          </g>
+          <text class="maplabel big" x="200" y="268">뚝섬역</text>
+          <text class="maplabel" x="46" y="352">서울숲역</text>
+          <text class="poi" x="26" y="172">서울숲</text>
+        </svg>
+        <div class="mk sel" style="left:50%;top:29%">
+          <div class="selwrap"><div class="seldot"></div></div>
+          <div class="mlabel">성수동 카페</div>
+        </div>
+      </div>
+
+      <div class="sheet" style="max-height:70%;padding-bottom:96px;">
+        <div class="handle"></div>
+        <div class="sheetscroll">
+          <div style="font-size:18px;font-weight:700;letter-spacing:-.3px;">성수동 카페</div>
+          <div style="font-size:12px;color:var(--ink-muted);margin-top:4px;">서울 성동구 성수이로 77</div>
+          <div style="font-size:12px;color:var(--ink-muted);margin-top:9px;">현재 위치에서 6.1km · 지하철 26분</div>
+
+          <div class="actrow">
+            <div class="actbtn" id="bmAct" onclick="toggleSave()">
+              <svg id="bmActIco" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.8 6.2 20.9l1.1-6.5L2.6 9.8l6.5-.9z"/></svg>
+              <span id="bmActLabel">북마크</span>
+            </div>
+            <div class="actbtn">
+              <svg viewBox="0 0 24 24"><path d="M12 20V5M6 11l6-6 6 6"/></svg><span>경로</span>
+            </div>
+            <div class="actbtn">
+              <svg viewBox="0 0 24 24"><circle cx="18" cy="5" r="2.6"/><circle cx="6" cy="12" r="2.6"/><circle cx="18" cy="19" r="2.6"/><path d="M8.4 13.4l7.2 4.2M15.6 6.4l-7.2 4.2"/></svg><span>공유</span>
+            </div>
+          </div>
+
+          <div class="folderbox" id="folderBox">
+            <div class="ft">어디에 저장할까요?</div>
+            <div class="chiprow" id="folderChips">
+              <div class="chip on" data-f="자주 가는 곳" onclick="pickFolder(this)">자주 가는 곳</div>
+              <div class="chip" data-f="카페" onclick="pickFolder(this)">카페</div>
+              <div class="chip" data-f="새 폴더" onclick="pickFolder(this)">+ 새 폴더</div>
+            </div>
+          </div>
+
+          <div class="div"></div>
+          <button class="pbtn primary">캘린더에 일정 추가</button>
+        </div>
+      </div>
+
+      <div class="tabbar">
+        <div class="tab"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4M3 11h18"/></svg><span>캘린더</span></div>
+        <div class="tab"><svg viewBox="0 0 24 24"><path d="M3 10l9-7 9 7v10a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg><span>홈</span></div>
+        <div class="tab on"><svg viewBox="0 0 24 24"><path d="M9 3L3 6v15l6-3 6 3 6-3V3l-6 3z"/><path d="M9 3v15M15 6v15"/></svg><span>지도</span></div>
+        <div class="tab"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg><span>프로필</span></div>
+      </div>
+    </div>
+
+    <!-- ══════════ v2 북마크 목록 ══════════ -->
+    <div class="view" id="v2">
+      <div class="topbar">
+        <div class="backbtn" onclick="show(0)"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></div>
+        <div class="toptitle">북마크</div>
+        <div class="topact" id="toEdit" onclick="show(3)">편집</div>
+      </div>
+      <div class="scroll">
+        <div class="seg" id="folderSeg">
+          <div class="sitem on" data-f="전체" onclick="pickSeg(this)">전체</div>
+          <div class="sitem" data-f="자주 가는 곳" onclick="pickSeg(this)">자주 가는 곳</div>
+          <div class="sitem" data-f="카페" onclick="pickSeg(this)">카페</div>
+          <div class="sitem" data-f="기타" onclick="pickSeg(this)">기타</div>
+        </div>
+        <div id="bmList" style="margin-top:6px;"></div>
+        <div class="div"></div>
+        <div class="caption">북마크한 장소는 일정을 만들 때 바로 고를 수 있어요</div>
+      </div>
+    </div>
+
+    <!-- ══════════ v3 북마크 편집 ══════════ -->
+    <div class="view" id="v3">
+      <div class="topbar">
+        <div class="backbtn" onclick="show(2)"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></div>
+        <div class="toptitle">북마크 편집</div>
+        <div class="topact" onclick="show(2)">완료</div>
+      </div>
+      <div class="scroll" style="padding-bottom:96px;">
+        <div id="editList"></div>
+        <div class="caption" style="margin-top:10px;">순서를 바꾸면 빠른 선택에서도 같은 순서로 보여요.</div>
+      </div>
+      <div class="actionbar" id="editBar">
+        <div class="cnt" id="editCnt">0개 선택됨</div>
+        <button class="pbtn secondary" style="padding:11px 14px;font-size:12.5px;">폴더 이동</button>
+        <button class="pbtn text" style="padding:11px 6px;" onclick="askDelete()">삭제</button>
+      </div>
+    </div>
+
+    <!-- ══════════ v4 빠른 선택 ══════════ -->
+    <div class="view" id="v4">
+      <div class="topbar">
+        <div class="backbtn" onclick="show(0)"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></div>
+        <div class="toptitle">일정 만들기</div>
+      </div>
+      <div class="banner">
+        <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4M3 11h18"/></svg>
+        <span>일정의 목적지를 고르는 중이에요</span>
+      </div>
+
+      <div class="sheet" style="max-height:72%;padding-bottom:22px;">
+        <div class="handle"></div>
+        <div class="sheettitle" style="margin-bottom:11px;">목적지 선택</div>
+        <input class="sinput" id="qsSearch" placeholder="이름이나 주소로 찾기" autocomplete="off">
+        <div class="seg" id="qsSeg" style="margin-top:11px;">
+          <div class="sitem on" data-t="bm" onclick="pickTab(this)">북마크</div>
+          <div class="sitem" data-t="place" onclick="pickTab(this)">주요 장소</div>
+          <div class="sitem" data-t="recent" onclick="pickTab(this)">최근</div>
+        </div>
+        <div class="sheetscroll" id="qsList" style="margin-top:4px;"></div>
+        <button class="pbtn primary" id="qsBtn" disabled style="margin-top:12px;flex:0 0 auto;">목적지를 골라주세요</button>
+      </div>
+    </div>
+
+    <!-- 공통 오버레이 -->
+    <div class="toast" id="toast"></div>
+    <div class="scrim" id="scrim">
+      <div class="dialog">
+        <h3>선택한 북마크를 삭제할까요?</h3>
+        <p>삭제한 북마크는 되돌릴 수 없어요.</p>
+        <div class="btnrow">
+          <button class="pbtn secondary" onclick="closeDialog()">취소</button>
+          <button class="pbtn primary" onclick="doDelete()">삭제</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="legend">
+    <p><b>기본 지도</b> — 검색 전 지도 탭의 첫 화면. 현재 위치, 주요 장소(집·직장), 북마크 핀만 조용히 보여주고 나머지 지도 컨트롤은 넣지 않았습니다.</p>
+    <p style="margin-top:10px;"><b>북마크 저장</b> — 장소를 고르면 뜨는 상세 시트. 별을 켠 직후에만 폴더 선택이 인라인으로 나타나고, 끄면 사라집니다.</p>
+    <p style="margin-top:10px;"><b>목록 · 편집 · 빠른 선택</b>은 같은 북마크 배열을 공유합니다. 편집에서 지우면 목록과 빠른 선택에서도 함께 사라져요.</p>
+    <div class="hint">라임은 현재 위치·선택 상태·저장된 별에만</div>
+  </div>
+</div>
+
+<script>
+  function show(i, btn){
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('on'));
+    document.getElementById('v'+i).classList.add('on');
+    document.querySelectorAll('.selrow button').forEach(b=>b.classList.remove('on'));
+    if(btn) btn.classList.add('on'); else document.querySelectorAll('.selrow button')[i].classList.add('on');
+  }
+
+  /* ── 아이콘 ── */
+  var IC = {
+    star:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.8 6.2 20.9l1.1-6.5L2.6 9.8l6.5-.9z"/></svg>',
+    starOn:'<svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.8"><path d="M12 3l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.8 6.2 20.9l1.1-6.5L2.6 9.8l6.5-.9z"/></svg>',
+    clock:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5.2l3.2 2"/></svg>',
+    home:'<svg viewBox="0 0 24 24"><path d="M3 10l9-7 9 7v10a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>',
+    work:'<svg viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>',
+    pin:'<svg viewBox="0 0 24 24"><path d="M12 21s7-6.2 7-11a7 7 0 10-14 0c0 4.8 7 11 7 11z"/><circle cx="12" cy="10" r="2.4"/></svg>',
+    chev:'<svg class="chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>',
+    check:'<svg viewBox="0 0 24 24"><path d="M5 12.5l4.4 4.4L19 7.4"/></svg>',
+    drag:'<svg class="drag" viewBox="0 0 24 24"><path d="M4 9h16M4 15h16"/></svg>'
+  };
+  function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+  /* ── 데이터 ── */
+  var BOOKMARKS = [
+    {id:'b1', name:'강남역 3번 출구', addr:'서울 강남구 강남대로 지하 396', folder:'자주 가는 곳'},
+    {id:'b2', name:'직장',           addr:'서울 강남구 테헤란로 152',      folder:'자주 가는 곳'},
+    {id:'b3', name:'성수동 카페',     addr:'서울 성동구 성수이로 77',       folder:'카페'},
+    {id:'b4', name:'연남동 커피집',   addr:'서울 마포구 성미산로 29',       folder:'카페'},
+    {id:'b5', name:'서울대병원',      addr:'서울 종로구 대학로 101',        folder:'기타'},
+    {id:'b6', name:'합정역 2번 출구', addr:'서울 마포구 양화로 지하 160',   folder:'기타'}
+  ];
+  var PLACES = [
+    {id:'p1', name:'집',   addr:'서울 마포구 월드컵북로 21', icon:'home'},
+    {id:'p2', name:'직장', addr:'서울 강남구 테헤란로 152',  icon:'work'}
+  ];
+  var RECENTS = [
+    {id:'r1', name:'강남역 3번 출구',   addr:'서울 강남구 강남대로 지하 396', saved:true},
+    {id:'r2', name:'서울대병원',        addr:'서울 종로구 대학로 101',        saved:false},
+    {id:'r3', name:'홍대입구역 9번 출구', addr:'서울 마포구 양화로 160',        saved:false}
+  ];
+
+  /* ── 토스트 ── */
+  var toastEl = document.getElementById('toast');
+  var toastTimer = null;
+  function toast(msg){
+    if(toastTimer){ clearTimeout(toastTimer); toastTimer = null; }
+    toastEl.textContent = msg;
+    toastEl.classList.add('on');
+    toastTimer = setTimeout(function(){ toastEl.classList.remove('on'); toastTimer = null; }, 2000);
+  }
+
+  /* ── v0 최근 목적지 ── */
+  function renderRecent(){
+    var h = '';
+    for(var i=0;i<RECENTS.length;i++){
+      var r = RECENTS[i];
+      h += '<div class="lrow" style="border-bottom:1px solid var(--hairline);">'
+         +   '<div class="li">'+IC.clock+'</div>'
+         +   '<div class="ltext"><div class="ltitle">'+esc(r.name)+'</div><div class="lsub">'+esc(r.addr)+'</div></div>'
+         +   '<div class="starbtn'+(r.saved?' on':'')+'" data-i="'+i+'" onclick="toggleRecent(event,'+i+')">'+(r.saved?IC.starOn:IC.star)+'</div>'
+         + '</div>';
+    }
+    document.getElementById('recentList').innerHTML = h;
+  }
+  function toggleRecent(e, i){
+    if(e && e.stopPropagation) e.stopPropagation();
+    RECENTS[i].saved = !RECENTS[i].saved;
+    renderRecent();
+    toast(RECENTS[i].saved ? '북마크에 저장했어요' : '북마크에서 뺐어요');
+  }
+
+  /* ── v1 북마크 저장 ── */
+  var v1Saved = false;
+  var v1Folder = '자주 가는 곳';
+  var V1_PLACE = {id:'b3', name:'성수동 카페', addr:'서울 성동구 성수이로 77'};
+  function toggleSave(){
+    v1Saved = !v1Saved;
+    var act = document.getElementById('bmAct');
+    var lab = document.getElementById('bmActLabel');
+    var box = document.getElementById('folderBox');
+    if(v1Saved){
+      act.classList.add('on');
+      lab.textContent = '저장됨';
+      box.classList.add('on');
+      addBookmark(V1_PLACE, v1Folder);
+      toast('북마크에 저장했어요');
+    } else {
+      act.classList.remove('on');
+      lab.textContent = '북마크';
+      box.classList.remove('on');
+      removeBookmark(V1_PLACE.id);
+      toast('북마크에서 뺐어요');
+    }
+  }
+  function pickFolder(el){
+    var chips = document.getElementById('folderChips').children;
+    for(var i=0;i<chips.length;i++) chips[i].classList.remove('on');
+    el.classList.add('on');
+    v1Folder = el.getAttribute('data-f');
+    var f = (v1Folder === '새 폴더') ? '기타' : v1Folder;
+    for(var j=0;j<BOOKMARKS.length;j++){ if(BOOKMARKS[j].id === V1_PLACE.id) BOOKMARKS[j].folder = f; }
+    renderAll();
+  }
+  function addBookmark(p, folder){
+    var f = (folder === '새 폴더') ? '기타' : folder;
+    var found = false;
+    for(var i=0;i<BOOKMARKS.length;i++){ if(BOOKMARKS[i].id === p.id){ BOOKMARKS[i].folder = f; found = true; } }
+    if(!found) BOOKMARKS.push({id:p.id, name:p.name, addr:p.addr, folder:f});
+    renderAll();
+  }
+  function removeBookmark(id){
+    BOOKMARKS = BOOKMARKS.filter(function(b){ return b.id !== id; });
+    renderAll();
+  }
+
+  /* ── v2 목록 ── */
+  var curFolder = '전체';
+  function pickSeg(el){
+    var items = document.getElementById('folderSeg').children;
+    for(var i=0;i<items.length;i++) items[i].classList.remove('on');
+    el.classList.add('on');
+    curFolder = el.getAttribute('data-f');
+    renderList();
+  }
+  function filtered(){
+    if(curFolder === '전체') return BOOKMARKS.slice();
+    return BOOKMARKS.filter(function(b){ return b.folder === curFolder; });
+  }
+  function renderList(){
+    var arr = filtered(), h = '';
+    if(arr.length === 0){
+      h = '<div class="empty" id="emptyState">'
+        +   '<svg viewBox="0 0 24 24"><path d="M12 3l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.8 6.2 20.9l1.1-6.5L2.6 9.8l6.5-.9z"/></svg>'
+        +   '<div class="et">아직 저장한 곳이 없어요</div>'
+        +   '<div class="caption es">지도에서 장소를 고르고 별을 누르면 여기에 모여요</div>'
+        + '</div>';
+    } else {
+      for(var i=0;i<arr.length;i++){
+        var b = arr[i];
+        h += '<div class="lrow" style="border-bottom:1px solid var(--hairline);">'
+           +   '<div class="li">'+IC.pin+'</div>'
+           +   '<div class="ltext"><div class="ltitle">'+esc(b.name)+'</div><div class="lsub">'+esc(b.addr)+'</div></div>'
+           +   '<span class="pill neu">'+esc(b.folder)+'</span>'
+           +   IC.chev
+           + '</div>';
+      }
+    }
+    document.getElementById('bmList').innerHTML = h;
+  }
+
+  /* ── v3 편집 ── */
+  var picked = {};
+  function renderEdit(){
+    var h = '';
+    for(var i=0;i<BOOKMARKS.length;i++){
+      var b = BOOKMARKS[i];
+      var on = !!picked[b.id];
+      h += '<div class="lrow'+(on?' picked':'')+'" data-id="'+b.id+'" onclick="togglePick(\''+b.id+'\')">'
+         +   '<div class="ckbox">'+IC.check+'</div>'
+         +   '<div class="li">'+IC.pin+'</div>'
+         +   '<div class="ltext"><div class="ltitle">'+esc(b.name)+'</div><div class="lsub">'+esc(b.folder)+' · '+esc(b.addr)+'</div></div>'
+         +   IC.drag
+         + '</div>';
+    }
+    document.getElementById('editList').innerHTML = h;
+    var ids = pickedIds();
+    var bar = document.getElementById('editBar');
+    if(ids.length > 0){ bar.classList.add('on'); document.getElementById('editCnt').textContent = ids.length + '개 선택됨'; }
+    else bar.classList.remove('on');
+  }
+  function pickedIds(){
+    return BOOKMARKS.filter(function(b){ return !!picked[b.id]; }).map(function(b){ return b.id; });
+  }
+  function togglePick(id){
+    if(picked[id]) delete picked[id]; else picked[id] = true;
+    renderEdit();
+  }
+  function askDelete(){
+    if(pickedIds().length === 0) return;
+    document.getElementById('scrim').classList.add('on');
+  }
+  function closeDialog(){ document.getElementById('scrim').classList.remove('on'); }
+  function doDelete(){
+    var ids = pickedIds(), n = ids.length;
+    BOOKMARKS = BOOKMARKS.filter(function(b){ return !picked[b.id]; });
+    picked = {};
+    closeDialog();
+    renderAll();
+    if(n > 0) toast(n + '개를 삭제했어요');
+  }
+
+  /* ── v4 빠른 선택 ── */
+  var qsTab = 'bm';
+  var qsSel = null;
+  function pickTab(el){
+    var items = document.getElementById('qsSeg').children;
+    for(var i=0;i<items.length;i++) items[i].classList.remove('on');
+    el.classList.add('on');
+    qsTab = el.getAttribute('data-t');
+    qsSel = null;
+    renderQuick();
+  }
+  function qsSource(){
+    if(qsTab === 'bm')    return BOOKMARKS.map(function(b){ return {id:b.id, name:b.name, addr:b.addr, icon:'pin'}; });
+    if(qsTab === 'place') return PLACES.slice();
+    return RECENTS.map(function(r){ return {id:r.id, name:r.name, addr:r.addr, icon:'clock'}; });
+  }
+  function renderQuick(){
+    var q = (document.getElementById('qsSearch').value || '').trim().toLowerCase();
+    var arr = qsSource().filter(function(o){
+      if(!q) return true;
+      return (o.name + ' ' + o.addr).toLowerCase().indexOf(q) >= 0;
+    });
+    var h = '';
+    if(arr.length === 0){
+      h = '<div class="empty"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.6-3.6"/></svg>'
+        + '<div class="et">찾는 장소가 없어요</div>'
+        + '<div class="caption es">다른 이름이나 주소로 찾아보세요</div></div>';
+    } else {
+      for(var i=0;i<arr.length;i++){
+        var o = arr[i];
+        var on = qsSel && qsSel.id === o.id;
+        h += '<div class="lrow'+(on?' chosen':'')+'" data-id="'+o.id+'" onclick="chooseQuick(\''+o.id+'\')">'
+           +   '<div class="li">'+(IC[o.icon] || IC.pin)+'</div>'
+           +   '<div class="ltext"><div class="ltitle">'+esc(o.name)+'</div><div class="lsub">'+esc(o.addr)+'</div></div>'
+           + '</div>';
+      }
+    }
+    document.getElementById('qsList').innerHTML = h;
+    var btn = document.getElementById('qsBtn');
+    if(qsSel){ btn.disabled = false; btn.textContent = qsSel.name + '(으)로 설정'; }
+    else { btn.disabled = true; btn.textContent = '목적지를 골라주세요'; }
+  }
+  function chooseQuick(id){
+    var src = qsSource();
+    for(var i=0;i<src.length;i++){ if(src[i].id === id) qsSel = src[i]; }
+    renderQuick();
+  }
+
+  /* ── 렌더 ── */
+  function renderAll(){ renderList(); renderEdit(); renderQuick(); }
+
+  document.getElementById('qsSearch').addEventListener('input', renderQuick);
+  document.getElementById('toBookmarks').addEventListener('click', function(){ show(2); });
+  document.getElementById('chipBm').addEventListener('click', function(){ show(2); });
+
+  renderRecent();
+  renderAll();
+</script>
+<script>(function(){ if(window.self!==window.top){ document.body.classList.add('embed'); } })();</script>
+</body></html>
