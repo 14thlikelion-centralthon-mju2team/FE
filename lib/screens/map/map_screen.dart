@@ -182,6 +182,15 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         at: anchor.$2,
       );
       if (!mounted) return;
+
+      // 빈 결과 처리 — BE에 /routes/search가 없거나 경로를 찾지 못한 경우
+      if (routes.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("경로 검색을 사용할 수 없어요. 서버 준비 후 다시 시도해주세요.")),
+        );
+        return;
+      }
+
       final selectedRoute = await _showRouteSheet(routes);
       if (selectedRoute == null) return;
 

@@ -503,8 +503,8 @@ class ApiEnsomRepository implements EnsomRepository {
       body: {
         "actions": [
           {
-            "actionType": "arrived",
-            "actionSource": source.name,
+            "action_type": "ARRIVED",
+            "action_source": source.name.toUpperCase(),
             "deviceTs": DateTime.now().toIso8601String(),
             "clientEventId": clientEventId,
             if (confidence != null) "confidence": confidence,
