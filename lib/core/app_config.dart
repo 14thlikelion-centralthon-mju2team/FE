@@ -15,4 +15,3 @@ const String kKakaoRestApiKey =
 /// 구글 서버 클라이언트 ID. 비어 있으면 구글 로그인 버튼이 숨겨진다.
 const String kGoogleServerClientId =
     String.fromEnvironment('GOOGLE_SERVER_CLIENT_ID', defaultValue: '');
-
