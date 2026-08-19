@@ -7,9 +7,7 @@ import "../../providers/auth_providers.dart";
 
 /// 이메일 회원가입 직후 진입. Google 로그인 사용자는 이 화면을 거치지 않는다.
 /// API 명세 §2.3: POST /auth/email/verify/resend (재발송, 60초 쿨다운)
-///
-/// 인증 완료 확인: 사용자가 "인증 완료했어요" → 이메일 로그인을 시도해서
-/// emailVerificationRequired가 false면 성공. 폴링이나 딥링크가 아님.
+/// 인증 링크는 브라우저에서 검증되고, 사용자는 앱으로 돌아와 로그인해 세션을 받는다.
 class EmailVerificationScreen extends ConsumerStatefulWidget {
   const EmailVerificationScreen({super.key, required this.email});
 
@@ -23,7 +21,6 @@ class EmailVerificationScreen extends ConsumerStatefulWidget {
 class _EmailVerificationScreenState
     extends ConsumerState<EmailVerificationScreen> {
   bool _resending = false;
-  bool _checking = false;
   String? _message;
   DateTime? _lastResendAt;
 
@@ -63,42 +60,10 @@ class _EmailVerificationScreenState
     }
   }
 
-  /// "인증 완료했어요" — 이메일 인증이 됐는지 확인하기 위해 로그인을 시도한다.
-  /// 서버가 emailVerificationRequired: false를 주면 성공.
-  Future<void> _checkVerified() async {
-    setState(() {
-      _checking = true;
-      _message = null;
-    });
-    try {
-      // 인증 완료 확인을 위해 로그인 시도는 적절하지 않으므로
-      // 대신 bootstrap을 호출해본다. 인증 완료되었으면 정상 응답,
-      // 미인증이면 403 EMAIL_VERIFICATION_REQUIRED.
-      final apiClient = ref.read(apiClientProvider);
-      await apiClient.get<Map<String, dynamic>>("/me/bootstrap");
-
-      // 여기까지 왔으면 인증 완료
-      if (!mounted) return;
-      ref.read(authNotifierProvider.notifier).onEmailVerified();
-      context.go("/onboarding/consent");
-    } on ApiException catch (e) {
-      if (!mounted) return;
-      if (e.code == "EMAIL_VERIFICATION_REQUIRED" ||
-          e.code == "FORBIDDEN") {
-        setState(
-            () => _message = "아직 인증이 확인되지 않았어요. 메일함을 확인해주세요.");
-      } else if (e.code == "UNAUTHORIZED") {
-        // 토큰이 없거나 만료됨 — 로그인부터 다시
-        setState(() => _message = "세션이 만료됐어요. 다시 로그인해주세요.");
-      } else {
-        setState(() => _message = "확인에 실패했어요. 잠시 후 다시 시도해주세요.");
-      }
-    } catch (_) {
-      if (!mounted) return;
-      setState(() => _message = "확인에 실패했어요. 잠시 후 다시 시도해주세요.");
-    } finally {
-      if (mounted) setState(() => _checking = false);
-    }
+  /// 이메일 링크 인증은 브라우저의 GET /auth/email/verify에서 완료된다.
+  /// 이 시점에는 세션 token이 없으므로 bootstrap을 호출하지 않고 로그인으로 보낸다.
+  void _goToLogin() {
+    context.go("/onboarding/auth");
   }
 
   @override
@@ -135,8 +100,8 @@ class _EmailVerificationScreenState
             ],
             const SizedBox(height: 32),
             ElevatedButton(
-              onPressed: _checking ? null : _checkVerified,
-              child: Text(_checking ? "확인 중..." : "인증 완료했어요"),
+              onPressed: _goToLogin,
+              child: const Text("인증 후 로그인하기"),
             ),
             const SizedBox(height: 12),
             TextButton(
