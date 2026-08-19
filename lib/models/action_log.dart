@@ -10,6 +10,8 @@ part "action_log.g.dart";
 enum ActionType {
   @JsonValue("prep_started")
   prepStarted,
+  @JsonValue("prep_finished")
+  prepFinished,
   @JsonValue("snoozed")
   snoozed,
   @JsonValue("departed")
