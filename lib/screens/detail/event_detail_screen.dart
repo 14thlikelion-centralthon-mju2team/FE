@@ -2,12 +2,15 @@ import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:go_router/go_router.dart";
 import "package:uuid/uuid.dart";
+import "../../models/event.dart";
+import "../../models/plan.dart";
 import "../../network/api_client.dart";
 import "../../providers/auth_providers.dart";
+import "../../repository/providers.dart";
 
 /// DTL-01 일정 상세
 /// 진입: HM-01 카드 탭, CAL-01 카드 탭, HM-02 알림 행
-/// BE API: GET /events/{id}/plans/latest
+/// BE API: GET /events/{id}, GET /events/{id}/plans/latest
 class EventDetailScreen extends ConsumerStatefulWidget {
   const EventDetailScreen({super.key, required this.eventId});
 
@@ -19,8 +22,8 @@ class EventDetailScreen extends ConsumerStatefulWidget {
 
 class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
   static const _uuid = Uuid();
-  Map<String, dynamic>? _event;
-  Map<String, dynamic>? _plan;
+  Event? _event;
+  Plan? _plan;
   bool _loading = true;
   String? _error;
 
@@ -36,15 +39,11 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
       _error = null;
     });
     try {
-      final apiClient = ref.read(apiClientProvider);
-      final event = await apiClient.get<Map<String, dynamic>>(
-        "/events/${widget.eventId}",
-      );
-      Map<String, dynamic>? plan;
+      final repo = ref.read(ensomRepositoryProvider);
+      final event = await repo.fetchEvent(widget.eventId);
+      Plan? plan;
       try {
-        plan = await apiClient.get<Map<String, dynamic>>(
-          "/events/${widget.eventId}/plans/latest",
-        );
+        plan = await repo.fetchLatestPlan(widget.eventId);
       } on ApiException catch (e) {
         // 계획이 아직 없을 수 있음 (장소 미지정 등)
         if (e.statusCode != 404) rethrow;
@@ -70,7 +69,7 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(_event?["displayName"] ?? "일정 상세"),
+        title: Text(_event?.displayName ?? "일정 상세"),
         actions: [
           PopupMenuButton<String>(
             onSelected: _onMenuAction,
@@ -143,16 +142,16 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              event["displayName"] ?? "",
+              event.displayName,
               style: Theme.of(context).textTheme.headlineSmall,
             ),
             const SizedBox(height: 8),
-            if (event["destinationName"] != null)
+            if (event.destinationName != null)
               Row(
                 children: [
                   const Icon(Icons.place, size: 16, color: Colors.grey),
                   const SizedBox(width: 4),
-                  Text(event["destinationName"]),
+                  Text(event.destinationName!),
                 ],
               ),
             const SizedBox(height: 4),
@@ -160,14 +159,14 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
               children: [
                 const Icon(Icons.access_time, size: 16, color: Colors.grey),
                 const SizedBox(width: 4),
-                Text(_formatTime(event["startsAt"])),
+                Text(_formatDateTime(event.startsAt)),
                 const Text(" ~ "),
-                Text(_formatTime(event["endsAt"])),
+                Text(_formatDateTime(event.endsAt)),
               ],
             ),
-            if (event["status"] != null) ...[
+            if (event.status != null) ...[
               const SizedBox(height: 8),
-              Chip(label: Text(event["status"])),
+              Chip(label: Text(event.status!.name)),
             ],
           ],
         ),
@@ -186,10 +185,10 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
             Text("시간 계획",
                 style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 12),
-            _timeRow("준비 시작", plan["prepStartAt"]),
-            _timeRow("권장 출발", plan["recommendedDepartAt"]),
-            _timeRow("목표 도착", plan["targetArriveAt"]),
-            if (plan["feasible"] == false) ...[
+            _timeRow("준비 시작", plan.prepStartAt),
+            _timeRow("권장 출발", plan.recommendedDepartAt),
+            _timeRow("목표 도착", plan.targetArriveAt),
+            if (!plan.feasible) ...[
               const SizedBox(height: 8),
               Container(
                 padding: const EdgeInsets.all(8),
@@ -214,7 +213,7 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
     );
   }
 
-  Widget _timeRow(String label, dynamic isoTime) {
+  Widget _timeRow(String label, DateTime time) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
@@ -222,7 +221,7 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
         children: [
           Text(label, style: const TextStyle(color: Colors.grey)),
           Text(
-            _formatTime(isoTime),
+            _formatDateTime(time),
             style: const TextStyle(fontWeight: FontWeight.w600),
           ),
         ],
@@ -231,8 +230,7 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
   }
 
   Widget _buildBreakdown() {
-    final breakdown = _plan!["breakdown"] as Map<String, dynamic>?;
-    if (breakdown == null) return const SizedBox.shrink();
+    final breakdown = _plan!.breakdown;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -242,35 +240,34 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
             Text("계산 근거",
                 style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 12),
-            _breakdownRow("개인 준비", breakdown["estimatedPrepMinutes"]),
-            _breakdownRow("추가 준비", breakdown["extraPrepMinutes"]),
-            _breakdownRow("루틴", breakdown["personalRoutineMinutes"]),
-            _breakdownRow("이동", breakdown["travelMinutes"]),
-            _breakdownRow("교통 버퍼", breakdown["trafficBufferMinutes"]),
-            _breakdownRow("도착 여유", breakdown["arrivalBufferMinutes"]),
+            _breakdownRow("개인 준비", breakdown.estimatedPrepMinutes),
+            _breakdownRow("추가 준비", breakdown.extraPrepMinutes),
+            _breakdownRow("루틴", breakdown.personalRoutineMinutes),
+            _breakdownRow("이동", breakdown.travelMinutes),
+            _breakdownRow("교통 버퍼", breakdown.trafficBufferMinutes),
+            _breakdownRow("도착 여유", breakdown.arrivalBufferMinutes),
           ],
         ),
       ),
     );
   }
 
-  Widget _breakdownRow(String label, dynamic minutes) {
-    final min = minutes as int? ?? 0;
-    if (min == 0) return const SizedBox.shrink();
+  Widget _breakdownRow(String label, int minutes) {
+    if (minutes == 0) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label),
-          Text("$min분"),
+          Text("$minutes분"),
         ],
       ),
     );
   }
 
   Widget _buildChecklist() {
-    final checklist = (_plan!["checklist"] as List<dynamic>?) ?? [];
+    final checklist = _plan!.checklist;
     if (checklist.isEmpty) return const SizedBox.shrink();
     return Card(
       child: Padding(
@@ -282,21 +279,18 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
                 style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 12),
             ...checklist.map((item) {
-              final map = item as Map<String, dynamic>;
               // TR-10: 화면 내에서도 민감 항목 마스킹 적용.
               // 잠금화면/푸시 마스킹과 별개로, 화면 공유·스크린샷 시 노출 방지.
               // 사용자가 자기 항목명을 보려면 "자세히" 등 별도 인터랙션 추가 필요(후속).
-              final name = map["isSensitive"] == true
-                  ? "개인 준비"
-                  : (map["itemName"] ?? "");
-              final done = map["completionStatus"] == "completed";
+              final name = item.isSensitive ? "개인 준비" : item.itemName;
+              final done = item.completionStatus == ChecklistCompletionStatus.completed;
               return CheckboxListTile(
                 value: done,
                 title: Text(name),
-                subtitle: map["reason"] != null
-                    ? Text(map["reason"], style: const TextStyle(fontSize: 12))
+                subtitle: item.reason != null && item.reason!.isNotEmpty
+                    ? Text(item.reason!, style: const TextStyle(fontSize: 12))
                     : null,
-                onChanged: done ? null : (_) => _resolveItem(map["planPrepItemId"]),
+                onChanged: done ? null : (_) => _resolveItem(item.planPrepItemId),
                 controlAffinity: ListTileControlAffinity.leading,
                 dense: true,
               );
@@ -308,10 +302,9 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
   }
 
   Widget _buildRoute() {
-    final routeId = _plan!["selectedRouteOptionId"];
-    if (routeId == null) return const SizedBox.shrink();
-    final breakdown = _plan!["breakdown"] as Map<String, dynamic>?;
-    final travelMin = breakdown?["travelMinutes"] ?? 0;
+    final plan = _plan!;
+    if (plan.selectedRouteOptionId == null) return const SizedBox.shrink();
+    final travelMin = plan.breakdown.travelMinutes;
     return Card(
       child: ListTile(
         leading: const Icon(Icons.directions),
@@ -326,11 +319,10 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
     );
   }
 
-  Future<void> _resolveItem(dynamic itemId) async {
-    if (itemId == null) return;
+  Future<void> _resolveItem(String itemId) async {
     try {
       final apiClient = ref.read(apiClientProvider);
-      final planId = _plan!["planId"];
+      final planId = _plan!.planId;
       await apiClient.post(
         "/plans/$planId/prep-items/$itemId/resolve",
         body: {
@@ -402,20 +394,14 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
     }
   }
 
-  String _formatTime(dynamic isoTime) {
-    if (isoTime == null) return "--:--";
-    try {
-      final dt = DateTime.parse(isoTime.toString()).toLocal();
-      final now = DateTime.now();
-      final h = dt.hour.toString().padLeft(2, "0");
-      final m = dt.minute.toString().padLeft(2, "0");
-      // 오늘이면 시간만, 아니면 날짜+시간
-      if (dt.year == now.year && dt.month == now.month && dt.day == now.day) {
-        return "$h:$m";
-      }
-      return "${dt.month}/${dt.day} $h:$m";
-    } catch (_) {
-      return "--:--";
+  String _formatDateTime(DateTime dt) {
+    final local = dt.toLocal();
+    final now = DateTime.now();
+    final h = local.hour.toString().padLeft(2, "0");
+    final m = local.minute.toString().padLeft(2, "0");
+    if (local.year == now.year && local.month == now.month && local.day == now.day) {
+      return "$h:$m";
     }
+    return "${local.month}/${local.day} $h:$m";
   }
 }

@@ -260,6 +260,12 @@ class ApiEnsomRepository implements EnsomRepository {
   // ================================================================
 
   @override
+  Future<Event> fetchEvent(String eventId) async {
+    final json = await _client.get<Map<String, dynamic>>("/events/$eventId");
+    return Event.fromJson(json);
+  }
+
+  @override
   Future<List<Event>> fetchEvents({
     required DateTime from,
     required DateTime to,

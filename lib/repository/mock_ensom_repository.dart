@@ -15,11 +15,17 @@ class MockEnsomRepository implements EnsomRepository {
   @override
   Future<Event?> fetchNextEvent() async {
     await Future.delayed(const Duration(milliseconds: 300));
+    return fetchEvent("mock-event-1");
+  }
+
+  @override
+  Future<Event> fetchEvent(String eventId) async {
+    await Future.delayed(const Duration(milliseconds: 100));
     return Event(
-      eventId: "mock-event-1",
-      title: "강남역 미팅", // 내부 참고용. 화면은 displayName만 사용
+      eventId: eventId,
+      title: "강남역 미팅",
       displayLabel: "강남역 미팅",
-      displayName: "강남역 미팅", // 서버가 이미 해석해서 채워준 값이라고 가정
+      displayName: "강남역 미팅",
       startsAt: DateTime.now().add(const Duration(hours: 3)),
       endsAt: DateTime.now().add(const Duration(hours: 4)),
       locationState: LocationState.requiredResolved,

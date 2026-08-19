@@ -15,6 +15,7 @@ import "../models/execution.dart";
 abstract class EnsomRepository {
   // 일정 (CAL-01, 03, 04, 05)
   Future<Event?> fetchNextEvent();
+  Future<Event> fetchEvent(String eventId);
   Future<List<Event>> fetchEvents({
     required DateTime from,
     required DateTime to,
