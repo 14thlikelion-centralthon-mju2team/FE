@@ -2,7 +2,6 @@ import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:hive_ce_flutter/hive_ce_flutter.dart";
 import "../core/local_notification_service.dart";
-import "../local/app_database.dart";
 import "../local/place_cache_entry.dart";
 import "../providers/auth_providers.dart";
 import "../providers/offline_queue_providers.dart";

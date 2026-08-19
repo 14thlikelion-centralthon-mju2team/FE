@@ -36,12 +36,6 @@ class _PermissionsScreenState extends State<PermissionsScreen>
   }
 
   Future<void> _checkPermissions() async {
-    final statuses = await [
-      Permission.notification,
-      Permission.location,
-      Permission.locationAlways,
-    ].request();
-    // request 대신 status만 확인 (요청하지 않고 현재 상태만 조회)
     final current = <Permission, PermissionStatus>{};
     for (final p in [Permission.notification, Permission.location, Permission.locationAlways]) {
       current[p] = await p.status;

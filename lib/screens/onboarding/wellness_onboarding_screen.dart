@@ -1,6 +1,7 @@
 import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:go_router/go_router.dart";
+import "../../models/wellness_pref.dart";
 import "../settings/wellness_prefs_screen.dart";
 
 /// ONB-06 웰니스 관심 항목 설정 (온보딩 context)

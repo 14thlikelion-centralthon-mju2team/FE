@@ -47,7 +47,7 @@ class _PrepItemAddSheetState extends ConsumerState<PrepItemAddSheet> {
         label: label,
         kind: _kind,
         sensitive: _sensitive,
-        extraMin: _kind == PrepKind.routine ? _minutes : null,
+        extraMin: _kind == PrepKind.routine ? _minutes : 0,
         fromChip: false,
       ));
       if (mounted) Navigator.pop(context, true);

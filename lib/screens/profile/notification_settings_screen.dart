@@ -1,6 +1,5 @@
 import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
-import "../../network/api_client.dart";
 import "../../providers/auth_providers.dart";
 
 /// PRF-07 알림 설정
@@ -19,7 +18,6 @@ class _NotificationSettingsScreenState
   String _sensitivity = "normal"; // low, normal, high
   bool _lockscreenHide = true;
   bool _wellnessEvent = false;
-  bool _saving = false;
 
   @override
   void initState() {
@@ -45,7 +43,6 @@ class _NotificationSettingsScreenState
   }
 
   Future<void> _save(Map<String, dynamic> patch) async {
-    setState(() => _saving = true);
     try {
       final api = ref.read(apiClientProvider);
       await api.patch("/me/settings", body: patch);
@@ -55,8 +52,6 @@ class _NotificationSettingsScreenState
           const SnackBar(content: Text("설정 저장에 실패했어요.")),
         );
       }
-    } finally {
-      if (mounted) setState(() => _saving = false);
     }
   }
 
