@@ -136,11 +136,16 @@ class ApiClient {
     }
 
     // ─── 에러 응답 ──────────────────────────────────────────────
+    // BE 에러 형식 2종 대응:
+    //   중첩: {"error": {"code": "...", "message": "...", "retryable": bool}}
+    //   평면: {"error": "INVALID_REQUEST", "message": "..."}
     final Map<String, dynamic> errorBody =
         decoded is Map<String, dynamic> ? decoded : <String, dynamic>{};
-    final error = errorBody["error"] as Map<String, dynamic>? ?? errorBody;
+    final rawError = errorBody["error"];
+    final Map<String, dynamic> error =
+        rawError is Map<String, dynamic> ? rawError : errorBody;
     throw ApiException(
-      code: error["code"] as String? ?? "UNKNOWN_ERROR",
+      code: error["code"] as String? ?? (rawError is String ? rawError : "UNKNOWN_ERROR"),
       message: error["message"] as String? ?? "요청을 처리하지 못했어요.",
       retryable: error["retryable"] as bool? ?? false,
       statusCode: response.statusCode,
