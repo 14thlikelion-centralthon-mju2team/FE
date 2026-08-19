@@ -135,19 +135,13 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   /// 약관 동의 완료 후 상태 전이
   void onConsentCompleted() {
-    state = AuthState(
-      status: AuthStatus.authenticated,
-      userId: state.userId,
-    );
+    state = AuthState(status: AuthStatus.authenticated, userId: state.userId);
     _syncFcm();
   }
 
   /// 이메일 인증 확인 완료 후 상태 전이
   void onEmailVerified() {
-    state = AuthState(
-      status: AuthStatus.authenticated,
-      userId: state.userId,
-    );
+    state = AuthState(status: AuthStatus.authenticated, userId: state.userId);
     _syncFcm();
   }
 
@@ -190,8 +184,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 }
 
-final authNotifierProvider =
-    StateNotifierProvider<AuthNotifier, AuthState>((ref) {
+final authNotifierProvider = StateNotifierProvider<AuthNotifier, AuthState>((
+  ref,
+) {
   final authService = ref.watch(authServiceProvider);
   final secureStorage = ref.watch(secureStorageProvider);
   final apiClient = ref.watch(apiClientProvider);

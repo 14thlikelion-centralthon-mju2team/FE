@@ -1,7 +1,6 @@
 import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:go_router/go_router.dart";
-import "../../core/auth_service.dart";
 import "../../network/api_client.dart";
 import "../../providers/auth_providers.dart";
 
@@ -29,8 +28,7 @@ class _EmailVerificationScreenState
     if (_lastResendAt != null &&
         DateTime.now().difference(_lastResendAt!) <
             const Duration(seconds: 60)) {
-      setState(
-          () => _message = "60초 후에 다시 시도할 수 있어요.");
+      setState(() => _message = "60초 후에 다시 시도할 수 있어요.");
       return;
     }
 
@@ -94,7 +92,9 @@ class _EmailVerificationScreenState
                 _message!,
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  color: _message!.contains("보냈") ? Colors.green : Colors.orange,
+                  color: _message!.contains("보냈")
+                      ? Colors.green
+                      : Colors.orange,
                 ),
               ),
             ],
