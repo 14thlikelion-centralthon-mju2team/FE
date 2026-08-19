@@ -3,14 +3,15 @@ import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:intl/intl.dart";
 import "../../models/notification.dart";
 import "../../repository/providers.dart";
+import "../../theme/ensom_colors.dart";
 
 /// NOTI-05. 당일 발송된 시간(여유/극한/돌발)+웰니스 알림을 최신순으로
 /// 보여준다. API v5.0 §11.1 GET /notifications/today.
 final todayNotificationsProvider =
     FutureProvider.autoDispose<List<AppNotification>>((ref) async {
-  final repo = ref.watch(ensomRepositoryProvider);
-  return repo.fetchTodayNotifications();
-});
+      final repo = ref.watch(ensomRepositoryProvider);
+      return repo.fetchTodayNotifications();
+    });
 
 class NotificationLogScreen extends ConsumerWidget {
   const NotificationLogScreen({super.key});
@@ -43,7 +44,8 @@ class NotificationLogScreen extends ConsumerWidget {
             return const Center(child: Text("오늘 발송된 알림이 없어요."));
           }
           // 최신순 정렬. sentAt이 없는(아직 미발송) 항목은 뒤로.
-          final sorted = [...notifications]..sort((a, b) {
+          final sorted = [...notifications]
+            ..sort((a, b) {
               if (a.sentAt == null) return 1;
               if (b.sentAt == null) return -1;
               return b.sentAt!.compareTo(a.sentAt!);
@@ -55,14 +57,19 @@ class NotificationLogScreen extends ConsumerWidget {
             separatorBuilder: (_, _) => const Divider(height: 24),
             itemBuilder: (context, index) {
               final n = sorted[index];
-              final isWellness = n.notificationCategory == NotificationCategory.wellness;
+              final isWellness =
+                  n.notificationCategory == NotificationCategory.wellness;
               return Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Icon(
-                    isWellness ? Icons.wb_sunny_outlined : Icons.notifications_outlined,
+                    isWellness
+                        ? Icons.wb_sunny_outlined
+                        : Icons.notifications_outlined,
                     size: 18,
-                    color: isWellness ? Colors.orange[700] : Colors.blueGrey,
+                    color: isWellness
+                        ? EnsomColors.caution
+                        : EnsomColors.inkMuted,
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -74,13 +81,18 @@ class NotificationLogScreen extends ConsumerWidget {
                             Text(
                               _typeLabel(n.notificationType),
                               style: const TextStyle(
-                                  fontSize: 12, fontWeight: FontWeight.w600),
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                             const SizedBox(width: 8),
                             if (n.sentAt != null)
                               Text(
                                 timeFormat.format(n.sentAt!),
-                                style: const TextStyle(fontSize: 12, color: Colors.grey),
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: EnsomColors.inkMuted,
+                                ),
                               ),
                           ],
                         ),
@@ -91,14 +103,20 @@ class NotificationLogScreen extends ConsumerWidget {
                           const SizedBox(height: 2),
                           Text(
                             n.triggerReason!,
-                            style: const TextStyle(fontSize: 12, color: Colors.grey),
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: EnsomColors.inkMuted,
+                            ),
                           ),
                         ],
                         if (n.reaction != null) ...[
                           const SizedBox(height: 4),
                           Text(
                             "반응: ${n.reaction}",
-                            style: TextStyle(fontSize: 12, color: Colors.green[700]),
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: EnsomColors.limeInk,
+                            ),
                           ),
                         ],
                       ],

@@ -3,13 +3,14 @@ import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:intl/intl.dart";
 import "../../models/daily_wellness_summary.dart";
 import "../../repository/providers.dart";
+import "../../theme/ensom_colors.dart";
 
-final dailySummaryProvider =
-    FutureProvider.autoDispose.family<DailyWellnessSummary?, DateTime>((ref, date) async {
-  final repo = ref.watch(ensomRepositoryProvider);
-  final dateStr = DateFormat("yyyy-MM-dd").format(date);
-  return repo.fetchDailySummary(dateStr);
-});
+final dailySummaryProvider = FutureProvider.autoDispose
+    .family<DailyWellnessSummary?, DateTime>((ref, date) async {
+      final repo = ref.watch(ensomRepositoryProvider);
+      final dateStr = DateFormat("yyyy-MM-dd").format(date);
+      return repo.fetchDailySummary(dateStr);
+    });
 
 class DailySummaryScreen extends ConsumerStatefulWidget {
   const DailySummaryScreen({super.key});
@@ -24,11 +25,11 @@ class _DailySummaryScreenState extends ConsumerState<DailySummaryScreen> {
   Color _bandColor(DwlBand band) {
     switch (band) {
       case DwlBand.low:
-        return Colors.green;
+        return EnsomColors.limeInk;
       case DwlBand.mid:
-        return Colors.orange;
+        return EnsomColors.caution;
       case DwlBand.high:
-        return Colors.red;
+        return EnsomColors.caution;
     }
   }
 
@@ -72,49 +73,54 @@ class _DailySummaryScreenState extends ConsumerState<DailySummaryScreen> {
                 child: Text(
                   "오늘은 아직 관리된 일정이 없어요.",
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.grey),
+                  style: TextStyle(color: EnsomColors.inkMuted),
                 ),
               ),
             );
           }
           return Padding(
             padding: const EdgeInsets.all(24),
-            child: Builder(builder: (context) {
-              // 화면 진입 시 조회 기록 (§12.4 POST /summary/daily/{id}/viewed)
-              _markViewedIfNeeded(summary);
-              return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+            child: Builder(
+              builder: (context) {
+                // 화면 진입 시 조회 기록 (§12.4 POST /summary/daily/{id}/viewed)
+                _markViewedIfNeeded(summary);
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      width: 12,
-                      height: 12,
-                      decoration: BoxDecoration(
-                        color: _bandColor(summary.dwlBand),
-                        shape: BoxShape.circle,
-                      ),
+                    Row(
+                      children: [
+                        Container(
+                          width: 12,
+                          height: 12,
+                          decoration: BoxDecoration(
+                            color: _bandColor(summary.dwlBand),
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          "오늘의 웰니스 노출 — ${_bandLabel(summary.dwlBand)}",
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(height: 16),
                     Text(
-                      "오늘의 웰니스 노출 — ${_bandLabel(summary.dwlBand)}",
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                      "관리된 일정 ${summary.eventCount}개 · 야외 이동 ${summary.totalOutdoorMinutes}분",
+                      style: const TextStyle(color: EnsomColors.inkMuted),
                     ),
+                    const SizedBox(height: 24),
+                    // 서버가 완성한 문구를 그대로 표시 (TR-09). 개인 특이사항·
+                    // 복용약 관련 내용은 이 카드 생성 입력에서 원천 배제된
+                    // 문구다 (PRD §14.8) -- 클라이언트가 재구성하지 않는다.
+                    Text(summary.message, style: const TextStyle(fontSize: 15)),
                   ],
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  "관리된 일정 ${summary.eventCount}개 · 야외 이동 ${summary.totalOutdoorMinutes}분",
-                  style: const TextStyle(color: Colors.grey),
-                ),
-                const SizedBox(height: 24),
-                // 서버가 완성한 문구를 그대로 표시 (TR-09). 개인 특이사항·
-                // 복용약 관련 내용은 이 카드 생성 입력에서 원천 배제된
-                // 문구다 (PRD §14.8) -- 클라이언트가 재구성하지 않는다.
-                Text(summary.message, style: const TextStyle(fontSize: 15)),
-              ],
-            );
-            }),
+                );
+              },
+            ),
           );
         },
       ),

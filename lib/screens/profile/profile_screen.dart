@@ -2,6 +2,7 @@ import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:go_router/go_router.dart";
 import "../../core/logout_helper.dart";
+import "../../theme/ensom_colors.dart";
 
 /// PRF-01 프로필 메인 리스트
 /// 화면설계서: 계정→PRF-02, 권한→PRF-05, 준비설정→PRF-06,
@@ -40,6 +41,11 @@ class ProfileScreen extends ConsumerWidget {
                 onTap: () => context.push("/profile/notifications"),
               ),
               _ProfileItem(
+                icon: Icons.spa_outlined,
+                label: "웰니스",
+                onTap: () => context.push("/settings/wellness-prefs"),
+              ),
+              _ProfileItem(
                 icon: Icons.shield_outlined,
                 label: "권한 관리",
                 onTap: () => context.push("/profile/permissions"),
@@ -66,7 +72,9 @@ class ProfileScreen extends ConsumerWidget {
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: OutlinedButton(
               onPressed: () => showLogoutConfirmAndExecute(context, ref),
-              style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: EnsomColors.caution,
+              ),
               child: const Text("로그아웃"),
             ),
           ),
@@ -92,9 +100,9 @@ class _ProfileSection extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
           child: Text(
             title,
-            style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                  color: Colors.grey.shade600,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.labelLarge?.copyWith(color: EnsomColors.inkFaint),
           ),
         ),
         ...items,
@@ -120,7 +128,7 @@ class _ProfileItem extends StatelessWidget {
     return ListTile(
       leading: Icon(icon),
       title: Text(label),
-      trailing: const Icon(Icons.chevron_right, color: Colors.grey),
+      trailing: const Icon(Icons.chevron_right, color: EnsomColors.inkMuted),
       onTap: onTap,
     );
   }

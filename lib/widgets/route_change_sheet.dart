@@ -4,6 +4,7 @@ import "../models/plan.dart";
 import "../network/api_client.dart";
 import "../providers/auth_providers.dart";
 import "../providers/home_providers.dart";
+import "../theme/ensom_colors.dart";
 
 /// RTE-01 경로 변경 후보 시트
 /// 호출: DTL-01 경로 [변경] 버튼
@@ -45,8 +46,9 @@ class _RouteChangeSheetState extends ConsumerState<RouteChangeSheet> {
 
   Future<void> _loadRoutes() async {
     try {
-      final options = await ref
-          .read(routeOptionsProvider(widget.planId).future);
+      final options = await ref.read(
+        routeOptionsProvider(widget.planId).future,
+      );
       if (mounted) {
         setState(() {
           _options = options;
@@ -75,16 +77,16 @@ class _RouteChangeSheetState extends ConsumerState<RouteChangeSheet> {
         body: {"routeOptionId": routeOptionId},
       );
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("경로를 변경했어요.")),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text("경로를 변경했어요.")));
         Navigator.pop(context, true);
       }
     } on ApiException catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.message)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
         setState(() => _selecting = false);
       }
     }
@@ -103,14 +105,13 @@ class _RouteChangeSheetState extends ConsumerState<RouteChangeSheet> {
               width: 32,
               height: 4,
               decoration: BoxDecoration(
-                color: Colors.grey.shade300,
+                color: EnsomColors.hairline,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
           ),
           const SizedBox(height: 16),
-          Text("경로 변경",
-              style: Theme.of(context).textTheme.titleMedium),
+          Text("경로 변경", style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 16),
           if (_loading)
             const Center(child: CircularProgressIndicator())
@@ -119,13 +120,15 @@ class _RouteChangeSheetState extends ConsumerState<RouteChangeSheet> {
           else if (_options == null || _options!.isEmpty)
             const Center(child: Text("대안 경로가 없어요."))
           else
-            ...(_options!.map((opt) => _RouteCard(
-                  option: opt,
-                  selected: _selectedId == opt.routeOptionId,
-                  onSelect: _selecting
-                      ? null
-                      : () => _selectRoute(opt.routeOptionId),
-                ))),
+            ...(_options!.map(
+              (opt) => _RouteCard(
+                option: opt,
+                selected: _selectedId == opt.routeOptionId,
+                onSelect: _selecting
+                    ? null
+                    : () => _selectRoute(opt.routeOptionId),
+              ),
+            )),
         ],
       ),
     );
@@ -157,16 +160,15 @@ class _RouteCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      color: selected ? Colors.blue.shade50 : null,
+      color: selected ? EnsomColors.surface2 : null,
       child: ListTile(
         title: Text("$_typeLabel · ${option.totalMinutes}분"),
-        subtitle: Text("도보 ${option.walkMinutes}분 · 환승 ${option.transferCount}회"),
+        subtitle: Text(
+          "도보 ${option.walkMinutes}분 · 환승 ${option.transferCount}회",
+        ),
         trailing: selected
-            ? const Icon(Icons.check_circle, color: Colors.blue)
-            : OutlinedButton(
-                onPressed: onSelect,
-                child: const Text("선택"),
-              ),
+            ? const Icon(Icons.check_circle, color: EnsomColors.cta)
+            : OutlinedButton(onPressed: onSelect, child: const Text("선택")),
       ),
     );
   }

@@ -4,6 +4,7 @@ import "package:go_router/go_router.dart";
 import "../../models/prep_item.dart";
 import "../../network/api_client.dart";
 import "../../repository/providers.dart";
+import "../../theme/ensom_colors.dart";
 
 /// PRD §11.3 "준비 시간 및 맞춤 준비 항목 입력 화면" 반영.
 /// 맞춤 준비 항목은 별도 온보딩 단계가 아니라 이 화면 안의 한 섹션이다
@@ -132,47 +133,55 @@ class _PrepTimeEntryScreenState extends ConsumerState<PrepTimeEntryScreen> {
 
       // 선택된 빠른 추가 항목
       for (final item in _quickItems.where((i) => i.selected)) {
-        itemsToCreate.add(PrepItem(
-          id: "",
-          label: item.label,
-          kind: item.kind,
-          sensitive: item.sensitive,
-          fromChip: true,
-        ));
+        itemsToCreate.add(
+          PrepItem(
+            id: "",
+            label: item.label,
+            kind: item.kind,
+            sensitive: item.sensitive,
+            fromChip: true,
+          ),
+        );
       }
 
       // 선택된 시간 소요 루틴
       for (final routine in _routineItems.where((r) => r.selected)) {
-        itemsToCreate.add(PrepItem(
-          id: "",
-          label: routine.label,
-          kind: PrepKind.routine,
-          extraMin: routine.minutes,
-          fromChip: true,
-        ));
+        itemsToCreate.add(
+          PrepItem(
+            id: "",
+            label: routine.label,
+            kind: PrepKind.routine,
+            extraMin: routine.minutes,
+            fromChip: true,
+          ),
+        );
       }
 
       // 직접 입력한 일반 항목
       final customText = _customItemController.text.trim();
       if (customText.isNotEmpty) {
-        itemsToCreate.add(PrepItem(
-          id: "",
-          label: customText,
-          kind: PrepKind.carry,
-          fromChip: false,
-        ));
+        itemsToCreate.add(
+          PrepItem(
+            id: "",
+            label: customText,
+            kind: PrepKind.carry,
+            fromChip: false,
+          ),
+        );
       }
 
       // 직접 입력한 루틴
       final customRoutineText = _customRoutineController.text.trim();
       if (customRoutineText.isNotEmpty) {
-        itemsToCreate.add(PrepItem(
-          id: "",
-          label: customRoutineText,
-          kind: PrepKind.routine,
-          extraMin: _customRoutineMinutes,
-          fromChip: false,
-        ));
+        itemsToCreate.add(
+          PrepItem(
+            id: "",
+            label: customRoutineText,
+            kind: PrepKind.routine,
+            extraMin: _customRoutineMinutes,
+            fromChip: false,
+          ),
+        );
       }
 
       // 순차 호출 — 부분 실패 추적
@@ -199,7 +208,9 @@ class _PrepTimeEntryScreenState extends ConsumerState<PrepTimeEntryScreen> {
         // 부분 실패 — 안내 후 진행 허용
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text("$successCount개 저장됨 · $failCount개 실패 — 설정에서 다시 추가할 수 있어요."),
+            content: Text(
+              "$successCount개 저장됨 · $failCount개 실패 — 설정에서 다시 추가할 수 있어요.",
+            ),
             duration: const Duration(seconds: 4),
           ),
         );
@@ -252,7 +263,7 @@ class _PrepTimeEntryScreenState extends ConsumerState<PrepTimeEntryScreen> {
           const SizedBox(height: 4),
           const Text(
             "정확하지 않아도 괜찮아요. 실제 기록을 바탕으로 계속 조정할게요.",
-            style: TextStyle(color: Colors.grey, fontSize: 13),
+            style: TextStyle(color: EnsomColors.inkMuted, fontSize: 13),
           ),
           const SizedBox(height: 16),
           Wrap(
@@ -283,7 +294,7 @@ class _PrepTimeEntryScreenState extends ConsumerState<PrepTimeEntryScreen> {
           const SizedBox(height: 4),
           const Text(
             "선택한 항목은 준비 체크리스트에 자동 반영됩니다.",
-            style: TextStyle(color: Colors.grey, fontSize: 13),
+            style: TextStyle(color: EnsomColors.inkMuted, fontSize: 13),
           ),
           const SizedBox(height: 16),
           Wrap(
@@ -318,7 +329,7 @@ class _PrepTimeEntryScreenState extends ConsumerState<PrepTimeEntryScreen> {
           const SizedBox(height: 4),
           const Text(
             "선택한 루틴 시간이 준비 시작 시각에 반영됩니다.",
-            style: TextStyle(color: Colors.grey, fontSize: 13),
+            style: TextStyle(color: EnsomColors.inkMuted, fontSize: 13),
           ),
           const SizedBox(height: 16),
           for (final routine in _routineItems)
@@ -332,8 +343,7 @@ class _PrepTimeEntryScreenState extends ConsumerState<PrepTimeEntryScreen> {
           _CustomRoutineInput(
             labelController: _customRoutineController,
             minutes: _customRoutineMinutes,
-            onMinutesChanged: (m) =>
-                setState(() => _customRoutineMinutes = m),
+            onMinutesChanged: (m) => setState(() => _customRoutineMinutes = m),
           ),
 
           // ── 합산 미리보기 ─────────────────────────────────────────
@@ -347,7 +357,7 @@ class _PrepTimeEntryScreenState extends ConsumerState<PrepTimeEntryScreen> {
           // ── 에러 메시지 ───────────────────────────────────────────
           if (_error != null) ...[
             const SizedBox(height: 16),
-            Text(_error!, style: const TextStyle(color: Colors.red)),
+            Text(_error!, style: const TextStyle(color: EnsomColors.caution)),
           ],
 
           const SizedBox(height: 32),
@@ -453,8 +463,9 @@ class _CustomRoutineInput extends StatelessWidget {
             const SizedBox(width: 12),
             IconButton(
               icon: const Icon(Icons.remove_circle_outline, size: 20),
-              onPressed:
-                  minutes > 5 ? () => onMinutesChanged(minutes - 5) : null,
+              onPressed: minutes > 5
+                  ? () => onMinutesChanged(minutes - 5)
+                  : null,
             ),
             Text(
               "$minutes분",
@@ -462,8 +473,9 @@ class _CustomRoutineInput extends StatelessWidget {
             ),
             IconButton(
               icon: const Icon(Icons.add_circle_outline, size: 20),
-              onPressed:
-                  minutes < 60 ? () => onMinutesChanged(minutes + 5) : null,
+              onPressed: minutes < 60
+                  ? () => onMinutesChanged(minutes + 5)
+                  : null,
             ),
           ],
         ),
@@ -490,8 +502,8 @@ class _RoutineSummary extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final selectedRoutines = routineItems.where((r) => r.selected);
-    final routineTotal = selectedRoutines.fold<int>(
-            0, (sum, r) => sum + r.minutes) +
+    final routineTotal =
+        selectedRoutines.fold<int>(0, (sum, r) => sum + r.minutes) +
         (customRoutineLabel.isNotEmpty ? customRoutineMinutes : 0);
 
     if (prepMinutes == null && routineTotal == 0) {
@@ -504,9 +516,9 @@ class _RoutineSummary extends StatelessWidget {
       margin: const EdgeInsets.only(top: 24),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.blue.withOpacity(0.05),
+        color: EnsomColors.cta.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.blue.withOpacity(0.2)),
+        border: Border.all(color: EnsomColors.cta.withValues(alpha: 0.2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -517,28 +529,45 @@ class _RoutineSummary extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           if (prepMinutes != null)
-            Text("기본 준비: ${prepMinutes}분",
-                style: const TextStyle(fontSize: 13)),
+            Text(
+              "기본 준비: ${prepMinutes}분",
+              style: const TextStyle(fontSize: 13),
+            ),
           if (routineTotal > 0) ...[
-            Text("루틴 합산: ${routineTotal}분",
-                style: const TextStyle(fontSize: 13)),
+            Text(
+              "루틴 합산: ${routineTotal}분",
+              style: const TextStyle(fontSize: 13),
+            ),
             for (final r in selectedRoutines)
-              Text("  · ${r.label}: ${r.minutes}분",
-                  style: const TextStyle(fontSize: 12, color: Colors.grey)),
+              Text(
+                "  · ${r.label}: ${r.minutes}분",
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: EnsomColors.inkMuted,
+                ),
+              ),
             if (customRoutineLabel.isNotEmpty)
-              Text("  · $customRoutineLabel: ${customRoutineMinutes}분",
-                  style: const TextStyle(fontSize: 12, color: Colors.grey)),
+              Text(
+                "  · $customRoutineLabel: ${customRoutineMinutes}분",
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: EnsomColors.inkMuted,
+                ),
+              ),
           ],
           const Divider(height: 16),
           Text(
             "총 약 ${totalMin}분",
             style: const TextStyle(
-                fontWeight: FontWeight.bold, fontSize: 16, color: Colors.blue),
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+              color: EnsomColors.cta,
+            ),
           ),
           const SizedBox(height: 4),
           const Text(
             "실제 이동 시간과 여유 시간은 일정별로 따로 계산됩니다.",
-            style: TextStyle(fontSize: 11, color: Colors.grey),
+            style: TextStyle(fontSize: 11, color: EnsomColors.inkMuted),
           ),
         ],
       ),

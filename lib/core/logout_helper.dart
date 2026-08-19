@@ -2,10 +2,10 @@ import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:hive_ce_flutter/hive_ce_flutter.dart";
 import "../core/local_notification_service.dart";
-import "../local/app_database.dart";
 import "../local/place_cache_entry.dart";
 import "../providers/auth_providers.dart";
 import "../providers/offline_queue_providers.dart";
+import "../theme/ensom_colors.dart";
 
 /// 로그아웃/탈퇴 시 공통으로 수행해야 하는 로컬 리소스 소거.
 /// profile_screen, account_screen, settings_screen에서 공용 사용.
@@ -44,7 +44,7 @@ Future<void> showLogoutConfirmAndExecute(
         ),
         TextButton(
           onPressed: () => Navigator.pop(ctx, true),
-          style: TextButton.styleFrom(foregroundColor: Colors.red),
+          style: TextButton.styleFrom(foregroundColor: EnsomColors.caution),
           child: const Text("로그아웃"),
         ),
       ],

@@ -1,4 +1,5 @@
 import "package:flutter/material.dart";
+import "../../theme/ensom_colors.dart";
 
 /// SYS-01 네트워크 없음
 /// 전 화면 공통, 연결 끊김 감지 시 전면 차단.
@@ -17,7 +18,7 @@ class NetworkErrorScreen extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.wifi_off, size: 64, color: Colors.grey),
+              const Icon(Icons.wifi_off, size: 64, color: EnsomColors.inkMuted),
               const SizedBox(height: 24),
               const Text(
                 "인터넷에 연결할 수 없어요",
@@ -27,7 +28,7 @@ class NetworkErrorScreen extends StatelessWidget {
               const Text(
                 "Wi-Fi 또는 모바일 데이터 연결을 확인하고\n다시 시도해주세요.",
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey),
+                style: TextStyle(color: EnsomColors.inkMuted),
               ),
               const SizedBox(height: 32),
               if (onRetry != null)
@@ -59,7 +60,11 @@ class SessionExpiredScreen extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.lock_outline, size: 64, color: Colors.grey),
+              const Icon(
+                Icons.lock_outline,
+                size: 64,
+                color: EnsomColors.inkMuted,
+              ),
               const SizedBox(height: 24),
               const Text(
                 "세션이 만료됐어요",
@@ -69,7 +74,7 @@ class SessionExpiredScreen extends StatelessWidget {
               const Text(
                 "보안을 위해 다시 로그인해주세요.",
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey),
+                style: TextStyle(color: EnsomColors.inkMuted),
               ),
               const SizedBox(height: 32),
               if (onLogin != null)
@@ -99,7 +104,7 @@ class MaintenanceScreen extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.construction, size: 64, color: Colors.grey),
+              Icon(Icons.construction, size: 64, color: EnsomColors.inkMuted),
               SizedBox(height: 24),
               Text(
                 "서비스 점검 중이에요",
@@ -109,7 +114,7 @@ class MaintenanceScreen extends StatelessWidget {
               Text(
                 "더 좋은 서비스로 찾아올게요.\n잠시만 기다려주세요.",
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey),
+                style: TextStyle(color: EnsomColors.inkMuted),
               ),
             ],
           ),
@@ -134,7 +139,11 @@ class ForceUpdateScreen extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.system_update, size: 64, color: Colors.grey),
+              const Icon(
+                Icons.system_update,
+                size: 64,
+                color: EnsomColors.inkMuted,
+              ),
               const SizedBox(height: 24),
               const Text(
                 "업데이트가 필요해요",
@@ -144,7 +153,7 @@ class ForceUpdateScreen extends StatelessWidget {
               const Text(
                 "최신 버전으로 업데이트해주세요.\n중요한 변경 사항이 포함되어 있어요.",
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey),
+                style: TextStyle(color: EnsomColors.inkMuted),
               ),
               const SizedBox(height: 32),
               if (onUpdate != null)

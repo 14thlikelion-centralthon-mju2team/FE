@@ -3,6 +3,7 @@ import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:go_router/go_router.dart";
 import "../../models/wellness_pref.dart";
 import "../settings/wellness_prefs_screen.dart";
+import "../../theme/ensom_colors.dart";
 
 /// ONB-06 웰니스 관심 항목 설정 (온보딩 context)
 /// 기존 WellnessPrefsScreen의 provider를 재사용하되,
@@ -53,7 +54,7 @@ class WellnessOnboardingScreen extends ConsumerWidget {
                   const SizedBox(height: 4),
                   const Text(
                     "선택하지 않아도 핵심 기능은 정상 동작해요.",
-                    style: TextStyle(color: Colors.grey, fontSize: 13),
+                    style: TextStyle(color: EnsomColors.inkMuted, fontSize: 13),
                   ),
                   const SizedBox(height: 16),
                   for (final pref in prefs)

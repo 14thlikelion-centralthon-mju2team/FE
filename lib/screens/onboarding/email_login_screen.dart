@@ -3,6 +3,7 @@ import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:go_router/go_router.dart";
 import "../../network/api_client.dart";
 import "../../providers/auth_providers.dart";
+import "../../theme/ensom_colors.dart";
 
 /// API 명세 §2.2 POST /auth/email/login
 /// 실패 시 AUTH_INVALID_CREDENTIALS (이메일 없음·비밀번호 불일치 구분 안 함, TR-14)
@@ -46,7 +47,9 @@ class _EmailLoginScreenState extends ConsumerState<EmailLoginScreen> {
       _error = null;
     });
     try {
-      final installationId = await ref.read(secureStorageProvider).installationId;
+      final installationId = await ref
+          .read(secureStorageProvider)
+          .installationId;
       final authNotifier = ref.read(authNotifierProvider.notifier);
       await authNotifier.loginWithEmail(
         email: _emailController.text.trim(),
@@ -66,6 +69,8 @@ class _EmailLoginScreenState extends ConsumerState<EmailLoginScreen> {
           );
         case AuthStatus.consentRequired:
           context.go("/onboarding/consent");
+        case AuthStatus.onboarding:
+          context.go("/onboarding/prep-time");
         case AuthStatus.authenticated:
           context.go("/home");
         default:
@@ -119,7 +124,10 @@ class _EmailLoginScreenState extends ConsumerState<EmailLoginScreen> {
               ),
               if (_error != null) ...[
                 const SizedBox(height: 16),
-                Text(_error!, style: const TextStyle(color: Colors.red)),
+                Text(
+                  _error!,
+                  style: const TextStyle(color: EnsomColors.caution),
+                ),
               ],
               const SizedBox(height: 24),
               ElevatedButton(

@@ -1,6 +1,7 @@
 import "package:flutter/material.dart";
 import "package:intl/intl.dart";
 import "../../../models/plan.dart";
+import "../../../theme/ensom_colors.dart";
 
 /// 계획이 재계산되어 리비전이 바뀌었을 때 "무엇이 바뀌었는지" 보여주는 배너.
 ///
@@ -35,23 +36,23 @@ class PlanChangeBanner extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.amber.withOpacity(0.08),
+        color: EnsomColors.caution.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.amber.withOpacity(0.4)),
+        border: Border.all(color: EnsomColors.caution.withValues(alpha: 0.4)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Icons.update, size: 16, color: Colors.amber[800]),
+              Icon(Icons.update, size: 16, color: EnsomColors.caution),
               const SizedBox(width: 6),
               Text(
                 "계획이 업데이트됐어요",
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: Colors.amber[900],
+                  color: EnsomColors.caution,
                 ),
               ),
             ],
@@ -63,12 +64,9 @@ class PlanChangeBanner extends StatelessWidget {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text("• ", style: TextStyle(color: Colors.amber[800])),
+                  Text("• ", style: TextStyle(color: EnsomColors.caution)),
                   Expanded(
-                    child: Text(
-                      change,
-                      style: const TextStyle(fontSize: 12),
-                    ),
+                    child: Text(change, style: const TextStyle(fontSize: 12)),
                   ),
                 ],
               ),
@@ -96,8 +94,9 @@ class PlanChangeBanner extends StatelessWidget {
     }
 
     // 출발 시각 변화
-    final departDiff =
-        curr.recommendedDepartAt.difference(prev.recommendedDepartAt).inMinutes;
+    final departDiff = curr.recommendedDepartAt
+        .difference(prev.recommendedDepartAt)
+        .inMinutes;
     if (departDiff.abs() >= 2) {
       final direction = departDiff < 0 ? "앞당겨" : "늦춰";
       changes.add(
@@ -122,7 +121,8 @@ class PlanChangeBanner extends StatelessWidget {
 
     // 교통 버퍼 변화 (교통 지연)
     final bufferDiff =
-        curr.breakdown.trafficBufferMinutes - prev.breakdown.trafficBufferMinutes;
+        curr.breakdown.trafficBufferMinutes -
+        prev.breakdown.trafficBufferMinutes;
     if (bufferDiff.abs() >= 3) {
       if (bufferDiff > 0) {
         changes.add("교통 상황을 반영해 여유를 ${bufferDiff}분 추가했어요");
@@ -134,8 +134,10 @@ class PlanChangeBanner extends StatelessWidget {
 
   /// reasons 배열에서 adjusted=true인 항목의 text를 근거로 표시.
   List<Widget> _adjustedReasons() {
-    final adjusted =
-        currentPlan.reasons.where((r) => r.adjusted).take(2).toList();
+    final adjusted = currentPlan.reasons
+        .where((r) => r.adjusted)
+        .take(2)
+        .toList();
     if (adjusted.isEmpty) return [];
 
     return [
@@ -145,7 +147,7 @@ class PlanChangeBanner extends StatelessWidget {
           padding: const EdgeInsets.only(left: 12, bottom: 2),
           child: Text(
             "↳ ${reason.text}",
-            style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+            style: TextStyle(fontSize: 11, color: EnsomColors.inkFaint),
           ),
         ),
     ];

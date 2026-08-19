@@ -18,7 +18,6 @@ import "../screens/route/route_selection_screen.dart";
 import "../screens/settings/wellness_prefs_screen.dart";
 import "../screens/summary/daily_summary_screen.dart";
 import "../screens/map/map_screen.dart";
-import "../screens/events/event_create_from_map_screen.dart";
 import "../screens/calendar/calendar_screen.dart";
 import "../screens/calendar/event_form_screen.dart";
 import "../screens/calendar/calendar_sync_screen.dart";
@@ -34,19 +33,32 @@ import "../screens/profile/data_management_screen.dart";
 /// GoRouter + Riverpod 연동.
 /// AuthState를 구독해서 인증 상태 변화 시 자동 리다이렉트.
 final appRouterProvider = Provider<GoRouter>((ref) {
-  final authState = ref.watch(authNotifierProvider);
+  final refreshNotifier = ValueNotifier(ref.read(authNotifierProvider));
+  ref.listen<AuthState>(authNotifierProvider, (_, next) {
+    refreshNotifier.value = next;
+  });
+  ref.onDispose(refreshNotifier.dispose);
 
   return GoRouter(
+    refreshListenable: refreshNotifier,
     initialLocation: "/splash",
     redirect: (context, state) {
+      final authState = ref.read(authNotifierProvider);
       final path = state.uri.path;
-      final isAuthPage = path.startsWith("/onboarding/auth") ||
+      final isAuthPage =
+          path.startsWith("/onboarding/auth") ||
           path.startsWith("/onboarding/email");
       final isConsentPage = path == "/onboarding/consent";
 
       switch (authState.status) {
         case AuthStatus.unknown:
           // 세션 확인 중 — 스플래시에 머문다
+          if (path != "/splash") return "/splash";
+          return null;
+
+        case AuthStatus.sessionCheckFailed:
+          // 네트워크 오류는 로그아웃으로 간주하지 않고 재시도 가능한
+          // 스플래시에 머문다.
           if (path != "/splash") return "/splash";
           return null;
 
@@ -67,6 +79,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           if (isConsentPage) return null;
           return "/onboarding/consent";
 
+        case AuthStatus.onboarding:
+          final isOnboardingFlow =
+              path.startsWith("/onboarding/") && !isAuthPage && !isConsentPage;
+          if (isOnboardingFlow) return null;
+          return "/onboarding/prep-time";
+
         case AuthStatus.authenticated:
           // 인증 완료 — 온보딩/스플래시에 있으면 홈으로
           if (path == "/splash" ||
@@ -80,16 +98,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     },
     routes: [
       // ─── 스플래시 (세션 확인 중) ─────────────────────────────────
-      GoRoute(
-        path: "/splash",
-        builder: (c, s) => const _SplashScreen(),
-      ),
+      GoRoute(path: "/splash", builder: (c, s) => const _SplashScreen()),
 
       // ─── 온보딩 ──────────────────────────────────────────────────
-      GoRoute(
-        path: "/onboarding/auth",
-        builder: (c, s) => const AuthScreen(),
-      ),
+      GoRoute(path: "/onboarding/auth", builder: (c, s) => const AuthScreen()),
       GoRoute(
         path: "/onboarding/consent",
         builder: (c, s) => const ConsentScreen(),
@@ -128,7 +140,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: "/onboarding/priming/notification",
         builder: (c, s) => PermissionPrimingScreen(
           type: PermissionPrimingType.notification,
-          onAllow: () {/* TODO: OS 권한 요청 후 다음 단계 */},
+          onAllow: () {
+            /* TODO: OS 권한 요청 후 다음 단계 */
+          },
           onSkip: () => c.go("/home"),
         ),
       ),
@@ -136,7 +150,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: "/onboarding/priming/location",
         builder: (c, s) => PermissionPrimingScreen(
           type: PermissionPrimingType.location,
-          onAllow: () {/* TODO: OS 권한 요청 후 다음 단계 */},
+          onAllow: () {
+            /* TODO: OS 권한 요청 후 다음 단계 */
+          },
           onSkip: () => c.go("/home"),
         ),
       ),
@@ -144,8 +160,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: "/onboarding/priming/calendar",
         builder: (c, s) => PermissionPrimingScreen(
           type: PermissionPrimingType.calendar,
-          onAllow: () {/* TODO: OS 권한 요청 후 다음 단계 */},
-          onSkip: () => c.go("/onboarding/places"),
+          onAllow: () => c.push("/calendar/sync?onboarding=true"),
+          onSkip: () => c.go("/onboarding/wellness"),
         ),
       ),
 
@@ -175,7 +191,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: "/events/create-from-map",
-        builder: (c, s) => const EventCreateFromMapScreen(),
+        builder: (c, s) => const EventFormScreen(fromMap: true),
       ),
       GoRoute(
         path: "/search/place",
@@ -187,15 +203,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: "/calendar/sync",
-        builder: (c, s) => const CalendarSyncScreen(),
+        builder: (c, s) => CalendarSyncScreen(
+          isOnboarding: s.uri.queryParameters["onboarding"] == "true",
+        ),
       ),
 
       // ─── DTL-01 일정 상세 ─────────────────────────────────────
       GoRoute(
         path: "/events/:eventId",
-        builder: (c, s) => EventDetailScreen(
-          eventId: s.pathParameters["eventId"]!,
-        ),
+        builder: (c, s) =>
+            EventDetailScreen(eventId: s.pathParameters["eventId"]!),
       ),
 
       // ─── PRF 프로필 하위 ──────────────────────────────────────
@@ -232,24 +249,32 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       StatefulShellRoute.indexedStack(
         builder: (context, state, shell) => MainTabShell(shell: shell),
         branches: [
-          StatefulShellBranch(routes: [
-            GoRoute(
-              path: "/calendar",
-              builder: (c, s) => const CalendarScreen(),
-            ),
-          ]),
-          StatefulShellBranch(routes: [
-            GoRoute(path: "/home", builder: (c, s) => const HomeScreen()),
-          ]),
-          StatefulShellBranch(routes: [
-            GoRoute(path: "/map", builder: (c, s) => const MapScreen()),
-          ]),
-          StatefulShellBranch(routes: [
-            GoRoute(
-              path: "/profile",
-              builder: (c, s) => const ProfileScreen(),
-            ),
-          ]),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: "/calendar",
+                builder: (c, s) => const CalendarScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(path: "/home", builder: (c, s) => const HomeScreen()),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(path: "/map", builder: (c, s) => const MapScreen()),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: "/profile",
+                builder: (c, s) => const ProfileScreen(),
+              ),
+            ],
+          ),
         ],
       ),
     ],
@@ -257,24 +282,42 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 });
 
 // ─── 스플래시 (세션 확인 중 표시) ──────────────────────────────────
-class _SplashScreen extends StatelessWidget {
+class _SplashScreen extends ConsumerWidget {
   const _SplashScreen();
 
   @override
-  Widget build(BuildContext context) {
-    return const Scaffold(
+  Widget build(BuildContext context, WidgetRef ref) {
+    final authState = ref.watch(authNotifierProvider);
+    final failed = authState.status == AuthStatus.sessionCheckFailed;
+
+    return Scaffold(
       body: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text("Ensom",
-                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
-            SizedBox(height: 8),
-            Text("늦지 않게, 서두르지 않게.",
-                style: TextStyle(color: Colors.grey)),
-            SizedBox(height: 32),
-            CircularProgressIndicator(),
-          ],
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                "Ensom",
+                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 32),
+              if (failed) ...[
+                Text(
+                  authState.errorMessage ?? "세션을 확인하지 못했어요.",
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                FilledButton(
+                  onPressed: () => ref
+                      .read(authNotifierProvider.notifier)
+                      .retrySessionCheck(),
+                  child: const Text("다시 시도"),
+                ),
+              ] else
+                const CircularProgressIndicator(),
+            ],
+          ),
         ),
       ),
     );

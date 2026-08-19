@@ -3,6 +3,7 @@ import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:go_router/go_router.dart";
 import "../../network/api_client.dart";
 import "../../providers/auth_providers.dart";
+import "../../theme/ensom_colors.dart";
 
 /// 이메일 회원가입 직후 진입. Google 로그인 사용자는 이 화면을 거치지 않는다.
 /// API 명세 §2.3: POST /auth/email/verify/resend (재발송, 60초 쿨다운)
@@ -84,7 +85,7 @@ class _EmailVerificationScreenState
             const Text(
               "메일함에서 인증 링크를 눌러주세요.",
               textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey),
+              style: TextStyle(color: EnsomColors.inkMuted),
             ),
             if (_message != null) ...[
               const SizedBox(height: 16),
@@ -93,8 +94,8 @@ class _EmailVerificationScreenState
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: _message!.contains("보냈")
-                      ? Colors.green
-                      : Colors.orange,
+                      ? EnsomColors.limeInk
+                      : EnsomColors.caution,
                 ),
               ),
             ],

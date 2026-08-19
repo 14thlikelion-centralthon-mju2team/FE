@@ -1,4 +1,5 @@
-import 'package:flutter/material.dart';
+import "package:flutter/material.dart";
+import "../theme/ensom_colors.dart";
 
 class ViumCard extends StatelessWidget {
   final Widget child;
@@ -9,9 +10,9 @@ class ViumCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: EnsomColors.surface1,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFDEE1E0)),
+        border: Border.all(color: EnsomColors.hairline),
       ),
       child: child,
     );

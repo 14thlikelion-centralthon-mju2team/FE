@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:geofencing_api/geofencing_api.dart';
 import 'package:go_router/go_router.dart';
 import '../../widgets/vium_button.dart';
+import '../../theme/ensom_colors.dart';
 import '../../widgets/vium_card.dart';
 
 enum _PermissionStep {
@@ -18,7 +19,8 @@ class LocationPermissionScreen extends StatefulWidget {
   const LocationPermissionScreen({super.key});
 
   @override
-  State<LocationPermissionScreen> createState() => _LocationPermissionScreenState();
+  State<LocationPermissionScreen> createState() =>
+      _LocationPermissionScreenState();
 }
 
 class _LocationPermissionScreenState extends State<LocationPermissionScreen> {
@@ -42,7 +44,8 @@ class _LocationPermissionScreenState extends State<LocationPermissionScreen> {
       return;
     }
 
-    LocationPermission permission = await Geofencing.instance.getLocationPermission();
+    LocationPermission permission = await Geofencing.instance
+        .getLocationPermission();
     if (!mounted) return;
     if (permission == LocationPermission.denied) {
       permission = await Geofencing.instance.requestLocationPermission();
@@ -104,7 +107,9 @@ class _LocationPermissionScreenState extends State<LocationPermissionScreen> {
   @override
   Widget build(BuildContext context) {
     final showActionButtons =
-        step == _PermissionStep.intro || step == _PermissionStep.done || step == _PermissionStep.denied;
+        step == _PermissionStep.intro ||
+        step == _PermissionStep.done ||
+        step == _PermissionStep.denied;
 
     return Scaffold(
       appBar: AppBar(title: const Text('위치 권한 안내')),
@@ -124,7 +129,7 @@ class _LocationPermissionScreenState extends State<LocationPermissionScreen> {
                   SizedBox(height: 8),
                   Text(
                     '위치는 기기 안에서만 계산되고, 서버에는 장소 이름만 저장돼요',
-                    style: TextStyle(fontSize: 13, color: Colors.grey),
+                    style: TextStyle(fontSize: 13, color: EnsomColors.inkMuted),
                   ),
                 ],
               ),

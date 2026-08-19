@@ -2,6 +2,7 @@ import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "../../network/kakao_local_search_service.dart";
 import "../../providers/map_providers.dart";
+import "../../theme/ensom_colors.dart";
 
 /// SRCH-01 장소 검색 전체화면
 /// 호출: MAP-01, CAL-04, ONB-05, PRF-06
@@ -85,12 +86,18 @@ class _PlaceSearchScreenState extends ConsumerState<PlaceSearchScreen> {
     }
     if (!_hasSearched) {
       return const Center(
-        child: Text("검색어를 입력하세요", style: TextStyle(color: Colors.grey)),
+        child: Text(
+          "검색어를 입력하세요",
+          style: TextStyle(color: EnsomColors.inkMuted),
+        ),
       );
     }
     if (_results.isEmpty) {
       return const Center(
-        child: Text("검색 결과가 없어요", style: TextStyle(color: Colors.grey)),
+        child: Text(
+          "검색 결과가 없어요",
+          style: TextStyle(color: EnsomColors.inkMuted),
+        ),
       );
     }
     return ListView.separated(
@@ -101,7 +108,10 @@ class _PlaceSearchScreenState extends ConsumerState<PlaceSearchScreen> {
         return ListTile(
           leading: const Icon(Icons.place_outlined),
           title: Text(item.name),
-          subtitle: Text(item.addressName, style: const TextStyle(fontSize: 12)),
+          subtitle: Text(
+            item.addressName,
+            style: const TextStyle(fontSize: 12),
+          ),
           onTap: () => Navigator.pop(context, item),
         );
       },

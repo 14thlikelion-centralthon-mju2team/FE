@@ -1,5 +1,6 @@
 import "package:flutter/material.dart";
 import "../../../models/plan.dart";
+import "../../../theme/ensom_colors.dart";
 
 /// WELL-03. Plan.wellnessActions는 checklist와 별도 배열이다
 /// (API v5.0 §9.2). 완료(completed)/해제(dismissed) 두 상태만 있고
@@ -14,7 +15,11 @@ class WellnessActionsSection extends StatelessWidget {
   });
 
   final List<WellnessAction> actions;
-  final void Function(WellnessAction action, WellnessActionCompletionStatus status) onResolve;
+  final void Function(
+    WellnessAction action,
+    WellnessActionCompletionStatus status,
+  )
+  onResolve;
 
   @override
   Widget build(BuildContext context) {
@@ -25,7 +30,8 @@ class WellnessActionsSection extends StatelessWidget {
       children: [
         const Text("웰니스 행동", style: TextStyle(fontWeight: FontWeight.w600)),
         const SizedBox(height: 8),
-        for (final action in actions) _WellnessActionRow(action: action, onResolve: onResolve),
+        for (final action in actions)
+          _WellnessActionRow(action: action, onResolve: onResolve),
       ],
     );
   }
@@ -35,11 +41,16 @@ class _WellnessActionRow extends StatelessWidget {
   const _WellnessActionRow({required this.action, required this.onResolve});
 
   final WellnessAction action;
-  final void Function(WellnessAction action, WellnessActionCompletionStatus status) onResolve;
+  final void Function(
+    WellnessAction action,
+    WellnessActionCompletionStatus status,
+  )
+  onResolve;
 
   @override
   Widget build(BuildContext context) {
-    final resolved = action.completionStatus != WellnessActionCompletionStatus.proposed;
+    final resolved =
+        action.completionStatus != WellnessActionCompletionStatus.proposed;
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
@@ -49,7 +60,7 @@ class _WellnessActionRow extends StatelessWidget {
           Icon(
             Icons.wb_sunny_outlined,
             size: 16,
-            color: resolved ? Colors.grey : Colors.orange[700],
+            color: resolved ? EnsomColors.inkMuted : EnsomColors.caution,
           ),
           const SizedBox(width: 8),
           Expanded(
@@ -59,27 +70,34 @@ class _WellnessActionRow extends StatelessWidget {
                 Text(
                   action.actionLabel,
                   style: TextStyle(
-                    decoration: action.completionStatus == WellnessActionCompletionStatus.completed
+                    decoration:
+                        action.completionStatus ==
+                            WellnessActionCompletionStatus.completed
                         ? TextDecoration.lineThrough
                         : null,
-                    color: resolved ? Colors.grey : null,
+                    color: resolved ? EnsomColors.inkMuted : null,
                   ),
                 ),
                 if (action.reasonSnapshot != null && !resolved)
                   Text(
                     action.reasonSnapshot!,
-                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: EnsomColors.inkMuted,
+                    ),
                   ),
               ],
             ),
           ),
           if (!resolved) ...[
             TextButton(
-              onPressed: () => onResolve(action, WellnessActionCompletionStatus.completed),
+              onPressed: () =>
+                  onResolve(action, WellnessActionCompletionStatus.completed),
               child: const Text("완료"),
             ),
             TextButton(
-              onPressed: () => onResolve(action, WellnessActionCompletionStatus.dismissed),
+              onPressed: () =>
+                  onResolve(action, WellnessActionCompletionStatus.dismissed),
               child: const Text("넘어갈게요"),
             ),
           ],

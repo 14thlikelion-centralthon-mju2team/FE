@@ -4,6 +4,7 @@ import "package:go_router/go_router.dart";
 import "../../core/auth_service.dart";
 import "../../network/api_client.dart";
 import "../../providers/auth_providers.dart";
+import "../../theme/ensom_colors.dart";
 
 /// PRD §11.2 "필수 약관 동의" / API 명세 §2.8 POST /consents
 /// consentRequired가 빈 배열이 될 때까지 홈 진입을 막는다.
@@ -31,10 +32,12 @@ class _ConsentScreenState extends ConsumerState<ConsentScreen> {
   final List<_ConsentItem> _items = [
     _ConsentItem(type: "terms", label: "[필수] 이용약관 동의", required: true),
     _ConsentItem(type: "privacy", label: "[필수] 개인정보 처리방침 동의", required: true),
+    _ConsentItem(type: "location", label: "[필수] 위치정보 이용 동의", required: true),
     _ConsentItem(
-        type: "location", label: "[필수] 위치정보 이용 동의", required: true),
-    _ConsentItem(
-        type: "marketing", label: "[선택] 마케팅 정보 수신 동의", required: false),
+      type: "marketing",
+      label: "[선택] 마케팅 정보 수신 동의",
+      required: false,
+    ),
   ];
 
   bool get _allRequiredAgreed =>
@@ -66,11 +69,13 @@ class _ConsentScreenState extends ConsumerState<ConsentScreen> {
       final authService = ref.read(authServiceProvider);
 
       final consents = _items
-          .map((item) => ConsentEntry(
-                consentType: item.type,
-                policyVersion: _policyVersion,
-                agreed: item.agreed,
-              ))
+          .map(
+            (item) => ConsentEntry(
+              consentType: item.type,
+              policyVersion: _policyVersion,
+              agreed: item.agreed,
+            ),
+          )
           .toList();
 
       await authService.submitConsents(consents);
@@ -100,54 +105,64 @@ class _ConsentScreenState extends ConsumerState<ConsentScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text("약관 동의")),
-      body: Column(
-        children: [
-          CheckboxListTile(
-            title: const Text("전체 동의",
-                style: TextStyle(fontWeight: FontWeight.w600)),
-            value: _allAgreed,
-            onChanged: (v) => _toggleAll(v ?? false),
-          ),
-          const Divider(height: 1),
-          Expanded(
-            child: ListView.builder(
-              itemCount: _items.length,
-              itemBuilder: (context, index) {
-                final item = _items[index];
-                return CheckboxListTile(
-                  title: Text(item.label),
-                  value: item.agreed,
-                  onChanged: (v) {
-                    setState(() => item.agreed = v ?? false);
-                  },
-                  secondary: TextButton(
-                    onPressed: () {
-                      // TODO: 약관 전문 화면으로 이동 (정적 마크다운 뷰어)
+    return PopScope(
+      canPop: false,
+      child: Scaffold(
+        appBar: AppBar(title: const Text("약관 동의")),
+        body: Column(
+          children: [
+            CheckboxListTile(
+              title: const Text(
+                "전체 동의",
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+              value: _allAgreed,
+              onChanged: (v) => _toggleAll(v ?? false),
+            ),
+            const Divider(height: 1),
+            Expanded(
+              child: ListView.builder(
+                itemCount: _items.length,
+                itemBuilder: (context, index) {
+                  final item = _items[index];
+                  return CheckboxListTile(
+                    title: Text(item.label),
+                    value: item.agreed,
+                    onChanged: (v) {
+                      setState(() => item.agreed = v ?? false);
                     },
-                    child: const Text("보기"),
-                  ),
-                );
-              },
-            ),
-          ),
-          if (_error != null)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Text(_error!, style: const TextStyle(color: Colors.red)),
-            ),
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: (_allRequiredAgreed && !_submitting) ? _submit : null,
-                child: Text(_submitting ? "처리 중..." : "동의하고 계속하기"),
+                    secondary: TextButton(
+                      onPressed: () {
+                        // TODO: 약관 전문 화면으로 이동 (정적 마크다운 뷰어)
+                      },
+                      child: const Text("보기"),
+                    ),
+                  );
+                },
               ),
             ),
-          ),
-        ],
+            if (_error != null)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text(
+                  _error!,
+                  style: const TextStyle(color: EnsomColors.caution),
+                ),
+              ),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: (_allRequiredAgreed && !_submitting)
+                      ? _submit
+                      : null,
+                  child: Text(_submitting ? "처리 중..." : "동의하고 계속하기"),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

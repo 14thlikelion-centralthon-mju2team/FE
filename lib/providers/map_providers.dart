@@ -5,12 +5,14 @@ import "../models/event.dart";
 import "../models/plan.dart";
 import "../network/kakao_local_search_service.dart";
 
-final kakaoLocalSearchServiceProvider = Provider<KakaoLocalSearchService>((ref) {
+final kakaoLocalSearchServiceProvider = Provider<KakaoLocalSearchService>((
+  ref,
+) {
   return KakaoLocalSearchService(restApiKey: kKakaoRestApiKey);
 });
 
 /// 지도 화면에서 만든 "저장 대기" 일정 초안. 목적지·경로가 정해지면
-/// event_create_from_map_screen.dart로 넘어가기 전에 여기 담아 둔다.
+/// EventFormScreen의 지도 프리필 모드로 넘어가기 전에 여기 담아 둔다.
 /// 화면 두 개를 오가는 흐름이라 URL 쿼리보다 provider로 넘기는 편이
 /// 기존 컨벤션(planControllerProvider 등)과 더 맞는다.
 class MapDraftEvent {

@@ -7,6 +7,7 @@ import "../../local/place_cache_entry.dart";
 import "../../providers/auth_providers.dart";
 import "../../providers/offline_queue_providers.dart";
 import "../../repository/providers.dart";
+import "../../theme/ensom_colors.dart";
 
 /// SET-03 · 계정 수명주기(로그아웃/개인화 초기화/탈퇴, §16).
 class SettingsScreen extends ConsumerWidget {
@@ -34,15 +35,24 @@ class SettingsScreen extends ConsumerWidget {
     }
   }
 
-  Future<void> _resetPersonalization(BuildContext context, WidgetRef ref) async {
+  Future<void> _resetPersonalization(
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text("개인화 초기화"),
         content: const Text("준비 시간 학습 결과와 웰니스 설정이 초기값으로 돌아가요. 계속할까요?"),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text("취소")),
-          FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text("초기화")),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text("취소"),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text("초기화"),
+          ),
         ],
       ),
     );
@@ -51,14 +61,14 @@ class SettingsScreen extends ConsumerWidget {
     try {
       await ref.read(ensomRepositoryProvider).resetPersonalization();
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("개인화 설정을 초기화했어요.")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("개인화 설정을 초기화했어요.")));
     } catch (e) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("초기화하지 못했어요. 다시 시도해주세요.")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("초기화하지 못했어요. 다시 시도해주세요.")));
     }
   }
 
@@ -74,11 +84,16 @@ class SettingsScreen extends ConsumerWidget {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text("탈퇴하시겠어요?"),
-        content: const Text("일정, 계획, 준비 항목, 개인화 데이터가 모두 삭제되고 되돌릴 수 없어요. 동의 이력만 법정 보존 기간 동안 남아요."),
+        content: const Text(
+          "일정, 계획, 준비 항목, 개인화 데이터가 모두 삭제되고 되돌릴 수 없어요. 동의 이력만 법정 보존 기간 동안 남아요.",
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text("취소")),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text("취소"),
+          ),
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            style: FilledButton.styleFrom(backgroundColor: EnsomColors.caution),
             onPressed: () => Navigator.pop(dialogContext, true),
             child: const Text("탈퇴"),
           ),
@@ -131,8 +146,14 @@ class SettingsScreen extends ConsumerWidget {
             onTap: () => _logout(context, ref),
           ),
           ListTile(
-            leading: const Icon(Icons.person_remove_outlined, color: Colors.red),
-            title: const Text("탈퇴", style: TextStyle(color: Colors.red)),
+            leading: const Icon(
+              Icons.person_remove_outlined,
+              color: EnsomColors.caution,
+            ),
+            title: const Text(
+              "탈퇴",
+              style: TextStyle(color: EnsomColors.caution),
+            ),
             onTap: () => _deleteAccount(context, ref),
           ),
         ],

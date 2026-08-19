@@ -1,5 +1,5 @@
 import "package:flutter/material.dart";
-import "package:go_router/go_router.dart";
+import "../../theme/ensom_colors.dart";
 
 /// ONB-07/08/08b 권한 프라이밍 공용 화면
 /// PRD §11.4: "왜 필요한지" 설명 후 OS 권한 다이얼로그 트리거.
@@ -13,11 +13,7 @@ import "package:go_router/go_router.dart";
 ///   onSkip: () => context.go("/next"),
 /// )
 /// ```
-enum PermissionPrimingType {
-  notification,
-  location,
-  calendar,
-}
+enum PermissionPrimingType { notification, location, calendar }
 
 class PermissionPrimingScreen extends StatelessWidget {
   const PermissionPrimingScreen({
@@ -85,17 +81,27 @@ class PermissionPrimingScreen extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               const Spacer(flex: 2),
-              Icon(_icon, size: 80, color: Theme.of(context).colorScheme.primary),
+              Icon(
+                _icon,
+                size: 80,
+                color: Theme.of(context).colorScheme.primary,
+              ),
               const SizedBox(height: 32),
               Text(
                 _title,
-                style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w600),
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w600,
+                ),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 16),
               Text(
                 _description,
-                style: const TextStyle(color: Colors.grey, fontSize: 15),
+                style: const TextStyle(
+                  color: EnsomColors.inkMuted,
+                  fontSize: 15,
+                ),
                 textAlign: TextAlign.center,
               ),
               const Spacer(flex: 3),
@@ -109,10 +115,7 @@ class PermissionPrimingScreen extends StatelessWidget {
               const SizedBox(height: 12),
               SizedBox(
                 width: double.infinity,
-                child: TextButton(
-                  onPressed: onSkip,
-                  child: const Text("나중에"),
-                ),
+                child: TextButton(onPressed: onSkip, child: const Text("나중에")),
               ),
             ],
           ),

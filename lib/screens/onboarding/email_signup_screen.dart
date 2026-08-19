@@ -3,6 +3,7 @@ import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:go_router/go_router.dart";
 import "../../network/api_client.dart";
 import "../../providers/auth_providers.dart";
+import "../../theme/ensom_colors.dart";
 
 /// PRD §11.3 / API 명세 §2.1 POST /auth/email/signup
 /// 비밀번호 정책: 최소 10자, 이메일 로컬파트·서비스명 포함 금지 (서버에서도 검증)
@@ -17,7 +18,6 @@ class _EmailSignupScreenState extends ConsumerState<EmailSignupScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _nicknameController = TextEditingController();
 
   bool _submitting = false;
   String? _error;
@@ -26,7 +26,6 @@ class _EmailSignupScreenState extends ConsumerState<EmailSignupScreen> {
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
-    _nicknameController.dispose();
     super.dispose();
   }
 
@@ -48,11 +47,6 @@ class _EmailSignupScreenState extends ConsumerState<EmailSignupScreen> {
     if (value.toLowerCase().contains("ensom")) {
       return "서비스명을 비밀번호에 포함할 수 없어요.";
     }
-    return null;
-  }
-
-  String? _validateNickname(String? value) {
-    if (value == null || value.trim().isEmpty) return "닉네임을 입력해주세요.";
     return null;
   }
 
@@ -122,19 +116,15 @@ class _EmailSignupScreenState extends ConsumerState<EmailSignupScreen> {
                   helperText: "10자 이상, 이메일·서비스명 포함 불가",
                 ),
                 validator: _validatePassword,
-                textInputAction: TextInputAction.next,
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _nicknameController,
-                decoration: const InputDecoration(labelText: "닉네임"),
-                validator: _validateNickname,
                 textInputAction: TextInputAction.done,
                 onFieldSubmitted: (_) => _submit(),
               ),
               if (_error != null) ...[
                 const SizedBox(height: 16),
-                Text(_error!, style: const TextStyle(color: Colors.red)),
+                Text(
+                  _error!,
+                  style: const TextStyle(color: EnsomColors.caution),
+                ),
               ],
               const SizedBox(height: 24),
               ElevatedButton(

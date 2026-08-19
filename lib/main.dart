@@ -12,6 +12,7 @@ import "local/offline_queue_entry.dart";
 import "local/place_cache_entry.dart";
 import "providers/geofence_providers.dart";
 import "router/app_router.dart";
+import "theme/ensom_colors.dart";
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -58,17 +59,27 @@ class EnsomApp extends ConsumerWidget {
     return MaterialApp.router(
       title: "Ensom",
       theme: ThemeData(
-        colorSchemeSeed: const Color(0xFF4A6CF7),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: EnsomColors.cta,
+          brightness: Brightness.light,
+          primary: EnsomColors.cta,
+          secondary: EnsomColors.lime,
+          surface: EnsomColors.surface1,
+          error: EnsomColors.caution,
+        ),
+        scaffoldBackgroundColor: EnsomColors.canvas,
+        dividerColor: EnsomColors.hairline,
+        appBarTheme: const AppBarTheme(
+          backgroundColor: EnsomColors.canvas,
+          foregroundColor: EnsomColors.ink,
+          surfaceTintColor: Colors.transparent,
+        ),
         useMaterial3: true,
       ),
       routerConfig: router,
       debugShowCheckedModeBanner: false,
-      builder: (context, child) => Stack(
-        children: [
-          ?child,
-          const GeofenceSync(),
-        ],
-      ),
+      builder: (context, child) =>
+          Stack(children: [?child, const GeofenceSync()]),
     );
   }
 }

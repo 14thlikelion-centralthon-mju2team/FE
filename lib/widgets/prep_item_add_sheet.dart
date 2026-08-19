@@ -2,6 +2,7 @@ import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "../repository/providers.dart";
 import "../models/prep_item.dart";
+import "../theme/ensom_colors.dart";
 
 /// PREP-01 준비 항목 추가 시트
 /// 호출: HM-01 [+ 추가], DTL-01 [+ 추가], PRF-06
@@ -42,20 +43,22 @@ class _PrepItemAddSheetState extends ConsumerState<PrepItemAddSheet> {
     setState(() => _saving = true);
     try {
       final repo = ref.read(ensomRepositoryProvider);
-      await repo.createPrepItem(PrepItem(
-        id: "",
-        label: label,
-        kind: _kind,
-        sensitive: _sensitive,
-        extraMin: _kind == PrepKind.routine ? _minutes : 0,
-        fromChip: false,
-      ));
+      await repo.createPrepItem(
+        PrepItem(
+          id: "",
+          label: label,
+          kind: _kind,
+          sensitive: _sensitive,
+          extraMin: _kind == PrepKind.routine ? _minutes : 0,
+          fromChip: false,
+        ),
+      );
       if (mounted) Navigator.pop(context, true);
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("저장에 실패했어요. 다시 시도해주세요.")),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text("저장에 실패했어요. 다시 시도해주세요.")));
         setState(() => _saving = false);
       }
     }
@@ -79,14 +82,13 @@ class _PrepItemAddSheetState extends ConsumerState<PrepItemAddSheet> {
               width: 32,
               height: 4,
               decoration: BoxDecoration(
-                color: Colors.grey.shade300,
+                color: EnsomColors.hairline,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
           ),
           const SizedBox(height: 16),
-          Text("준비 항목 추가",
-              style: Theme.of(context).textTheme.titleMedium),
+          Text("준비 항목 추가", style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 16),
           TextField(
             controller: _labelController,
@@ -122,8 +124,10 @@ class _PrepItemAddSheetState extends ConsumerState<PrepItemAddSheet> {
                       ? () => setState(() => _minutes -= 5)
                       : null,
                 ),
-                Text("$_minutes분",
-                    style: const TextStyle(fontWeight: FontWeight.w600)),
+                Text(
+                  "$_minutes분",
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
                 IconButton(
                   icon: const Icon(Icons.add_circle_outline),
                   onPressed: _minutes < 60

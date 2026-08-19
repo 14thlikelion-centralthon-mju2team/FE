@@ -3,10 +3,11 @@ import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:go_router/go_router.dart";
 import "package:intl/intl.dart";
 import "../../models/event.dart";
+import "../../providers/bootstrap_provider.dart";
 import "../../providers/calendar_providers.dart";
+import "../../theme/ensom_colors.dart";
+import "../../widgets/permission_degraded_banner.dart";
 
-/// CAL-01. 이번 달 일정 목록만 보여준다 — 월/주간 그리드 뷰, 구글
-/// 캘린더 연동 화면은 이번 패스 범위 밖(PRD §10.4 중 목록·생성만).
 class CalendarScreen extends ConsumerWidget {
   const CalendarScreen({super.key});
 
@@ -18,10 +19,30 @@ class CalendarScreen extends ConsumerWidget {
       to: DateTime(now.year, now.month + 1, 1),
     );
     final eventsAsync = ref.watch(eventsInRangeProvider(range));
+    final bootstrap = ref.watch(bootstrapProvider).value;
+    final calendarStatuses = bootstrap?.permissions.where(
+      (permission) => permission.permissionType == "calendar",
+    );
+    final calendarDenied =
+        calendarStatuses?.any(
+          (permission) =>
+              permission.status == "denied" ||
+              permission.status == "restricted",
+        ) ??
+        false;
     final dateFormat = DateFormat("M/d (E) HH:mm", "ko_KR");
 
     return Scaffold(
-      appBar: AppBar(title: const Text("캘린더")),
+      appBar: AppBar(
+        title: const Text("캘린더"),
+        actions: [
+          IconButton(
+            tooltip: "캘린더 연동 관리",
+            onPressed: () => context.push("/calendar/sync"),
+            icon: const Icon(Icons.sync),
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => context.push("/calendar/new"),
         child: const Icon(Icons.add),
@@ -30,23 +51,45 @@ class CalendarScreen extends ConsumerWidget {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, st) => Center(child: Text("불러오지 못했어요: $err")),
         data: (events) {
-          if (events.isEmpty) {
-            return const Center(child: Text("이번 달 일정이 없어요."));
-          }
-          final sorted = [...events]..sort((a, b) => a.startsAt.compareTo(b.startsAt));
-          return ListView.separated(
+          final sorted = [...events]
+            ..sort((a, b) => a.startsAt.compareTo(b.startsAt));
+          return ListView(
             padding: const EdgeInsets.all(16),
-            itemCount: sorted.length,
-            separatorBuilder: (_, _) => const Divider(height: 1),
-            itemBuilder: (context, index) {
-              final event = sorted[index];
-              return ListTile(
-                title: Text(event.displayName),
-                subtitle: Text(dateFormat.format(event.startsAt)),
-                trailing: _locationStateChip(event.locationState),
-                onTap: () => context.push("/events/${event.eventId}"),
-              );
-            },
+            children: [
+              PermissionDegradedBanner(
+                type: DegradedPermissionType.calendar,
+                deniedOverride: calendarDenied,
+              ),
+              if (sorted.isEmpty) ...[
+                const SizedBox(height: 64),
+                const Icon(
+                  Icons.event_available,
+                  size: 48,
+                  color: EnsomColors.inkMuted,
+                ),
+                const SizedBox(height: 12),
+                const Center(child: Text("이번 달 일정이 없어요.")),
+                const SizedBox(height: 16),
+                FilledButton(
+                  onPressed: () => context.push("/calendar/new"),
+                  child: const Text("일정 만들기"),
+                ),
+                OutlinedButton(
+                  onPressed: () => context.push("/calendar/sync"),
+                  child: const Text("캘린더 연동하기"),
+                ),
+              ] else
+                for (var index = 0; index < sorted.length; index++) ...[
+                  if (index > 0) const Divider(height: 1),
+                  ListTile(
+                    title: Text(sorted[index].displayName),
+                    subtitle: Text(dateFormat.format(sorted[index].startsAt)),
+                    trailing: _locationStateChip(sorted[index].locationState),
+                    onTap: () =>
+                        context.push("/events/${sorted[index].eventId}"),
+                  ),
+                ],
+            ],
           );
         },
       ),
@@ -57,7 +100,11 @@ class CalendarScreen extends ConsumerWidget {
     if (state == LocationState.notRequired) return null;
     final needsPlace = state == LocationState.requiredMissing;
     return needsPlace
-        ? const Icon(Icons.error_outline, color: Colors.orange, size: 18)
-        : const Icon(Icons.place_outlined, color: Colors.grey, size: 18);
+        ? const Icon(Icons.error_outline, color: EnsomColors.caution, size: 18)
+        : const Icon(
+            Icons.place_outlined,
+            color: EnsomColors.inkMuted,
+            size: 18,
+          );
   }
 }

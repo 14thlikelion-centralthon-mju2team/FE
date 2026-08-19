@@ -2,6 +2,7 @@ import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "../../network/api_client.dart";
 import "../../providers/auth_providers.dart";
+import "../../theme/ensom_colors.dart";
 
 /// PRF-08 개인화
 /// BE: GET /me/personalization, DELETE /me/personalization, POST /me/personalization/revert
@@ -13,8 +14,7 @@ class PersonalizationScreen extends ConsumerStatefulWidget {
       _PersonalizationScreenState();
 }
 
-class _PersonalizationScreenState
-    extends ConsumerState<PersonalizationScreen> {
+class _PersonalizationScreenState extends ConsumerState<PersonalizationScreen> {
   bool _loading = true;
   Map<String, dynamic>? _data;
   String? _error;
@@ -54,9 +54,7 @@ class _PersonalizationScreenState
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text("개인화를 초기화할까요?"),
-        content: const Text(
-          "학습된 준비 시간 보정이 초기화돼요.\n행동 기록은 유지됩니다.",
-        ),
+        content: const Text("학습된 준비 시간 보정이 초기화돼요.\n행동 기록은 유지됩니다."),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -64,7 +62,7 @@ class _PersonalizationScreenState
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            style: TextButton.styleFrom(foregroundColor: EnsomColors.caution),
             child: const Text("초기화"),
           ),
         ],
@@ -75,16 +73,16 @@ class _PersonalizationScreenState
       final api = ref.read(apiClientProvider);
       await api.delete("/me/personalization");
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("개인화가 초기화됐어요.")),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text("개인화가 초기화됐어요.")));
         _load();
       }
     } on ApiException catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.message)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
       }
     }
   }
@@ -96,38 +94,44 @@ class _PersonalizationScreenState
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
-              ? Center(child: Text(_error!))
-              : ListView(
-                  padding: const EdgeInsets.all(16),
-                  children: [
-                    if (_data != null) ...[
-                      Card(
-                        child: Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text("준비 시간 보정",
-                                  style: Theme.of(context).textTheme.titleMedium),
-                              const SizedBox(height: 8),
-                              Text("초기 설정: ${_data!["initialPrepMinutes"] ?? "미설정"}분"),
-                              Text("현재 학습값: ${_data!["currentPrepMinutes"] ?? "없음"}분"),
-                            ],
+          ? Center(child: Text(_error!))
+          : ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                if (_data != null) ...[
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "준비 시간 보정",
+                            style: Theme.of(context).textTheme.titleMedium,
                           ),
-                        ),
-                      ),
-                    ],
-                    const SizedBox(height: 24),
-                    OutlinedButton.icon(
-                      onPressed: _reset,
-                      icon: const Icon(Icons.restart_alt),
-                      label: const Text("개인화 초기화"),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.red,
+                          const SizedBox(height: 8),
+                          Text(
+                            "초기 설정: ${_data!["initialPrepMinutes"] ?? "미설정"}분",
+                          ),
+                          Text(
+                            "현재 학습값: ${_data!["currentPrepMinutes"] ?? "없음"}분",
+                          ),
+                        ],
                       ),
                     ),
-                  ],
+                  ),
+                ],
+                const SizedBox(height: 24),
+                OutlinedButton.icon(
+                  onPressed: _reset,
+                  icon: const Icon(Icons.restart_alt),
+                  label: const Text("개인화 초기화"),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: EnsomColors.caution,
+                  ),
                 ),
+              ],
+            ),
     );
   }
 }

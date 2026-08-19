@@ -5,6 +5,7 @@ import "package:google_sign_in/google_sign_in.dart";
 import "../../core/app_config.dart";
 import "../../network/api_client.dart";
 import "../../providers/auth_providers.dart";
+import "../../theme/ensom_colors.dart";
 import "email_signup_screen.dart";
 import "email_login_screen.dart";
 
@@ -25,11 +26,10 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   // Google Sign-In 설정. serverClientId는 백엔드가 토큰을 검증할 때
   // 사용하는 OAuth 클라이언트 ID(Web 타입) — --dart-define=GOOGLE_SERVER_CLIENT_ID로 주입.
   static final _googleSignIn = GoogleSignIn(
-    serverClientId: kGoogleServerClientId.isEmpty ? null : kGoogleServerClientId,
-    scopes: [
-      "email",
-      "https://www.googleapis.com/auth/calendar.readonly",
-    ],
+    serverClientId: kGoogleServerClientId.isEmpty
+        ? null
+        : kGoogleServerClientId,
+    scopes: ["email", "https://www.googleapis.com/auth/calendar.readonly"],
   );
 
   Future<void> _handleGoogleLogin() async {
@@ -55,7 +55,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
         return;
       }
 
-      final installationId = await ref.read(secureStorageProvider).installationId;
+      final installationId = await ref
+          .read(secureStorageProvider)
+          .installationId;
       final authNotifier = ref.read(authNotifierProvider.notifier);
       await authNotifier.loginWithGoogle(
         idToken: idToken,
@@ -68,6 +70,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       switch (authState.status) {
         case AuthStatus.consentRequired:
           context.go("/onboarding/consent");
+        case AuthStatus.onboarding:
+          context.go("/onboarding/prep-time");
         case AuthStatus.authenticated:
           context.go("/home");
         default:
@@ -106,11 +110,14 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
               const SizedBox(height: 8),
               const Text(
                 "늦지 않게, 서두르지 않게.",
-                style: TextStyle(color: Colors.grey),
+                style: TextStyle(color: EnsomColors.inkMuted),
               ),
               const SizedBox(height: 48),
               if (_error != null) ...[
-                Text(_error!, style: const TextStyle(color: Colors.red)),
+                Text(
+                  _error!,
+                  style: const TextStyle(color: EnsomColors.caution),
+                ),
                 const SizedBox(height: 16),
               ],
               if (kGoogleServerClientId.isNotEmpty) ...[

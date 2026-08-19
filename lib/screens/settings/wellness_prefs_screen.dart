@@ -4,6 +4,7 @@ import "package:flutter_riverpod/legacy.dart";
 import "../../models/wellness_pref.dart";
 import "../../repository/ensom_repository.dart";
 import "../../repository/providers.dart";
+import "../../theme/ensom_colors.dart";
 
 const _topicLabels = {
   "uv": "자외선",
@@ -14,13 +15,16 @@ const _topicLabels = {
 };
 
 final wellnessPrefsProvider =
-    StateNotifierProvider.autoDispose<WellnessPrefsController, AsyncValue<List<WellnessPref>>>(
-        (ref) {
-  final repo = ref.watch(ensomRepositoryProvider);
-  return WellnessPrefsController(repo);
-});
+    StateNotifierProvider.autoDispose<
+      WellnessPrefsController,
+      AsyncValue<List<WellnessPref>>
+    >((ref) {
+      final repo = ref.watch(ensomRepositoryProvider);
+      return WellnessPrefsController(repo);
+    });
 
-class WellnessPrefsController extends StateNotifier<AsyncValue<List<WellnessPref>>> {
+class WellnessPrefsController
+    extends StateNotifier<AsyncValue<List<WellnessPref>>> {
   WellnessPrefsController(this._repo) : super(const AsyncValue.loading()) {
     _load();
   }
@@ -41,7 +45,8 @@ class WellnessPrefsController extends StateNotifier<AsyncValue<List<WellnessPref
     final prefs = state.value;
     if (prefs == null) return;
     final newList = [
-      for (final p in prefs) if (p.topic == updated.topic) updated else p,
+      for (final p in prefs)
+        if (p.topic == updated.topic) updated else p,
     ];
     state = AsyncValue.data(newList);
     try {
@@ -68,7 +73,13 @@ class WellnessPrefsScreen extends ConsumerWidget {
         data: (prefs) => ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            for (final pref in prefs) _PrefTile(pref: pref, onChanged: controller.update),
+            for (final pref in prefs)
+              _PrefTile(pref: pref, onChanged: controller.update),
+            const SizedBox(height: 16),
+            const Text(
+              "재알림 주기는 사용자가 직접 설정해요. 환경과 개인 상태에 따라 달라질 수 있어 앱이 대신 판단하지 않아요.",
+              style: TextStyle(fontSize: 12, color: EnsomColors.inkMuted),
+            ),
           ],
         ),
       ),
@@ -99,7 +110,10 @@ class _PrefTile extends StatelessWidget {
             if (pref.isEnabled) ...[
               Text(
                 "재알림 주기: ${pref.remindIntervalMinutes ?? 120}분",
-                style: const TextStyle(fontSize: 12, color: Colors.grey),
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: EnsomColors.inkMuted,
+                ),
               ),
               Slider(
                 value: (pref.remindIntervalMinutes ?? 120).toDouble(),

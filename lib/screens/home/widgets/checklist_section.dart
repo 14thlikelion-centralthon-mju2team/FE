@@ -1,5 +1,6 @@
 import "package:flutter/material.dart";
 import "../../../models/plan.dart";
+import "../../../theme/ensom_colors.dart";
 
 /// PLAN-05 체크리스트.
 ///
@@ -45,12 +46,19 @@ class ChecklistSection extends StatelessWidget {
                   const SizedBox(width: 6),
                   Text(
                     "+${item.appliedMinutes}분",
-                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: EnsomColors.inkMuted,
+                    ),
                   ),
                 ],
                 if (item.isSensitive) ...[
                   const SizedBox(width: 6),
-                  const Icon(Icons.lock_outline, size: 14, color: Colors.grey),
+                  const Icon(
+                    Icons.lock_outline,
+                    size: 14,
+                    color: EnsomColors.inkMuted,
+                  ),
                 ],
               ],
             ),
