@@ -9,6 +9,7 @@ import "../screens/onboarding/email_verification_screen.dart";
 import "../screens/onboarding/location_permission_screen.dart";
 import "../screens/onboarding/prep_time_entry_screen.dart";
 import "../screens/onboarding/wellness_onboarding_screen.dart";
+import "../screens/onboarding/onboarding_complete_screen.dart";
 import "../screens/home/home_screen.dart";
 import "../screens/notifications/notification_log_screen.dart";
 import "../screens/places/place_registration_screen.dart";
@@ -113,6 +114,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: "/onboarding/wellness",
         builder: (c, s) => const WellnessOnboardingScreen(),
+      ),
+      GoRoute(
+        path: "/onboarding/complete",
+        builder: (c, s) => const OnboardingCompleteScreen(),
       ),
       GoRoute(
         path: "/onboarding/password-reset",

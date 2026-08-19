@@ -20,7 +20,7 @@ class WellnessOnboardingScreen extends ConsumerWidget {
         title: const Text("웰니스 관심 항목"),
         actions: [
           TextButton(
-            onPressed: () => context.go("/home"),
+            onPressed: () => context.go("/onboarding/complete"),
             child: const Text("건너뛰기"),
           ),
         ],
@@ -34,7 +34,7 @@ class WellnessOnboardingScreen extends ConsumerWidget {
               Text("불러오지 못했어요: $err"),
               const SizedBox(height: 12),
               ElevatedButton(
-                onPressed: () => context.go("/home"),
+                onPressed: () => context.go("/onboarding/complete"),
                 child: const Text("건너뛰고 시작하기"),
               ),
             ],
@@ -69,7 +69,7 @@ class WellnessOnboardingScreen extends ConsumerWidget {
               child: SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: () => context.go("/home"),
+                  onPressed: () => context.go("/onboarding/complete"),
                   child: const Text("완료"),
                 ),
               ),
