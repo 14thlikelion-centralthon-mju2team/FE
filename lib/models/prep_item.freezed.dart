@@ -219,7 +219,7 @@ return $default(_that.id,_that.label,_that.kind,_that.extraMin,_that.sensitive,_
 
 class _PrepItem extends PrepItem {
   const _PrepItem({required this.id, required this.label, required this.kind, this.extraMin = 0, this.sensitive = false, this.fromChip = false, this.active = true}): super._();
-  factory _PrepItem.fromJson(Map<String, dynamic> json) => _$PrepItemFromJson(json);
+  factory _PrepItem.fromJson(Map<String, dynamic> json) => PrepItem.fromJson(json) as _PrepItem;
 
 @override final  String id;
 @override final  String label;
