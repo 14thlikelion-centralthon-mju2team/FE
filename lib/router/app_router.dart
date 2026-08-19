@@ -100,6 +100,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (c, s) => const LocationPermissionScreen(),
       ),
       GoRoute(
+        path: "/onboarding/places",
+        builder: (c, s) => const PlaceRegistrationScreen(isOnboarding: true),
+      ),
+      GoRoute(
         path: "/onboarding/password-reset",
         builder: (c, s) => const PlaceholderScreen(title: "비밀번호 재설정"),
       ),
