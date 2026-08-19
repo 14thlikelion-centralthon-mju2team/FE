@@ -120,16 +120,25 @@ class ApiClient {
     }
 
     // ─── 응답 파싱 ──────────────────────────────────────────────
-    final body = response.body.isEmpty
+    // BE가 JSON object 또는 array를 직접 반환할 수 있으므로
+    // 먼저 dynamic으로 디코딩한 뒤 타입에 따라 분기한다.
+    final dynamic decoded = response.body.isEmpty
         ? <String, dynamic>{}
-        : jsonDecode(response.body) as Map<String, dynamic>;
+        : jsonDecode(response.body);
 
     if (response.statusCode >= 200 && response.statusCode < 300) {
-      return (body["data"] ?? body) as T;
+      // Case 1: {"data": ...} wrapper가 있으면 unwrap
+      if (decoded is Map<String, dynamic> && decoded.containsKey("data")) {
+        return decoded["data"] as T;
+      }
+      // Case 2: wrapper 없이 object/array 직접 반환
+      return decoded as T;
     }
 
     // ─── 에러 응답 ──────────────────────────────────────────────
-    final error = body["error"] as Map<String, dynamic>? ?? {};
+    final Map<String, dynamic> errorBody =
+        decoded is Map<String, dynamic> ? decoded : <String, dynamic>{};
+    final error = errorBody["error"] as Map<String, dynamic>? ?? errorBody;
     throw ApiException(
       code: error["code"] as String? ?? "UNKNOWN_ERROR",
       message: error["message"] as String? ?? "요청을 처리하지 못했어요.",
@@ -158,7 +167,8 @@ class ApiClient {
       );
       if (response.statusCode != 200) return false;
       final body = jsonDecode(response.body) as Map<String, dynamic>;
-      final data = body["data"] as Map<String, dynamic>;
+      // BE가 {"data": {accessToken}} 또는 {accessToken} 직접 반환 양쪽 대응
+      final data = (body["data"] ?? body) as Map<String, dynamic>;
       await _secureStorage.updateAccessToken(data["accessToken"] as String);
       return true;
     } catch (_) {

@@ -62,11 +62,11 @@ abstract class PrepItem with _$PrepItem {
   Map<String, dynamic> toJson() => _$PrepItemToJson(this as _PrepItem);
 }
 
-/// BE의 actionType 값(carry/consume/purchase/timed_routine)이나
-/// FE의 kind 값(carry/consume/purchase/routine) 모두 파싱 가능.
+/// BE의 actionType 값(CARRY/CONSUME/PURCHASE/TIMED_ROUTINE 또는
+/// carry/consume/purchase/timed_routine) 모두 파싱 가능.
 PrepKind _parseKind(dynamic value) {
   if (value == null) return PrepKind.carry;
-  final s = value.toString();
+  final s = value.toString().toLowerCase();
   switch (s) {
     case 'carry':
       return PrepKind.carry;
