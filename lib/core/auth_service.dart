@@ -218,21 +218,18 @@ class ConsentEntry {
   const ConsentEntry({
     required this.consentType,
     required this.policyVersion,
-    required this.action,
-    required this.isRequired,
+    required this.agreed,
   });
 
   final String consentType;
   final String policyVersion;
-  final String action; // "agreed" | "revoked"
-  final bool isRequired;
+  final bool agreed;
 
+  /// BE 현재 계약: consentType + policyVersion + agreed (boolean).
+  /// action/isRequired는 FE 전용 개념이므로 서버에 보내지 않는다.
   Map<String, dynamic> toJson() => {
         "consentType": consentType,
         "policyVersion": policyVersion,
-        "action": action,
-        "isRequired": isRequired,
-        // BE 현재 계약: agreed boolean 필수
-        "agreed": action == "agreed",
+        "agreed": agreed,
       };
 }

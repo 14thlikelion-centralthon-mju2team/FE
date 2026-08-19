@@ -63,13 +63,10 @@ class _EmailSignupScreenState extends ConsumerState<EmailSignupScreen> {
       _error = null;
     });
     try {
-      final installationId = await ref.read(secureStorageProvider).installationId;
       final authNotifier = ref.read(authNotifierProvider.notifier);
       await authNotifier.signupWithEmail(
         email: _emailController.text.trim(),
         password: _passwordController.text,
-        nickname: _nicknameController.text.trim(),
-        installationId: installationId,
       );
 
       if (!mounted) return;

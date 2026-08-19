@@ -69,8 +69,7 @@ class _ConsentScreenState extends ConsumerState<ConsentScreen> {
           .map((item) => ConsentEntry(
                 consentType: item.type,
                 policyVersion: _policyVersion,
-                action: item.agreed ? "agreed" : "revoked",
-                isRequired: item.required,
+                agreed: item.agreed,
               ))
           .toList();
 

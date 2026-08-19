@@ -89,22 +89,22 @@ class AuthNotifier extends StateNotifier<AuthState> {
     });
   }
 
-  /// 이메일 가입 성공 — 토큰 미발급, 인증 대기 상태
+  /// 이메일 가입 성공 — BE는 email/password만 수신 (BE #155 확정 계약).
+  /// 토큰 미발급, 가입 후 동의 화면으로 이동.
   Future<SignupResult> signupWithEmail({
     required String email,
     required String password,
-    required String nickname,
-    required String installationId,
   }) async {
     final result = await authService.signupWithEmail(
       email: email,
       password: password,
-      nickname: nickname,
-      timezone: "Asia/Seoul",
-      installationId: installationId,
     );
+    // BE에 이메일 인증 엔드포인트가 아직 없으므로 (BE #155 추적),
+    // 가입 성공 시 바로 consentRequired 또는 authenticated로 전이.
+    // BE가 이메일 인증을 추가하면 emailVerificationRequired로 변경.
     state = AuthState(
-      status: AuthStatus.emailVerificationRequired,
+      status: AuthStatus.consentRequired,
+      userId: result.userId,
       email: email,
     );
     return result;
