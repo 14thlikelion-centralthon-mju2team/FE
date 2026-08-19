@@ -89,8 +89,13 @@ class AuthNotifier extends StateNotifier<AuthState> {
     });
   }
 
-  /// 이메일 가입 성공 — BE는 email/password만 수신 (BE #155 확정 계약).
-  /// 토큰 미발급, 가입 후 동의 화면으로 이동.
+  /// 이메일 가입 성공 후 자동 로그인.
+  ///
+  /// BE signup은 토큰을 발급하지 않으므로, 가입 직후 같은 credential로
+  /// loginWithEmail()을 호출해 access/refresh token을 확보한다.
+  /// 이렇게 해야 이후 POST /consents가 인증 헤더를 포함할 수 있다.
+  ///
+  /// 흐름: signup → 자동 login(토큰 저장) → consentRequired/authenticated 전이
   Future<SignupResult> signupWithEmail({
     required String email,
     required String password,
@@ -99,14 +104,15 @@ class AuthNotifier extends StateNotifier<AuthState> {
       email: email,
       password: password,
     );
-    // BE에 이메일 인증 엔드포인트가 아직 없으므로 (BE #155 추적),
-    // 가입 성공 시 바로 consentRequired 또는 authenticated로 전이.
-    // BE가 이메일 인증을 추가하면 emailVerificationRequired로 변경.
-    state = AuthState(
-      status: AuthStatus.consentRequired,
-      userId: result.userId,
+
+    // 가입 성공 → 같은 credential로 즉시 로그인하여 토큰 확보
+    final loginResult = await authService.loginWithEmail(
       email: email,
+      password: password,
     );
+
+    // 로그인 결과에 따라 상태 전이
+    _handleLoginResult(loginResult, email: email);
     return result;
   }
 
@@ -114,7 +120,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<void> loginWithEmail({
     required String email,
     required String password,
-    required String installationId,
+    String? installationId,
   }) async {
     final result = await authService.loginWithEmail(
       email: email,

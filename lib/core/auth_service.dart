@@ -63,7 +63,7 @@ class AuthService {
   Future<LoginResult> loginWithEmail({
     required String email,
     required String password,
-    required String installationId,
+    String? installationId,
   }) async {
     try {
       final data = await _client.post<Map<String, dynamic>>(
@@ -71,7 +71,7 @@ class AuthService {
         body: {
           "email": email,
           "password": password,
-          "installationId": installationId,
+          if (installationId != null) "installationId": installationId,
         },
       );
       return _handleLoginResponse(data);
