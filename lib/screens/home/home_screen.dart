@@ -1,11 +1,14 @@
 import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:go_router/go_router.dart";
+import "package:uuid/uuid.dart";
 import "../../core/local_notification_service.dart";
 import "../../models/action_log.dart";
 import "../../models/plan.dart";
 import "../../providers/home_providers.dart";
 import "../../providers/offline_queue_providers.dart";
+import "../../repository/providers.dart";
+import "widgets/arrival_result_card.dart";
 import "widgets/plan_card.dart";
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -39,6 +42,26 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text("오프라인 상태예요. 연결되면 자동으로 반영돼요.")),
     );
+  }
+
+  // 지오펜스가 도착을 확정하지 못했을 때(무신호·권한 거부)의 수동 폴백
+  // (TRD §9.3). 배치 큐가 아니라 즉시 호출한다 -- 지오펜스 경로도 큐를
+  // 거치지 않고 바로 reportArrival을 부르므로 동일한 방식을 쓴다.
+  Future<void> _reportArrived(String eventId, String planId) async {
+    try {
+      await ref.read(ensomRepositoryProvider).reportArrival(
+            eventId,
+            planId,
+            clientEventId: const Uuid().v4(),
+            source: ActionSource.user,
+          );
+      ref.read(planControllerProvider(eventId).notifier).retry();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("처리하지 못했어요. 다시 시도해주세요.")),
+      );
+    }
   }
 
   void _scheduleLocalNotifications(Plan plan, String eventDisplayName) {
@@ -127,6 +150,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     onDeparted: () => _enqueueAndMaybeRefresh(
                       event.eventId, plan.planId, ActionType.departed,
                     ),
+                    onArrived: () => _reportArrived(event.eventId, plan.planId),
                     onSnooze: () => _enqueueAndMaybeRefresh(
                       event.eventId, plan.planId, ActionType.snoozed,
                     ),
@@ -157,6 +181,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       }
                     },
                   ),
+                  if (plan.eventStatus == EventLifecycleStatus.arrived ||
+                      plan.eventStatus == EventLifecycleStatus.closed) ...[
+                    const SizedBox(height: 16),
+                    ArrivalResultCard(eventId: event.eventId),
+                  ],
                 ],
               );
             },

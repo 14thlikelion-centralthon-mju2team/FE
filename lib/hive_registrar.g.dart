@@ -3,13 +3,11 @@
 // Check in to version control
 
 import 'package:hive_ce/hive_ce.dart';
-import 'package:vium/local/geofence_state_entry.dart';
 import 'package:vium/local/offline_queue_entry.dart';
 import 'package:vium/local/place_cache_entry.dart';
 
 extension HiveRegistrar on HiveInterface {
   void registerAdapters() {
-    registerAdapter(GeofenceStateEntryAdapter());
     registerAdapter(OfflineQueueEntryAdapter());
     registerAdapter(PlaceCacheEntryAdapter());
   }
@@ -17,7 +15,6 @@ extension HiveRegistrar on HiveInterface {
 
 extension IsolatedHiveRegistrar on IsolatedHiveInterface {
   void registerAdapters() {
-    registerAdapter(GeofenceStateEntryAdapter());
     registerAdapter(OfflineQueueEntryAdapter());
     registerAdapter(PlaceCacheEntryAdapter());
   }

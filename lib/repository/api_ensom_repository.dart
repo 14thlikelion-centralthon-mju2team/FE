@@ -9,6 +9,7 @@ import "../models/action_log.dart";
 import "../models/daily_wellness_summary.dart";
 import "../models/prep_estimate.dart";
 import "../models/wellness_pref.dart";
+import "../models/execution.dart";
 import "../network/api_client.dart";
 
 /// API v5.0 기준 실제 구현체. 이번 PR(M1)이 화면에서 실제로 쓰는
@@ -82,6 +83,42 @@ class ApiEnsomRepository implements EnsomRepository {
       body: {"routeOptionId": routeOptionId},
     );
     return Plan.fromJson(json);
+  }
+
+  @override
+  Future<List<RouteOption>> fetchRouteSearch({
+    double? originLat,
+    double? originLng,
+    String? originPlaceId,
+    required double destLat,
+    required double destLng,
+    required String destName,
+    required EventAnchor anchorMode,
+    required DateTime at,
+  }) async {
+    try {
+      final json = await _client.get<List<dynamic>>(
+        "/routes/search",
+        query: {
+          if (originPlaceId != null) "originPlaceId": originPlaceId,
+          if (originLat != null) "originLat": originLat,
+          if (originLng != null) "originLng": originLng,
+          "destLat": destLat,
+          "destLng": destLng,
+          "destName": destName,
+          "anchorMode": anchorMode == EventAnchor.departAt ? "depart_at" : "arrive_by",
+          "at": at.toIso8601String(),
+        },
+      );
+      return json
+          .map((e) => RouteOption.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } on ApiException catch (e) {
+      // BE에 엔드포인트가 아직 없으면 404 → 빈 리스트로 저하 동작.
+      // UI에서 빈 리스트를 받으면 "경로 검색을 사용할 수 없어요" 안내 표시.
+      if (e.statusCode == 404 || e.code == "NOT_FOUND") return [];
+      rethrow;
+    }
   }
 
   // -- 행동 기록 -----------------------------------------------------
@@ -226,27 +263,81 @@ class ApiEnsomRepository implements EnsomRepository {
   Future<List<Event>> fetchEvents({
     required DateTime from,
     required DateTime to,
-  }) =>
-      throw UnimplementedError("캘린더 화면(M4, feat/fe-map-summary-settings) 범위");
+  }) async {
+    final json = await _client.get<List<dynamic>>(
+      "/events",
+      query: {
+        "from": from.toIso8601String(),
+        "to": to.toIso8601String(),
+      },
+    );
+    return json.map((e) => Event.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  /// API 명세 §8.1 요청 바디. Event 모델은 응답 전용 필드(eventId,
+  /// status 등)도 갖고 있어 toJson()을 그대로 보내지 않고 요청에
+  /// 필요한 필드만 추린다. enum → 문자열 변환은 생성된 toJson()의
+  /// @JsonValue 매핑을 그대로 재사용한다(Dart 필드명 "anchor"만 API
+  /// 필드명 "anchorMode"로 다시 매핑).
+  @override
+  Future<Event> createEvent(
+    Event event, {
+    String? originPlaceId,
+    String? selectedRouteOptionId,
+    String? writeToCalendarSourceId,
+  }) async {
+    final ej = event.toJson();
+    final json = await _client.post<Map<String, dynamic>>(
+      "/events",
+      body: {
+        "startsAt": ej["startsAt"],
+        "endsAt": ej["endsAt"],
+        "locationState": ej["locationState"],
+        if (event.destinationName != null) "destinationName": event.destinationName,
+        if (event.destinationLat != null) "destinationLat": event.destinationLat,
+        if (event.destinationLng != null) "destinationLng": event.destinationLng,
+        "sourceType": ej["sourceType"],
+        "anchorMode": ej["anchor"],
+        if (originPlaceId != null) "originPlaceId": originPlaceId,
+        if (selectedRouteOptionId != null) "selectedRouteOptionId": selectedRouteOptionId,
+        if (event.displayLabel != null) "displayLabel": event.displayLabel,
+        if (writeToCalendarSourceId != null) "writeToCalendarSourceId": writeToCalendarSourceId,
+      },
+    );
+    return Event.fromJson(json);
+  }
 
   @override
-  Future<Event> createEvent(Event event) =>
-      throw UnimplementedError("일정 생성(CAL-01/05)은 M4 범위");
+  Future<Event> updateEvent(String eventId, Event event) async {
+    final ej = event.toJson();
+    final json = await _client.patch<Map<String, dynamic>>(
+      "/events/$eventId",
+      body: {
+        "locationState": ej["locationState"],
+        if (event.displayLabel != null) "displayLabel": event.displayLabel,
+      },
+    );
+    return Event.fromJson(json);
+  }
 
   @override
-  Future<Event> updateEvent(String eventId, Event event) =>
-      throw UnimplementedError("일정 수정은 M4 범위");
-
-  @override
-  Future<void> deleteEvent(String eventId) =>
-      throw UnimplementedError("일정 삭제는 M4 범위");
+  Future<void> deleteEvent(String eventId) async {
+    await _client.delete<Map<String, dynamic>>("/events/$eventId");
+  }
 
   @override
   Future<void> reviewEventClassification(
     String eventId,
     EventClassificationReview review,
-  ) =>
-      throw UnimplementedError("분류 확인 흐름은 M4 범위");
+  ) async {
+    await _client.post<Map<String, dynamic>>(
+      "/events/$eventId/review",
+      body: {
+        "questionType": review.questionType,
+        "userAnswer": review.userAnswer,
+      },
+    );
+  }
 
   @override
   Future<Plan> updatePlan(
@@ -332,8 +423,9 @@ class ApiEnsomRepository implements EnsomRepository {
       throw UnimplementedError("개인화 되돌리기 UI는 아직 스코프 미배정");
 
   @override
-  Future<void> resetPersonalization() =>
-      throw UnimplementedError("설정 화면(feat/fe-map-summary-settings, M4) 범위");
+  Future<void> resetPersonalization() async {
+    await _client.delete<Map<String, dynamic>>("/me/personalization");
+  }
 
   @override
   Future<List<Place>> fetchPlaces() =>
@@ -348,10 +440,83 @@ class ApiEnsomRepository implements EnsomRepository {
       throw UnimplementedError("feature/geofence-place-management 범위");
 
   @override
-  Future<void> syncCalendar() =>
-      throw UnimplementedError("캘린더 연동은 feat/fe-map-summary-settings(M4) 범위");
+  Future<void> syncCalendar() async {
+    await _client.post<Map<String, dynamic>>("/calendar/sync");
+  }
+
+  // -- 도착 결과·사후 평가 (REPORT-01, §14) -----------------------------
+  @override
+  Future<EventExecution> fetchExecution(String eventId) async {
+    final json = await _client.get<Map<String, dynamic>>("/events/$eventId/execution");
+    return EventExecution.fromJson(json);
+  }
 
   @override
-  Future<void> deleteAccount() =>
-      throw UnimplementedError("계정 삭제는 feat/fe-map-summary-settings(M4) 범위");
+  Future<void> submitFeedback(
+    String eventId, {
+    required PrepTimingAssessment prepTimingAssessment,
+    required ArrivalResult arrivalResult,
+    required RushAssessment rushAssessment,
+  }) async {
+    await _client.post<Map<String, dynamic>>(
+      "/events/$eventId/feedback",
+      body: {
+        "prepTimingAssessment": _prepTimingWireValue[prepTimingAssessment]!,
+        "arrivalResult": _arrivalResultWireValue[arrivalResult]!,
+        "rushAssessment": _rushWireValue[rushAssessment]!,
+      },
+    );
+  }
+
+  static const _prepTimingWireValue = {
+    PrepTimingAssessment.tooEarly: "too_early",
+    PrepTimingAssessment.appropriate: "appropriate",
+    PrepTimingAssessment.tooLate: "too_late",
+  };
+
+  static const _arrivalResultWireValue = {
+    ArrivalResult.early: "early",
+    ArrivalResult.onTime: "on_time",
+    ArrivalResult.rushed: "rushed",
+    ArrivalResult.late_: "late",
+    ArrivalResult.unknown: "unknown",
+  };
+
+  static const _rushWireValue = {
+    RushAssessment.notRushed: "not_rushed",
+    RushAssessment.rushed: "rushed",
+  };
+
+  /// 도착 처리: POST /plans/{planId}/actions (배치 엔드포인트)로 전송.
+  /// BE dev에 ARRIVED ActionType이 있으므로 행동 기록 경로를 사용한다.
+  /// TRD §9.2: 지오펜스 판정 결과를 서버에 전송.
+  @override
+  Future<void> reportArrival(
+    String eventId,
+    String planId, {
+    required String clientEventId,
+    required ActionSource source,
+    double? confidence,
+  }) async {
+    await _client.post<Map<String, dynamic>>(
+      "/plans/$planId/actions",
+      body: {
+        "actions": [
+          {
+            "actionType": "ARRIVED",
+            "actionSource": source.name.toUpperCase(),
+            "deviceTs": DateTime.now().toIso8601String(),
+            "clientEventId": clientEventId,
+            if (confidence != null) "confidence": confidence,
+          },
+        ],
+      },
+    );
+  }
+
+  // -- 계정 --------------------------------------------------------
+  @override
+  Future<void> deleteAccount() async {
+    await _client.delete<Map<String, dynamic>>("/me");
+  }
 }

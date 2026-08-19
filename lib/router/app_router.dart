@@ -9,8 +9,15 @@ import "../screens/onboarding/location_permission_screen.dart";
 import "../screens/onboarding/prep_time_entry_screen.dart";
 import "../screens/home/home_screen.dart";
 import "../screens/notifications/notification_log_screen.dart";
+import "../screens/places/place_registration_screen.dart";
+import "../screens/route/route_selection_screen.dart";
 import "../screens/settings/wellness_prefs_screen.dart";
+import "../screens/settings/settings_screen.dart";
 import "../screens/summary/daily_summary_screen.dart";
+import "../screens/map/map_screen.dart";
+import "../screens/events/event_create_from_map_screen.dart";
+import "../screens/calendar/calendar_screen.dart";
+import "../screens/calendar/event_form_screen.dart";
 
 final appRouterProvider = Provider<GoRouter>((ref) => appRouter);
 
@@ -71,6 +78,25 @@ final appRouter = GoRouter(
       path: "/summary/daily",
       builder: (c, s) => const DailySummaryScreen(),
     ),
+    GoRoute(
+      path: "/places/manage",
+      builder: (c, s) => const PlaceRegistrationScreen(),
+    ),
+    GoRoute(
+      path: "/plans/:planId/routes",
+      builder: (c, s) => RouteSelectionScreen(
+        planId: s.pathParameters["planId"]!,
+        eventId: s.uri.queryParameters["eventId"]!,
+      ),
+    ),
+    GoRoute(
+      path: "/events/create-from-map",
+      builder: (c, s) => const EventCreateFromMapScreen(),
+    ),
+    GoRoute(
+      path: "/calendar/new",
+      builder: (c, s) => const EventFormScreen(),
+    ),
     StatefulShellRoute.indexedStack(
       builder: (context, state, shell) => MainTabShell(shell: shell),
       branches: [
@@ -78,21 +104,18 @@ final appRouter = GoRouter(
           GoRoute(path: "/home", builder: (c, s) => const HomeScreen()),
         ]),
         StatefulShellBranch(routes: [
-          GoRoute(
-            path: "/map",
-            builder: (c, s) => const PlaceholderScreen(title: "지도"),
-          ),
+          GoRoute(path: "/map", builder: (c, s) => const MapScreen()),
         ]),
         StatefulShellBranch(routes: [
           GoRoute(
             path: "/calendar",
-            builder: (c, s) => const PlaceholderScreen(title: "캘린더"),
+            builder: (c, s) => const CalendarScreen(),
           ),
         ]),
         StatefulShellBranch(routes: [
           GoRoute(
             path: "/settings",
-            builder: (c, s) => const PlaceholderScreen(title: "설정"),
+            builder: (c, s) => const SettingsScreen(),
           ),
         ]),
       ],
