@@ -14,6 +14,7 @@ class PlanCard extends StatelessWidget {
     required this.plan,
     this.previousPlan,
     required this.onPrepStart,
+    required this.onPrepFinished,
     required this.onDeparted,
     this.onArrived,
     required this.onSnooze,
@@ -27,6 +28,7 @@ class PlanCard extends StatelessWidget {
   final Plan plan;
   final Plan? previousPlan;
   final VoidCallback onPrepStart;
+  final VoidCallback onPrepFinished;
   final VoidCallback onDeparted;
   // 지오펜스가 도착을 자동 확정하지 못했을 때(무신호·권한 거부)의
   // 수동 폴백(TRD §9.3). enroute·unresolved 상태에서만 노출한다.
@@ -110,6 +112,7 @@ class PlanCard extends StatelessWidget {
               runSpacing: 8,
               children: [
                 ElevatedButton(onPressed: onPrepStart, child: const Text("준비 시작")),
+                OutlinedButton(onPressed: onPrepFinished, child: const Text("준비 완료")),
                 OutlinedButton(onPressed: onDeparted, child: const Text("출발했어요")),
                 if (onArrived != null &&
                     (plan.eventStatus == EventLifecycleStatus.enroute ||

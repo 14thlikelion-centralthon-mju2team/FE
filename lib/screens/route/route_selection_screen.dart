@@ -1,6 +1,7 @@
 import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "../../models/plan.dart";
+import "../../network/api_client.dart";
 import "../../providers/home_providers.dart";
 
 /// MAP-02. MVP 고정 3종. API v5.0 §10.1 필드명(routeOptionId/routeType/
@@ -34,8 +35,15 @@ class RouteSelectionScreen extends ConsumerWidget {
       Navigator.of(context).pop();
     } catch (e) {
       if (!context.mounted) return;
+      final expired = e is ApiException && {
+        "ROUTE_OPTION_EXPIRED",
+        "ROUTE_OPTION_NOT_FOUND",
+        "ROUTE_OPTION_ALREADY_USED",
+      }.contains(e.code);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("경로 선택에 실패했어요. 다시 시도해주세요.")),
+        SnackBar(content: Text(expired
+            ? "선택한 경로가 만료되었어요. 경로를 다시 검색해주세요."
+            : "경로 선택에 실패했어요. 다시 시도해주세요.")),
       );
     }
   }

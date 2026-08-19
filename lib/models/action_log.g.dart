@@ -26,6 +26,7 @@ Map<String, dynamic> _$ActionLogEntryToJson(_ActionLogEntry instance) =>
 
 const _$ActionTypeEnumMap = {
   ActionType.prepStarted: 'prep_started',
+  ActionType.prepFinished: 'prep_finished',
   ActionType.snoozed: 'snoozed',
   ActionType.departed: 'departed',
   ActionType.itemChecked: 'item_checked',

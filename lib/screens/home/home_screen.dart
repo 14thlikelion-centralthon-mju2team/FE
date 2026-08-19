@@ -147,6 +147,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     onPrepStart: () => _enqueueAndMaybeRefresh(
                       event.eventId, plan.planId, ActionType.prepStarted,
                     ),
+                    onPrepFinished: () => _enqueueAndMaybeRefresh(
+                      event.eventId, plan.planId, ActionType.prepFinished,
+                    ),
                     onDeparted: () => _enqueueAndMaybeRefresh(
                       event.eventId, plan.planId, ActionType.departed,
                     ),
@@ -164,7 +167,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       try {
                         await controller.toggleChecklistItem(item, completed);
                       } catch (_) {
-                        if (!mounted) return;
+                        if (!context.mounted) return;
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(content: Text("처리하지 못했어요. 다시 시도해주세요.")),
                         );
@@ -174,7 +177,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       try {
                         await controller.resolveWellnessAction(action, status);
                       } catch (_) {
-                        if (!mounted) return;
+                        if (!context.mounted) return;
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(content: Text("처리하지 못했어요. 다시 시도해주세요.")),
                         );
