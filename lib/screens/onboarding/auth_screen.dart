@@ -2,7 +2,6 @@ import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:go_router/go_router.dart";
 import "package:google_sign_in/google_sign_in.dart";
-import "package:uuid/uuid.dart";
 import "../../network/api_client.dart";
 import "../../providers/auth_providers.dart";
 import "email_signup_screen.dart";
@@ -21,8 +20,6 @@ class AuthScreen extends ConsumerStatefulWidget {
 class _AuthScreenState extends ConsumerState<AuthScreen> {
   bool _submitting = false;
   String? _error;
-
-  static const _uuid = Uuid();
 
   // Google Sign-In 설정. serverClientId는 백엔드가 토큰을 검증할 때
   // 사용하는 OAuth 클라이언트 ID. 실제 값은 환경 설정에서 주입한다.
@@ -56,10 +53,11 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
         return;
       }
 
+      final installationId = await ref.read(secureStorageProvider).installationId;
       final authNotifier = ref.read(authNotifierProvider.notifier);
       await authNotifier.loginWithGoogle(
         idToken: idToken,
-        installationId: _uuid.v4(),
+        installationId: installationId,
       );
 
       if (!mounted) return;
