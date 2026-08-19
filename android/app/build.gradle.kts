@@ -9,7 +9,7 @@ plugins {
 }
 
 android {
-    namespace = "com.vium.app.vium"
+    namespace = "com.ensom.app.ensom"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -24,7 +24,7 @@ android {
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.vium.app.vium"
+        applicationId = "com.ensom.app.ensom"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion

@@ -1,5 +1,5 @@
-name: vium
-description: "A new Flutter project."
+name: ensom
+description: "Ensom — AI 웰니스 일정관리 비서."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev

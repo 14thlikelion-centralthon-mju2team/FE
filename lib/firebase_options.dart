@@ -51,18 +51,17 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyAVx360_OX19ualvclVmsZugHF0KRd30vw',
-    appId: '1:133622039339:android:168878c04f93fae0003b6e',
+    appId: '1:133622039339:android:3c99a635184aa73b003b6e',
     messagingSenderId: '133622039339',
     projectId: 'ensom-10da2',
     storageBucket: 'ensom-10da2.firebasestorage.app',
   );
-
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyB02sNepQGVOp-7QD8MNiZ7ZrDxMxcwIJc',
-    appId: '1:133622039339:ios:2237cd381f1e6a97003b6e',
+    appId: '1:133622039339:ios:733623228627898f003b6e',
     messagingSenderId: '133622039339',
     projectId: 'ensom-10da2',
     storageBucket: 'ensom-10da2.firebasestorage.app',
-    iosBundleId: 'com.vium.app.vium',
+    iosBundleId: 'com.ensom.app.ensom',
   );
 }
