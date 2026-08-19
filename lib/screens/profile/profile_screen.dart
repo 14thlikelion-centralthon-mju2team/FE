@@ -1,7 +1,7 @@
 import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:go_router/go_router.dart";
-import "../../providers/auth_providers.dart";
+import "../../core/logout_helper.dart";
 
 /// PRF-01 프로필 메인 리스트
 /// 화면설계서: 계정→PRF-02, 권한→PRF-05, 준비설정→PRF-06,
@@ -65,35 +65,12 @@ class ProfileScreen extends ConsumerWidget {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: OutlinedButton(
-              onPressed: () => _showLogoutConfirm(context, ref),
+              onPressed: () => showLogoutConfirmAndExecute(context, ref),
               style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
               child: const Text("로그아웃"),
             ),
           ),
           const SizedBox(height: 48),
-        ],
-      ),
-    );
-  }
-
-  void _showLogoutConfirm(BuildContext context, WidgetRef ref) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text("로그아웃할까요?"),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text("취소"),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              ref.read(authNotifierProvider.notifier).logout();
-            },
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text("로그아웃"),
-          ),
         ],
       ),
     );

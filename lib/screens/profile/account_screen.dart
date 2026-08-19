@@ -2,8 +2,9 @@ import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:go_router/go_router.dart";
 import "package:google_sign_in/google_sign_in.dart";
-import "../../providers/auth_providers.dart";
+import "../../core/logout_helper.dart";
 import "../../network/api_client.dart";
+import "../../providers/auth_providers.dart";
 
 /// PRF-02 계정 정보
 class AccountScreen extends ConsumerWidget {
@@ -19,36 +20,13 @@ class AccountScreen extends ConsumerWidget {
           ListTile(
             title: const Text("로그아웃"),
             leading: const Icon(Icons.logout),
-            onTap: () => _showLogoutConfirm(context, ref),
+            onTap: () => showLogoutConfirmAndExecute(context, ref),
           ),
           const Divider(),
           ListTile(
             title: const Text("회원 탈퇴", style: TextStyle(color: Colors.red)),
             leading: const Icon(Icons.delete_forever, color: Colors.red),
             onTap: () => context.push("/profile/withdraw"),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showLogoutConfirm(BuildContext context, WidgetRef ref) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text("로그아웃할까요?"),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text("취소"),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              ref.read(authNotifierProvider.notifier).logout();
-            },
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text("로그아웃"),
           ),
         ],
       ),
@@ -173,6 +151,8 @@ class _WithdrawScreenState extends ConsumerState<WithdrawScreen> {
 
       final apiClient = ref.read(apiClientProvider);
       await apiClient.delete("/me");
+      // 로컬 리소스 소거 (알림, 오프라인 큐, 장소 캐시)
+      await clearLocalCaches(ref);
       if (mounted) {
         await showDialog(
           context: context,
