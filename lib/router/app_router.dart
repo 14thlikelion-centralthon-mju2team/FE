@@ -19,6 +19,7 @@ import "../screens/map/map_screen.dart";
 import "../screens/events/event_create_from_map_screen.dart";
 import "../screens/calendar/calendar_screen.dart";
 import "../screens/calendar/event_form_screen.dart";
+import "../screens/calendar/calendar_sync_screen.dart";
 import "../screens/detail/event_detail_screen.dart";
 import "../screens/search/place_search_screen.dart";
 import "../screens/profile/profile_screen.dart";
@@ -153,6 +154,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: "/calendar/new",
         builder: (c, s) => const EventFormScreen(),
+      ),
+      GoRoute(
+        path: "/calendar/sync",
+        builder: (c, s) => const CalendarSyncScreen(),
       ),
 
       // ─── DTL-01 일정 상세 ─────────────────────────────────────
