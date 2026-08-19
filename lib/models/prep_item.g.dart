@@ -6,15 +6,8 @@ part of 'prep_item.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
-_PrepItem _$PrepItemFromJson(Map<String, dynamic> json) => _PrepItem(
-  id: json['id'] as String,
-  label: json['label'] as String,
-  kind: $enumDecode(_$PrepKindEnumMap, json['kind']),
-  extraMin: (json['extraMin'] as num?)?.toInt() ?? 0,
-  sensitive: json['sensitive'] as bool? ?? false,
-  fromChip: json['fromChip'] as bool? ?? false,
-  active: json['active'] as bool? ?? true,
-);
+// fromJson은 PrepItem.fromJson() 커스텀 factory에서 직접 처리하므로
+// generated _$PrepItemFromJson은 사용하지 않는다.
 
 Map<String, dynamic> _$PrepItemToJson(_PrepItem instance) => <String, dynamic>{
   'id': instance.id,

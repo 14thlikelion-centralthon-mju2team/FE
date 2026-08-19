@@ -310,9 +310,26 @@ class ApiEnsomRepository implements EnsomRepository {
 
   @override
   Future<List<WellnessPref>> fetchWellnessPrefs() async {
-    final json = await _client.get<Map<String, dynamic>>("/me/wellness-prefs");
-    final list = json["prefs"] as List<dynamic>;
-    return list.map((e) => WellnessPref.fromJson(e as Map<String, dynamic>)).toList();
+    // BE 응답 형태에 따라 유연하게 대응:
+    //   Case A: {"data": {"prefs": [...]}}  → ApiClient unwrap → {"prefs": [...]}
+    //   Case B: {"data": [...]}             → ApiClient unwrap → [...]
+    //   Case C: {"prefs": [...]}            → ApiClient가 data 키 없으면 body 그대로
+    final raw = await _client.get<dynamic>("/me/wellness-prefs");
+
+    List<dynamic> list;
+    if (raw is List) {
+      // Case B: 배열 직접 반환
+      list = raw;
+    } else if (raw is Map<String, dynamic>) {
+      // Case A/C: {prefs: [...]} 또는 다른 구조
+      list = (raw["prefs"] as List<dynamic>?) ?? [];
+    } else {
+      list = [];
+    }
+
+    return list
+        .map((e) => WellnessPref.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   @override
