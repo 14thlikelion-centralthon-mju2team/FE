@@ -44,6 +44,7 @@ class CalendarScreen extends ConsumerWidget {
                 title: Text(event.displayName),
                 subtitle: Text(dateFormat.format(event.startsAt)),
                 trailing: _locationStateChip(event.locationState),
+                onTap: () => context.push("/events/${event.eventId}"),
               );
             },
           );

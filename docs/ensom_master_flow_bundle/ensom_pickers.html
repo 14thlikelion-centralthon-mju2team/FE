@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ensom — 날짜·시간 선택기 프로토타입</title>
+<style>
+  :root{
+    --lime:#c6f135;--lime-soft:#e4fb9b;--lime-ink:#4e6810;
+    --canvas:#ffffff;--surface-1:#ffffff;--surface-2:#eef0ea;--surface-neutral:#e9e9e6;
+    --hairline:#e3e5e0;--ink:#14150f;--ink-muted:#63655e;--ink-faint:#9a9c92;
+    --panel:#15170f;--cta:#1f231a;--caution:#e3a13b;
+    --font:'Pretendard','Apple SD Gothic Neo','Malgun Gothic',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:var(--font);background:#d9dcd3;color:var(--ink);padding:32px 20px 60px;-webkit-font-smoothing:antialiased;}
+  .page-head{max-width:1180px;margin:0 auto 22px;}
+  .page-head h1{font-size:22px;font-weight:700;letter-spacing:-.4px;}
+  .page-head p{font-size:13px;color:#55584f;margin-top:6px;line-height:1.55;}
+  .stage{max-width:1180px;margin:0 auto;display:flex;gap:36px;flex-wrap:wrap;align-items:flex-start;}
+  .phone{width:344px;height:730px;flex:0 0 auto;background:var(--canvas);border-radius:46px;border:9px solid #16170f;position:relative;overflow:hidden;box-shadow:0 20px 50px rgba(20,21,15,.26);}
+  .notch{position:absolute;top:0;left:50%;transform:translateX(-50%);width:112px;height:26px;background:#16170f;border-radius:0 0 16px 16px;z-index:60;}
+
+  .view{position:absolute;inset:0;display:flex;flex-direction:column;padding:52px 18px 22px;}
+
+  /* trigger screen */
+  .trow{display:flex;align-items:center;justify-content:space-between;padding:15px 2px;border-bottom:1px solid var(--hairline);cursor:pointer;}
+  .trow .tl{font-size:13px;font-weight:600;}
+  .trow .tv{font-size:13px;color:var(--ink-muted);}
+  .trow .chev{width:13px;height:13px;stroke:var(--ink-faint);fill:none;stroke-width:2;margin-left:6px;}
+  .tval-row{display:flex;align-items:center;}
+  h2{font-size:19px;font-weight:700;letter-spacing:-.3px;margin-bottom:4px;}
+  .subtitle{font-size:12px;color:var(--ink-muted);margin-bottom:14px;}
+
+  /* sheet */
+  .sheetwrap{position:absolute;inset:0;z-index:70;display:flex;align-items:flex-end;pointer-events:none;}
+  .scrim{position:absolute;inset:0;background:rgba(20,21,15,0);transition:background .22s;}
+  .sheetwrap.on{pointer-events:auto;}
+  .sheetwrap.on .scrim{background:rgba(20,21,15,.5);}
+  .sheet{position:relative;width:100%;background:#fff;border-radius:26px 26px 0 0;padding:10px 20px calc(20px + env(safe-area-inset-bottom,0));transform:translateY(100%);transition:transform .24s cubic-bezier(.32,.72,0,1);z-index:2;}
+  .sheetwrap.on .sheet{transform:translateY(0);}
+  .handle{width:36px;height:4px;background:var(--surface-neutral);border-radius:99px;margin:4px auto 14px;}
+  .sheet-title{font-size:16px;font-weight:700;letter-spacing:-.2px;text-align:center;margin-bottom:16px;}
+
+  .pbtn{font-family:var(--font);border:0;border-radius:999px;padding:13px 16px;font-size:14px;font-weight:700;cursor:pointer;white-space:nowrap;width:100%;background:var(--cta);color:#fff;margin-top:16px;}
+
+  /* ═ time wheel ═ */
+  .wheelbox{position:relative;height:170px;display:flex;justify-content:center;gap:4px;}
+  .wheelbox::before{content:'';position:absolute;top:68px;left:0;right:0;height:34px;background:var(--surface-2);border-radius:14px;z-index:0;}
+  .wheelcol{width:64px;height:170px;overflow-y:scroll;scroll-snap-type:y mandatory;position:relative;z-index:1;-ms-overflow-style:none;scrollbar-width:none;}
+  .wheelcol::-webkit-scrollbar{display:none;}
+  .wheelcol .pad{height:68px;}
+  .wheelitem{height:34px;display:flex;align-items:center;justify-content:center;scroll-snap-align:center;font-size:17px;font-weight:600;color:var(--ink-faint);transition:color .1s,font-weight .1s;}
+  .wheelitem.sel{color:var(--ink);font-weight:700;font-size:19px;}
+  .wheel-sep{display:flex;align-items:center;height:170px;font-size:18px;font-weight:700;color:var(--ink-faint);z-index:1;}
+
+  .seg{display:flex;background:var(--surface-2);border-radius:13px;padding:3px;gap:3px;margin-top:16px;}
+  .seg .sitem{flex:1 1 0;text-align:center;font-size:12.5px;font-weight:600;padding:9px 0;border-radius:10px;cursor:pointer;color:var(--ink-muted);}
+  .seg .sitem.on{background:var(--cta);color:#fff;}
+
+  /* ═ date picker ═ */
+  .cal-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+  .cal-nav .cbtn{width:28px;height:28px;border-radius:999px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;cursor:pointer;}
+  .cal-nav .cbtn svg{width:12px;height:12px;stroke:var(--ink);fill:none;stroke-width:2.2;}
+  .cal-nav .cmonth{font-size:15px;font-weight:700;}
+  .dowrow{display:grid;grid-template-columns:repeat(7,1fr);margin-bottom:6px;}
+  .dowrow span{text-align:center;font-size:10px;font-weight:600;color:var(--ink-faint);}
+  .dgrid{display:grid;grid-template-columns:repeat(7,1fr);row-gap:6px;}
+  .dcell{display:flex;align-items:center;justify-content:center;}
+  .ddot{width:34px;height:34px;border-radius:999px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:var(--ink);cursor:pointer;position:relative;}
+  .ddot.out{color:var(--ink-faint);opacity:.4;}
+  .ddot.today{background:var(--lime);font-weight:700;}
+  .ddot.sel{background:var(--cta);color:#fff;font-weight:700;}
+  .ddot .ev{width:4px;height:4px;border-radius:999px;background:var(--lime-ink);position:absolute;bottom:3px;}
+  .ddot.sel .ev,.ddot.today .ev{background:rgba(255,255,255,.7);}
+  .ddot.today .ev{background:var(--lime-ink);}
+
+  /* ═ duration picker ═ */
+  .chiprow{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;}
+  .chip{background:var(--surface-2);color:var(--ink);font-size:13px;font-weight:600;padding:10px 16px;border-radius:13px;cursor:pointer;}
+  .chip.on{background:var(--cta);color:#fff;}
+  .stepper{display:flex;align-items:center;justify-content:center;gap:22px;margin-top:18px;}
+  .sbtn{width:40px;height:40px;border-radius:999px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:20px;font-weight:700;user-select:none;}
+  .sval{font-size:24px;font-weight:700;min-width:56px;text-align:center;}
+
+  .hint{display:inline-block;background:#15170f;color:#c6f135;font-size:11.5px;font-weight:600;padding:6px 12px;border-radius:999px;margin-top:10px;}
+  .legend{max-width:340px;font-size:12px;color:#55584f;line-height:1.7;}
+  .legend b{color:var(--ink);}
+
+  /* ═ embed mode (used when loaded inside ensom_master_flow.html) ═ */
+  body.embed{background:transparent;padding:0;overflow:hidden;}
+  body.embed .page-head,body.embed .legend,body.embed .hint{display:none!important;}
+  body.embed .stage{margin:0;padding:0;gap:0;}
+  body.embed .phone{box-shadow:none;}
+</style>
+</head>
+<body>
+
+<div class="page-head">
+  <h1>[PICK-01~03] Ensom — 날짜·시간 선택기 프로토타입</h1>
+  <p>일정 생성·수정에서 쓰는 바텀시트 3종. 시간 휠은 실제로 스크롤(또는 드래그)하면 가운데 값이 굵게 바뀌면서 선택돼.</p>
+</div>
+
+<div class="stage">
+  <div class="phone">
+    <div class="notch"></div>
+
+    <div class="view">
+      <h2>일정 만들기</h2>
+      <div class="subtitle">아래 값을 눌러서 각 선택기를 열어봐</div>
+
+      <div class="trow clickable" onclick="openSheet('s-date')">
+        <span class="tl">날짜</span>
+        <div class="tval-row"><span class="tv" id="dateVal">8월 19일 (수)</span><svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>
+      </div>
+      <div class="trow clickable" onclick="openSheet('s-time')">
+        <span class="tl">시작 시각</span>
+        <div class="tval-row"><span class="tv" id="timeVal">오후 1시 20분</span><svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>
+      </div>
+      <div class="trow clickable" onclick="openSheet('s-dur')">
+        <span class="tl">도착 여유 시간</span>
+        <div class="tval-row"><span class="tv" id="durVal">10분</span><svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>
+      </div>
+    </div>
+
+    <!-- ═══ 시간 선택기 ═══ -->
+    <div class="sheetwrap" id="s-time">
+      <div class="scrim" onclick="closeSheet('s-time')"></div>
+      <div class="sheet">
+        <div class="handle"></div>
+        <div class="sheet-title">시작 시각</div>
+
+        <div class="wheelbox">
+          <div class="wheelcol" id="hourWheel" onscroll="onWheelScroll('hourWheel')"></div>
+          <div class="wheel-sep">:</div>
+          <div class="wheelcol" id="minWheel" onscroll="onWheelScroll('minWheel')"></div>
+        </div>
+
+        <div class="seg">
+          <div class="sitem on" onclick="segPick(this,'ampm')">오전</div>
+          <div class="sitem" onclick="segPick(this,'ampm')">오후</div>
+        </div>
+
+        <button class="pbtn" onclick="confirmTime()">확인</button>
+      </div>
+    </div>
+
+    <!-- ═══ 날짜 선택기 ═══ -->
+    <div class="sheetwrap" id="s-date">
+      <div class="scrim" onclick="closeSheet('s-date')"></div>
+      <div class="sheet">
+        <div class="handle"></div>
+        <div class="sheet-title">날짜 선택</div>
+
+        <div class="cal-nav">
+          <div class="cbtn clickable" onclick="shiftMonth(-1)"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></div>
+          <div class="cmonth" id="calMonthLabel">2026년 8월</div>
+          <div class="cbtn clickable" onclick="shiftMonth(1)"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></div>
+        </div>
+        <div class="dowrow"><span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span></div>
+        <div class="dgrid" id="calGrid"></div>
+
+        <button class="pbtn" onclick="confirmDate()">확인</button>
+      </div>
+    </div>
+
+    <!-- ═══ 소요 시간 선택기 ═══ -->
+    <div class="sheetwrap" id="s-dur">
+      <div class="scrim" onclick="closeSheet('s-dur')"></div>
+      <div class="sheet">
+        <div class="handle"></div>
+        <div class="sheet-title">도착 여유 시간</div>
+
+        <div class="chiprow" id="durChips">
+          <div class="chip" onclick="durChip(this,5)">5분</div>
+          <div class="chip on" onclick="durChip(this,10)">10분</div>
+          <div class="chip" onclick="durChip(this,15)">15분</div>
+          <div class="chip" onclick="durChip(this,30)">30분</div>
+          <div class="chip" id="customChip" onclick="showStepper()">직접 입력</div>
+        </div>
+
+        <div class="stepper" id="stepper" style="display:none;">
+          <div class="sbtn clickable" onclick="stepDur(-5)">–</div>
+          <div class="sval" id="stepVal">10분</div>
+          <div class="sbtn clickable" onclick="stepDur(5)">+</div>
+        </div>
+
+        <button class="pbtn" onclick="confirmDur()">확인</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="legend">
+    <p><b>보는 법</b> — "일정 만들기" 트리거 화면에서 각 행을 누르면 바텀시트가 올라와.</p>
+    <p style="margin-top:8px;"><b>시간 선택기</b> — 시/분 컬럼을 실제로 마우스휠/드래그로 스크롤해봐. 가운데 회색 알약 안에 들어온 값이 굵게 선택돼. 오전/오후는 세그먼트로 전환.</p>
+    <p style="margin-top:8px;"><b>날짜 선택기</b> — 좌우 화살표로 월 이동. 오늘은 라임 원, 일정 있는 날은 아래 점, 탭하면 딥차콜로 선택.</p>
+    <p style="margin-top:8px;"><b>소요 시간</b> — 빠른 선택 칩, "직접 입력" 누르면 스테퍼(±5분)로 전환.</p>
+    <div class="hint">확인 누르면 트리거 화면 값이 실제로 바뀜</div>
+  </div>
+</div>
+
+<script>
+  function openSheet(id){ document.getElementById(id).classList.add('on'); }
+  function closeSheet(id){ document.getElementById(id).classList.remove('on'); }
+
+  /* ─ time wheel ─ */
+  const hours = Array.from({length:12},(_,i)=>i+1);
+  const mins = Array.from({length:60},(_,i)=>i);
+  function buildWheel(id, arr, pad2){
+    const el = document.getElementById(id);
+    let html = '<div class="pad"></div>';
+    arr.forEach(v=>{ html += `<div class="wheelitem" data-v="${v}">${pad2?String(v).padStart(2,'0'):v}</div>`; });
+    html += '<div class="pad"></div>';
+    el.innerHTML = html;
+  }
+  buildWheel('hourWheel', hours, false);
+  buildWheel('minWheel', mins, true);
+
+  function onWheelScroll(id){
+    clearTimeout(window['_t_'+id]);
+    window['_t_'+id] = setTimeout(()=>updateSelected(id), 80);
+  }
+  function updateSelected(id){
+    const el = document.getElementById(id);
+    const items = el.querySelectorAll('.wheelitem');
+    const center = el.scrollTop + el.clientHeight/2;
+    let closest=null, min=Infinity;
+    items.forEach(it=>{
+      const mid = it.offsetTop + it.offsetHeight/2;
+      const d = Math.abs(mid-center);
+      if(d<min){min=d;closest=it;}
+    });
+    items.forEach(it=>it.classList.remove('sel'));
+    if(closest) closest.classList.add('sel');
+  }
+  // init: scroll to a starting value (1시 20분)
+  window.addEventListener('load', ()=>{
+    const hEl = document.getElementById('hourWheel');
+    const mEl = document.getElementById('minWheel');
+    const hItem = [...hEl.querySelectorAll('.wheelitem')].find(i=>i.dataset.v=='1');
+    const mItem = [...mEl.querySelectorAll('.wheelitem')].find(i=>i.dataset.v=='20');
+    hEl.scrollTop = hItem.offsetTop - hEl.clientHeight/2 + hItem.offsetHeight/2;
+    mEl.scrollTop = mItem.offsetTop - mEl.clientHeight/2 + mItem.offsetHeight/2;
+    updateSelected('hourWheel');
+    updateSelected('minWheel');
+  });
+
+  let ampm = '오전';
+  function segPick(el, kind){
+    el.parentNode.querySelectorAll('.sitem').forEach(s=>s.classList.remove('on'));
+    el.classList.add('on');
+    if(kind==='ampm') ampm = el.textContent;
+  }
+  function confirmTime(){
+    const h = document.querySelector('#hourWheel .sel').dataset.v;
+    const m = document.querySelector('#minWheel .sel').dataset.v;
+    document.getElementById('timeVal').textContent = `${ampm} ${h}시 ${m}분`;
+    closeSheet('s-time');
+  }
+
+  /* ─ date wheel ─ */
+  let calYear=2026, calMonth=7; // 0-indexed, 7=Aug
+  let selectedDate = 19;
+  const eventDays = [12,19,22,27];
+  function shiftMonth(d){
+    calMonth += d;
+    if(calMonth>11){calMonth=0;calYear++;}
+    if(calMonth<0){calMonth=11;calYear--;}
+    renderCal();
+  }
+  function renderCal(){
+    document.getElementById('calMonthLabel').textContent = `${calYear}년 ${calMonth+1}월`;
+    const first = new Date(calYear, calMonth, 1);
+    const startDow = first.getDay();
+    const daysInMonth = new Date(calYear, calMonth+1, 0).getDate();
+    const grid = document.getElementById('calGrid');
+    let html='';
+    for(let i=0;i<startDow;i++) html += `<div class="dcell"></div>`;
+    for(let d=1; d<=daysInMonth; d++){
+      const isToday = (d===19 && calMonth===7);
+      const isSel = (d===selectedDate && calMonth===7);
+      const hasEv = eventDays.includes(d) && calMonth===7;
+      html += `<div class="dcell"><div class="ddot ${isToday?'today':''} ${isSel?'sel':''}" onclick="pickDate(${d})">${d}${hasEv?'<span class="ev"></span>':''}</div></div>`;
+    }
+    grid.innerHTML = html;
+  }
+  function pickDate(d){ selectedDate = d; renderCal(); }
+  function confirmDate(){
+    const wd = ['일','월','화','수','목','금','토'][new Date(calYear,calMonth,selectedDate).getDay()];
+    document.getElementById('dateVal').textContent = `${calMonth+1}월 ${selectedDate}일 (${wd})`;
+    closeSheet('s-date');
+  }
+  renderCal();
+
+  /* ─ duration ─ */
+  let durValue = 10;
+  function durChip(el, v){
+    document.querySelectorAll('#durChips .chip').forEach(c=>c.classList.remove('on'));
+    el.classList.add('on');
+    durValue = v;
+    document.getElementById('stepper').style.display='none';
+  }
+  function showStepper(){
+    document.querySelectorAll('#durChips .chip').forEach(c=>c.classList.remove('on'));
+    document.getElementById('customChip').classList.add('on');
+    document.getElementById('stepper').style.display='flex';
+    document.getElementById('stepVal').textContent = durValue+'분';
+  }
+  function stepDur(delta){
+    durValue = Math.max(5, durValue+delta);
+    document.getElementById('stepVal').textContent = durValue+'분';
+  }
+  function confirmDur(){
+    document.getElementById('durVal').textContent = durValue+'분';
+    closeSheet('s-dur');
+  }
+</script>
+
+<script>(function(){ if(new URLSearchParams(location.search).get('embed')==='1'){ document.body.classList.add('embed'); } })();</script>
+
+</body>
+</html>

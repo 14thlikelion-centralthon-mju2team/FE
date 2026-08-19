@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ensom — 일정 결과 + 사후 평가 프로토타입</title>
+<style>
+  :root{
+    --lime:#c6f135;--lime-soft:#e4fb9b;--lime-ink:#4e6810;
+    --canvas:#ffffff;--surface-1:#ffffff;--surface-2:#eef0ea;--surface-neutral:#e9e9e6;
+    --hairline:#e3e5e0;--ink:#14150f;--ink-muted:#63655e;--ink-faint:#9a9c92;
+    --panel:#15170f;--cta:#1f231a;--caution:#e3a13b;
+    --font:'Pretendard','Apple SD Gothic Neo','Malgun Gothic',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:var(--font);background:#d9dcd3;color:var(--ink);padding:32px 20px 60px;-webkit-font-smoothing:antialiased;}
+  .page-head{max-width:1180px;margin:0 auto 22px;}
+  .page-head h1{font-size:22px;font-weight:700;letter-spacing:-.4px;}
+  .page-head p{font-size:13px;color:#55584f;margin-top:6px;line-height:1.55;}
+  .stage{max-width:1180px;margin:0 auto;display:flex;gap:36px;flex-wrap:wrap;align-items:flex-start;}
+  .phone{width:344px;height:730px;flex:0 0 auto;background:var(--canvas);border-radius:46px;border:9px solid #16170f;position:relative;overflow:hidden;box-shadow:0 20px 50px rgba(20,21,15,.26);display:flex;flex-direction:column;}
+  .notch{position:absolute;top:0;left:50%;transform:translateX(-50%);width:112px;height:26px;background:#16170f;border-radius:0 0 16px 16px;z-index:60;}
+
+  .topbar{flex:0 0 auto;margin:46px 2px 0;height:40px;background:transparent;color:var(--ink);display:flex;align-items:center;gap:10px;padding:0;}
+  .backbtn{width:32px;height:32px;border-radius:999px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;cursor:pointer;flex:0 0 auto;}
+  .backbtn svg{width:14px;height:14px;stroke:var(--ink);fill:none;stroke-width:2.1;}
+  .toptitle{color:var(--ink);font-size:16px;font-weight:700;letter-spacing:-.2px;}
+
+  .selrow{display:flex;gap:5px;padding:10px 18px 0;flex-wrap:wrap;}
+  .selrow button{font-family:var(--font);font-size:10px;font-weight:700;border:0;border-radius:999px;padding:6px 10px;background:var(--surface-2);color:var(--ink-muted);cursor:pointer;}
+  .selrow button.on{background:var(--cta);color:#fff;}
+
+  .scroll{flex:1 1 auto;overflow-y:auto;padding:14px 18px 24px;}
+  .titlebox{margin-bottom:14px;}
+  .titlebox h3{font-size:17px;font-weight:700;}
+  .titlebox .place{font-size:11.5px;color:var(--ink-muted);margin-top:3px;}
+
+  .mini-panel{background:var(--panel);border-radius:20px;padding:14px;margin-bottom:16px;}
+  .mini-panel .mp-t{color:rgba(255,255,255,.4);font-size:10px;font-weight:600;margin-bottom:4px;}
+  .mini-panel .mp-v{color:#fff;font-size:13px;font-weight:700;}
+
+  .sec-title{font-size:14px;font-weight:700;margin-bottom:10px;}
+  .badge{display:inline-block;font-size:13px;font-weight:700;padding:8px 15px;border-radius:999px;}
+  .badge.pos{background:var(--lime-soft);color:var(--lime-ink);}
+  .badge.cau{background:var(--caution);color:var(--ink);}
+  .badge.neu{background:var(--surface-2);color:var(--ink-muted);}
+  .deviation{font-size:12.5px;color:var(--ink-muted);margin-top:10px;line-height:1.55;}
+  .reason{font-size:12px;color:var(--ink-faint);margin-top:4px;}
+
+  .evalbox{margin-top:20px;padding-top:18px;border-top:1px solid var(--hairline);}
+  .evalq{font-size:13px;font-weight:700;margin-bottom:10px;}
+  .chiprow{display:flex;flex-wrap:wrap;gap:7px;}
+  .chip{background:var(--surface-2);color:var(--ink);font-size:12px;font-weight:600;padding:9px 13px;border-radius:13px;cursor:pointer;}
+  .chip.on{background:var(--cta);color:#fff;}
+  .btnrow{display:flex;gap:8px;margin-top:18px;}
+  .pbtn{font-family:var(--font);border:0;border-radius:999px;padding:12px 16px;font-size:13px;font-weight:700;cursor:pointer;}
+  .pbtn.primary{background:var(--cta);color:#fff;flex:1 1 0;}
+  .pbtn.secondary{background:var(--surface-2);color:var(--ink);flex:1 1 0;}
+  .submitted{font-size:12.5px;color:var(--ink-muted);margin-top:16px;padding:12px 14px;background:var(--surface-2);border-radius:14px;}
+  .submitted b{color:var(--ink);}
+
+  .hint{display:inline-block;background:#15170f;color:#c6f135;font-size:11.5px;font-weight:600;padding:6px 12px;border-radius:999px;margin-top:10px;}
+  .legend{max-width:340px;font-size:12px;color:#55584f;line-height:1.7;}
+  .legend b{color:var(--ink);}
+
+  /* ═ embed mode (used when loaded inside ensom_master_flow.html) ═ */
+  body.embed{background:transparent;padding:0;overflow:hidden;}
+  body.embed .page-head,body.embed .legend,body.embed .hint{display:none!important;}
+  body.embed .stage{margin:0;padding:0;gap:0;}
+  body.embed .phone{box-shadow:none;}
+</style>
+</head>
+<body>
+
+<div class="page-head">
+  <h1>[DTL-01 결과 · ✅ ensom_detail.html에 통합 완료] Ensom — 일정 결과 확인 + 사후 평가 프로토타입 (참고용, deprecated)</h1>
+  <p style="background:#fdf3e3;color:#7a4f0c;padding:11px 14px;border-radius:12px;font-weight:600;">⚠ 이 화면은 <code>ensom_detail.html</code>의 "종료 후" 상태로 통합됐어요. 개발할 땐 이 파일이 아니라 detail.html을 기준으로 하세요. 이 파일은 처음 설계 의도를 남겨두기 위한 참고용으로만 유지합니다.</p>
+  <p>일정 상세(DTL-01) 하단에 이어붙는 "결과" 섹션. 판정이 애매한 경우에만 사후 평가 폼이 나타나는 게 핵심.</p>
+</div>
+
+<div class="stage">
+  <div class="phone">
+    <div class="notch"></div>
+    <div class="topbar">
+      <div class="backbtn"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></div>
+      <div class="toptitle">일정 상세</div>
+    </div>
+    <div class="selrow">
+      <button class="on" onclick="show('ontime',this)">정시 도착</button>
+      <button onclick="show('rush',this)">촉박</button>
+      <button onclick="show('lateclear',this)">지각(원인 명확)</button>
+      <button onclick="show('lateamb',this)">지각(원인 불분명)</button>
+    </div>
+
+    <div class="scroll">
+      <div class="titlebox">
+        <h3>강남역 미팅</h3>
+        <div class="place">서울 강남구 강남대로 396</div>
+      </div>
+      <div class="mini-panel">
+        <div class="mp-t">시간 계획</div>
+        <div class="mp-v">준비 12:40 · 출발 13:18 · 도착 13:52</div>
+      </div>
+
+      <div class="sec-title">결과</div>
+      <div id="resultBody"></div>
+    </div>
+  </div>
+
+  <div class="legend">
+    <p><b>정시 도착 / 지각(원인 명확)</b> — 사후 평가 폼 자체가 없음. 사실만 보여주고 끝.</p>
+    <p style="margin-top:8px;"><b>지각(원인 불분명)</b> — 이 경우에만 질문+선택지 칩이 나타나. 칩을 고르고 제출하면 폼이 완료 상태로 바뀌어.</p>
+    <div class="hint">4개 상태 칩으로 전환</div>
+  </div>
+</div>
+
+<script>
+  const DATA = {
+    ontime: {
+      badge:'정시 도착', cls:'pos',
+      dev:'예상보다 3분 빨리 도착했어요.',
+      reason:null, eval:false
+    },
+    rush: {
+      badge:'촉박', cls:'cau',
+      dev:'예상보다 2분 늦게 준비를 마쳤지만, 제시간에 도착했어요.',
+      reason:null, eval:false
+    },
+    lateclear: {
+      badge:'지각', cls:'neu',
+      dev:'예상보다 8분 늦게 도착했어요.',
+      reason:'교통 지연 8분',
+      eval:false
+    },
+    lateamb: {
+      badge:'지각', cls:'neu',
+      dev:'예상보다 12분 늦게 도착했어요.',
+      reason:null,
+      eval:true
+    }
+  };
+
+  function show(key, btn){
+    document.querySelectorAll('.selrow button').forEach(b=>b.classList.remove('on'));
+    btn.classList.add('on');
+    const d = DATA[key];
+    let html = `<span class="badge ${d.cls}">${d.badge}</span>`;
+    html += `<div class="deviation">${d.dev}</div>`;
+    if(d.reason) html += `<div class="reason">${d.reason}</div>`;
+    if(d.eval){
+      html += `
+        <div class="evalbox" id="evalbox">
+          <div class="evalq">무엇 때문에 늦어졌을까요?</div>
+          <div class="chiprow" id="evalchips">
+            <div class="chip" onclick="pickReason(this)">준비가 오래 걸렸어요</div>
+            <div class="chip" onclick="pickReason(this)">이동이 예상보다 오래 걸렸어요</div>
+            <div class="chip" onclick="pickReason(this)">다른 일이 생겼어요</div>
+            <div class="chip" onclick="pickReason(this)">그냥 늦었어요</div>
+          </div>
+          <div class="btnrow">
+            <button class="pbtn secondary" onclick="submitEval(true)">건너뛰기</button>
+            <button class="pbtn primary" onclick="submitEval(false)">제출</button>
+          </div>
+        </div>`;
+    }
+    document.getElementById('resultBody').innerHTML = html;
+  }
+
+  let pickedReason = null;
+  function pickReason(el){
+    document.querySelectorAll('#evalchips .chip').forEach(c=>c.classList.remove('on'));
+    el.classList.add('on');
+    pickedReason = el.textContent;
+  }
+  function submitEval(skipped){
+    const box = document.getElementById('evalbox');
+    box.innerHTML = skipped
+      ? `<div class="submitted">평가를 건너뛰었어요.</div>`
+      : `<div class="submitted">응답 감사해요 — <b>${pickedReason || '선택 없음'}</b></div>`;
+  }
+
+  show('ontime', document.querySelector('.selrow button'));
+</script>
+
+<script>(function(){ if(new URLSearchParams(location.search).get('embed')==='1'){ document.body.classList.add('embed'); } })();</script>
+
+</body>
+</html>

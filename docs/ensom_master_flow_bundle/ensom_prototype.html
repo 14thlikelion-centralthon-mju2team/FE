@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ensom — 홈 카드 스택 프로토타입</title>
+<style>
+  :root{
+    --accent-lime:#c6f135;
+    --accent-lime-soft:#e4fb9b;
+    --accent-lime-ink:#4e6810;
+    --canvas:#ffffff;
+    --canvas-soft:#f5f6f3;
+    --surface-1:#ffffff;
+    --surface-2:#eef0ea;
+    --surface-neutral:#e9e9e6;
+    --hairline:#e3e5e0;
+    --ink:#14150f;
+    --ink-muted:#63655e;
+    --ink-faint:#6f7269;
+    --on-ink:#ffffff;
+    --topbar-fill:#14150f;
+    --cta-fill:#1f231a;
+    --caution:#e3a13b;
+    --wellness-fill:#e4fb9b;
+    --wellness-ink:#4e6810;
+    --font:'Pretendard','Apple SD Gothic Neo','Malgun Gothic',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{
+    font-family:var(--font);
+    background:#dfe2da;
+    color:var(--ink);
+    padding:32px 20px 60px;
+    -webkit-font-smoothing:antialiased;
+  }
+  .page-head{max-width:1180px;margin:0 auto 24px;}
+  .page-head h1{font-size:22px;font-weight:700;letter-spacing:-.4px;}
+  .page-head p{font-size:13px;color:#5c5f56;margin-top:6px;line-height:1.5;}
+
+  /* ---- controls ---- */
+  .controls{
+    max-width:1180px;margin:0 auto 28px;
+    display:flex;flex-wrap:wrap;gap:20px;
+    background:#fff;border-radius:16px;padding:16px 18px;
+  }
+  .ctrl-group{display:flex;flex-direction:column;gap:8px;}
+  .ctrl-label{font-size:11px;font-weight:600;letter-spacing:.4px;color:#7a7d74;text-transform:uppercase;}
+  .seg{display:flex;background:var(--surface-2);border-radius:999px;padding:4px;gap:2px;}
+  .seg button{
+    font-family:var(--font);font-size:13px;font-weight:600;
+    border:0;background:transparent;color:var(--ink-muted);
+    padding:8px 14px;border-radius:999px;cursor:pointer;white-space:nowrap;
+  }
+  .seg button.on{background:var(--cta-fill);color:#fff;}
+
+  /* ---- phone ---- */
+  .stage{max-width:1180px;margin:0 auto;display:flex;gap:36px;flex-wrap:wrap;align-items:flex-start;}
+  .phone{
+    width:340px;height:718px;flex:0 0 auto;
+    background:var(--canvas);
+    border-radius:44px;
+    border:9px solid #1b1c17;
+    position:relative;overflow:hidden;
+    box-shadow:0 18px 44px rgba(20,21,15,.22);
+  }
+  .notch{
+    position:absolute;top:0;left:50%;transform:translateX(-50%);
+    width:112px;height:26px;background:#1b1c17;
+    border-radius:0 0 16px 16px;z-index:40;
+  }
+  .screen{position:absolute;inset:0;display:flex;flex-direction:column;padding:44px 20px 0;overflow:hidden;}
+
+  /* top app bar */
+  .topbar{
+    height:40px;background:transparent;color:var(--ink);
+    display:flex;align-items:center;
+    justify-content:space-between;padding:0 2px;flex:0 0 auto;
+  }
+  .wordmark{font-size:15px;font-weight:700;letter-spacing:1.4px;display:inline-flex;align-items:center;color:var(--ink);}
+  .wordmark .wm-o, .wm-o{width:.78em;height:.78em;margin:0 1px;flex:0 0 auto;}
+  .tb-icons{display:flex;gap:6px;}
+  .tb-ico{
+    width:32px;height:32px;border-radius:999px;
+    background:var(--surface-2);
+    display:flex;align-items:center;justify-content:center;
+    cursor:pointer;
+  }
+  .tb-ico svg{width:16px;height:16px;stroke:var(--ink);fill:none;stroke-width:1.7;}
+
+  /* 권한 거부 배너 */
+  .permbanner{
+    display:none;align-items:center;gap:9px;background:#fdf6ea;border-radius:14px;
+    padding:10px 12px;margin-top:14px;flex:0 0 auto;cursor:pointer;
+  }
+  .permbanner.on{display:flex;}
+  .permbanner svg{width:16px;height:16px;stroke:var(--caution);fill:none;stroke-width:2;flex:0 0 auto;}
+  .permbanner .pt{flex:1 1 auto;font-size:11.5px;font-weight:600;color:#7a4f0c;line-height:1.4;}
+  .permbanner .pcta{font-size:10.5px;font-weight:700;color:#7a4f0c;text-decoration:underline;text-underline-offset:2px;white-space:nowrap;}
+
+  /* 🆕 HM-04 도착 확인 카드 (unresolved) */
+  .arrivecard{
+    display:none;background:var(--surface-1);border:1.6px solid var(--ink);border-radius:22px;
+    padding:15px 16px;margin-top:14px;flex:0 0 auto;
+  }
+  .arrivecard.on{display:block;}
+  .arrivecard .at{font-size:14px;font-weight:700;letter-spacing:-.2px;}
+  .arrivecard .as{font-size:11.5px;color:var(--ink-muted);margin-top:4px;line-height:1.5;}
+  .arrivecard .abtns{display:flex;gap:8px;margin-top:12px;}
+  .arrivecard .abtn{flex:1 1 0;font-family:var(--font);border:0;border-radius:999px;padding:11px 8px;font-size:12.5px;font-weight:700;cursor:pointer;}
+  .arrivecard .abtn.yes{background:var(--cta-fill);color:#fff;}
+  .arrivecard .abtn.no{background:var(--surface-2);color:var(--ink);}
+  .arrivecard.answered{border-color:var(--hairline);}
+  .arrivecard.answered .as{font-weight:600;color:var(--ink);}
+
+  /* greeting */
+  .greet-row{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-top:22px;flex:0 0 auto;}
+  .greet h2{font-size:23px;font-weight:700;letter-spacing:-.5px;line-height:1.25;}
+  .greet p{font-size:12.5px;color:var(--ink-muted);margin-top:5px;}
+  .weather{
+    background:#cfe0ee;border-radius:14px;padding:9px 11px;min-width:92px;flex:0 0 auto;
+  }
+  .weather .loc{font-size:9.5px;color:#3d5468;font-weight:600;}
+  .weather .temp{font-size:22px;font-weight:700;color:#1c2f3d;line-height:1.1;margin-top:1px;}
+  .weather .desc{font-size:9px;color:#4a637a;margin-top:3px;line-height:1.3;}
+
+  /* ---- hero card stack ---- */
+  .stack-wrap{position:relative;margin-top:20px;flex:0 0 auto;}
+  .behind{
+    position:absolute;
+    border-radius:28px;
+    box-shadow:0 2px 10px rgba(20,21,15,.10);
+    display:flex;align-items:center;justify-content:flex-end;
+    padding-right:6px;
+  }
+  .behind.b1{top:9px;bottom:9px;left:24px;right:19px;background:var(--surface-2);z-index:2;}
+  .behind.b2{top:18px;bottom:18px;left:34px;right:0;background:var(--surface-neutral);z-index:1;}
+  .behind .vtime{
+    writing-mode:vertical-rl;
+    font-size:9.5px;font-weight:600;color:var(--ink-faint);
+    letter-spacing:.4px;
+  }
+
+  .hero{
+    position:relative;z-index:3;
+    background:var(--accent-lime);
+    border-radius:28px;padding:18px 18px 20px;
+    display:flex;flex-direction:column;gap:12px;
+    transition:background .25s, margin-right .25s;
+    margin-right:38px;
+  }
+  .hero.solo{margin-right:0;}
+  .hero.clickable{cursor:pointer;}
+  .hero.empty{background:var(--surface-1);border:1px solid var(--hairline);}
+  .hero-top{display:flex;justify-content:space-between;align-items:center;}
+  .badge{
+    background:rgba(255,255,255,.62);color:var(--ink);
+    font-size:11.5px;font-weight:600;
+    padding:5px 11px;border-radius:999px;
+  }
+  .badge.caution{background:var(--caution);color:var(--ink);}
+  .hero-icons{display:flex;gap:6px;}
+  .h-ico{
+    width:29px;height:29px;border-radius:999px;background:rgba(20,21,15,.10);
+    display:flex;align-items:center;justify-content:center;
+  }
+  .h-ico svg{width:14px;height:14px;stroke:var(--ink);fill:none;stroke-width:1.8;}
+
+  .hero-msg{font-size:27px;font-weight:700;letter-spacing:-.8px;line-height:1.2;word-break:keep-all;}
+  .hero-msg .num{font-size:40px;letter-spacing:-1.4px;}
+  .hero-sub{font-size:12.5px;color:rgba(20,21,15,.72);line-height:1.45;word-break:keep-all;}
+  .hero-foot{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;margin-top:2px;}
+  .hero-meta{font-size:12px;font-weight:600;color:rgba(20,21,15,.8);line-height:1.45;}
+  .cta{
+    background:var(--cta-fill);color:#fff;
+    font-size:13.5px;font-weight:600;font-family:var(--font);
+    border:0;border-radius:999px;padding:12px 20px;cursor:pointer;
+    white-space:nowrap;flex:0 0 auto;
+  }
+  .cta.ghost{background:var(--surface-2);color:var(--ink);}
+  .empty-ctas{display:flex;gap:8px;margin-top:4px;}
+
+  .stack-more{
+    text-align:center;font-size:11.5px;font-weight:600;color:var(--ink-muted);
+    margin-top:14px;
+  }
+
+  /* sections */
+  .scroll{flex:1 1 auto;overflow:hidden;}
+  .sec-label{font-size:11px;font-weight:600;color:var(--ink-faint);letter-spacing:.3px;margin:0 0 8px;}
+  .sec{margin-top:20px;}
+  .chips{display:flex;flex-wrap:wrap;gap:7px;}
+  .chip{
+    background:var(--surface-2);color:var(--ink);
+    font-size:12.5px;padding:9px 13px;border-radius:14px;
+  }
+  .chip.done{background:var(--surface-neutral);color:var(--ink-faint);text-decoration:line-through;}
+  .wtag{
+    background:var(--wellness-fill);color:var(--wellness-ink);
+    font-size:11.5px;font-weight:500;padding:6px 11px;border-radius:999px;
+    display:inline-block;
+  }
+  .wtags{display:flex;flex-wrap:wrap;gap:6px;}
+
+  /* tab bar */
+  .tabbar{
+    position:absolute;left:26px;right:26px;bottom:16px;height:60px;
+    background:var(--surface-2);border-radius:999px;
+    box-shadow:0 6px 20px rgba(20,21,15,.12);
+    display:flex;align-items:center;justify-content:space-around;z-index:30;
+  }
+  .tab{display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--ink-faint);}
+  .tab.on{color:var(--ink);}
+  .tab svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.8;}
+  .tab span{font-size:10px;font-weight:500;}
+  .fade{
+    position:absolute;left:0;right:0;bottom:0;height:110px;z-index:20;
+    background:linear-gradient(to bottom,rgba(255,255,255,0),var(--canvas) 62%);
+    pointer-events:none;
+  }
+
+  /* notes panel */
+  .notes{
+    flex:1 1 300px;min-width:290px;background:#fff;border-radius:16px;padding:20px 22px;
+  }
+  .notes h3{font-size:14px;font-weight:700;margin-bottom:12px;}
+  .notes h4{font-size:12px;font-weight:700;margin:16px 0 6px;color:var(--ink);}
+  .notes p,.notes li{font-size:12.5px;line-height:1.65;color:#4c4f47;}
+  .notes ul{padding-left:16px;}
+  .notes li{margin-bottom:5px;}
+  .swatch{display:inline-block;width:11px;height:11px;border-radius:3px;vertical-align:-1px;margin-right:5px;}
+
+  /* ═ embed mode (used when loaded inside ensom_master_flow.html) ═ */
+  body.embed{background:transparent;padding:0;overflow:hidden;}
+  body.embed .page-head,body.embed .legend,body.embed .hint,body.embed .controls{display:none!important;}
+  body.embed .stage{margin:0;padding:0;gap:0;}
+  body.embed .phone{box-shadow:none;}
+</style>
+</head>
+<body>
+
+<div class="page-head">
+  <h1>[HM-01] Ensom — 홈 카드 스택 프로토타입</h1>
+  <p>DESIGN.md 토큰 값을 그대로 적용해 렌더링한 화면입니다. 클로드 디자인에 돌리기 전에 구조와 색 배분을 먼저 검증하는 용도예요. 아래 컨트롤로 상태와 일정 개수를 바꿔볼 수 있습니다. 🆕 권한 거부 배너, 히어로 카드 탭→상세 이동, 하단 탭 전환, <b>HM-04 도착 확인 카드</b>(신규 제작)를 이번에 추가했어요.</p>
+</div>
+
+<div class="controls">
+  <div class="ctrl-group">
+    <div class="ctrl-label">홈 상태 (PRD §10.2)</div>
+    <div class="seg" id="stateSeg">
+      <button data-state="ease">여유</button>
+      <button data-state="start" class="on">준비 시작</button>
+      <button data-state="depart">출발 임박</button>
+      <button data-state="rush">촉박</button>
+      <button data-state="wellness">웰니스</button>
+    </div>
+  </div>
+  <div class="ctrl-group">
+    <div class="ctrl-label">오늘 일정 개수</div>
+    <div class="seg" id="countSeg">
+      <button data-count="0">0개</button>
+      <button data-count="1">1개</button>
+      <button data-count="2">2개</button>
+      <button data-count="3" class="on">3개</button>
+      <button data-count="5">5개</button>
+    </div>
+  </div>
+  <div class="ctrl-group">
+    <div class="ctrl-label">🆕 권한 거부 배너 (08_화면상태_체크리스트.md 신규)</div>
+    <div class="seg" id="permSeg">
+      <button data-perm="none" class="on">없음</button>
+      <button data-perm="noti">알림 꺼짐</button>
+      <button data-perm="loc">위치 꺼짐</button>
+    </div>
+  </div>
+  <div class="ctrl-group">
+    <div class="ctrl-label">🆕 HM-04 도착 확인 카드 (신규 제작)</div>
+    <div class="seg" id="arriveSeg">
+      <button data-arrive="off" class="on">없음</button>
+      <button data-arrive="on">unresolved 상태</button>
+    </div>
+  </div>
+</div>
+
+<div class="stage">
+  <div class="phone">
+    <div class="notch"></div>
+    <div class="screen">
+      <div class="topbar">
+        <div class="wordmark">ENS<svg class="wm-o" viewBox="0 0 32 32"><circle cx="16" cy="16" r="11" fill="none" stroke="#4e6810" stroke-width="7"/><circle cx="16" cy="16" r="11" fill="none" stroke="#c6f135" stroke-width="7" stroke-dasharray="47 22" transform="rotate(-90 16 16)" stroke-linecap="round"/></svg>M</div>
+        <div class="tb-icons">
+          <div class="tb-ico"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></div>
+          <div class="tb-ico clickable" onclick="location.href='ensom_notification_log.html'"><svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 01-3.4 0"/></svg></div>
+        </div>
+      </div>
+
+      <div class="arrivecard" id="arriveCard">
+        <div class="at" id="arriveTitle">강남역 미팅에 도착하셨나요?</div>
+        <div class="as" id="arriveSub">이동이 끝난 것 같은데 확인이 안 됐어요. 알려주시면 다음 계산에 반영할게요.</div>
+        <div class="abtns" id="arriveBtns">
+          <button class="abtn yes" onclick="answerArrive(true)">네, 도착했어요</button>
+          <button class="abtn no" onclick="answerArrive(false)">아직이에요</button>
+        </div>
+      </div>
+      <div class="permbanner" id="permBanner" onclick="location.href='ensom_profile.html'">
+        <svg viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"/></svg>
+        <div class="pt" id="permText"></div>
+        <div class="pcta">설정으로</div>
+      </div>
+      <div class="greet-row">
+        <div class="greet">
+          <h2 id="greetTitle">좋은 오후예요,<br>김도현 님</h2>
+          <p id="greetSub">오늘 일정 3개</p>
+        </div>
+        <div class="weather">
+          <div class="loc">서울특별시</div>
+          <div class="temp">31°</div>
+          <div class="desc">부분적으로 흐림<br>최고 31° 최저 23°</div>
+        </div>
+      </div>
+
+      <div class="stack-wrap" id="stackWrap">
+        <div class="behind b2" id="behind2"><span class="vtime" id="b2text">19:00</span></div>
+        <div class="behind b1" id="behind1"><span class="vtime" id="b1text">16:30</span></div>
+        <div class="hero clickable" id="hero" onclick="if(!event.target.closest('#heroCta'))location.href='ensom_detail.html'">
+          <div class="hero-top">
+            <div class="badge" id="heroBadge">준비 시작</div>
+            <div class="hero-icons">
+              <div class="h-ico"><svg viewBox="0 0 24 24"><path d="M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3z"/><path d="M9 3v15M15 6v15"/></svg></div>
+              <div class="h-ico"><svg viewBox="0 0 24 24"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/></svg></div>
+            </div>
+          </div>
+          <div class="hero-msg" id="heroMsg"></div>
+          <div class="hero-sub" id="heroSub"></div>
+          <div class="hero-foot">
+            <div class="hero-meta" id="heroMeta">14:00 · 강남역 3번 출구</div>
+            <button class="cta" id="heroCta">준비 시작</button>
+          </div>
+          <div class="empty-ctas" id="emptyCtas" style="display:none">
+            <button class="cta">일정 만들기</button>
+            <button class="cta ghost">캘린더 연동</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="stack-more" id="stackMore" style="display:none">오늘 일정 5개 모두 보기 →</div>
+
+      <div class="scroll">
+        <div class="sec" id="prepSec">
+          <div class="sec-label">준비 항목</div>
+          <div class="chips">
+            <div class="chip">물 챙기기</div>
+            <div class="chip">충전기</div>
+            <div class="chip done">우산</div>
+          </div>
+        </div>
+        <div class="sec" id="wellSec">
+          <div class="sec-label">환경 웰니스</div>
+          <div class="wtags" id="wtags">
+            <span class="wtag">선크림 바르기 · 자외선 높음</span>
+            <span class="wtag">물 챙기기 · 기온 31°</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="fade"></div>
+      <div class="tabbar">
+        <div class="tab" onclick="location.href='ensom_calendar.html'"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4M3 11h18"/></svg><span>캘린더</span></div>
+        <div class="tab on"><svg viewBox="0 0 24 24"><path d="M3 10l9-7 9 7v10a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg><span>홈</span></div>
+        <div class="tab" onclick="location.href='ensom_map.html'"><svg viewBox="0 0 24 24"><path d="M9 3L3 6v15l6-3 6 3 6-3V3l-6 3z"/><path d="M9 3v15M15 6v15"/></svg><span>지도</span></div>
+        <div class="tab" onclick="location.href='ensom_profile.html'"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg><span>프로필</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <h3>이 프로토타입에서 확인할 것</h3>
+
+    <h4>1. 라임 면적</h4>
+    <p>히어로 카드가 화면의 약 30%를 차지합니다. 이전 결과물(40~50%)보다 줄였어요. 상태를 바꿔봐도 카드 높이가 크게 변하지 않는지 보세요.</p>
+
+    <h4>2. 뒤 카드가 오른쪽으로 삐져나옴</h4>
+    <p>레퍼런스대로 뒤 카드를 <b>오른쪽</b>으로 밀었습니다. 위아래로도 살짝 좁혀서 계단처럼 보이게 했어요.</p>
+    <p style="margin-top:8px;">라임 카드 가로 폭을 줄여서 뒤 카드가 화면 밖으로 나가지 않게 했습니다. 삐져나오는 폭은 한 장당 19px이고, <b>뒤 카드 개수에 따라 라임 카드 폭이 자동으로 줄어듭니다</b> — 1장이면 19px, 2장이면 38px. 그래서 일정이 1개일 때는 라임 카드가 화면 폭을 꽉 채우고, 3개일 때만 좁아져요. 개수를 바꿔가며 라임 카드가 너무 좁아 보이지 않는지 확인해 보세요.</p>
+    <p style="margin-top:8px;"><span class="swatch" style="background:#eef0ea"></span>surface-2 → <span class="swatch" style="background:#e9e9e6"></span>surface-neutral 순으로 뒤로 갈수록 어둡습니다. 레퍼런스는 뒤 카드가 진회색이었지만 "다크 컨테이너 금지" 규칙과 충돌해서 연회색으로 잡았어요.</p>
+
+    <h4>3. 상태 구분이 색 없이 되는가</h4>
+    <p>5개 상태 모두 라임을 유지하고, 타이포 크기·정보량으로만 긴박도를 표현합니다. <b>출발 임박</b>은 숫자가 가장 크고 보조 정보가 줄어들며, <b>촉박</b>만 배지가 앰버로 바뀝니다. 상태를 번갈아 눌러보면서 구분이 되는지 판단해 보세요.</p>
+
+    <h4>4. 한글 줄바꿈</h4>
+    <p><code>word-break:keep-all</code>을 적용해서 조사가 다음 줄로 넘어가지 않습니다. 이전 결과물의 "20분 뒤 준비 / 를 시작하세요" 문제가 재현되는지 확인용이에요.</p>
+
+    <h4>5. 일정 개수별 레이아웃</h4>
+    <p>0개일 때 히어로가 흰 카드로 바뀌고, 5개일 때 뒤 카드는 2장까지만 쌓이고 "모두 보기"로 넘어갑니다. 개수를 바꿔도 카드 시작 위치가 흔들리지 않는지 보세요.</p>
+
+    <h4>남은 판단</h4>
+    <ul>
+      <li>뒤 카드에 시각만 노출할지, 일정명까지 노출할지</li>
+      <li>뒤 카드 회색을 한 단계 더 진하게 갈지</li>
+      <li>웰니스 태그 2개가 라임 카드와 같이 있을 때 라임이 과한지</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+const STATES = {
+  ease:{badge:'여유',badgeCaution:false,msg:'아직 여유가 있어요.',sub:'오후 12시 40분부터 준비하면 충분합니다.',cta:'준비 알림 받기',big:null},
+  start:{badge:'준비 시작',badgeCaution:false,msg:'뒤 준비를 시작하세요',sub:'오후 1시 20분에 출발하면 제시간에 도착할 수 있어요.',cta:'준비 시작',big:'20분'},
+  depart:{badge:'출발 임박',badgeCaution:false,msg:'뒤 출발하세요',sub:'현재 경로로 오후 1시 52분 도착 예정입니다.',cta:'출발했어요',big:'8분'},
+  rush:{badge:'촉박',badgeCaution:true,msg:'지금 출발하는 것이 좋아요.',sub:'가장 빠른 기본 경로를 다시 확인했어요.',cta:'경로 확인',big:null},
+  wellness:{badge:'웰니스',badgeCaution:false,msg:'오늘 야외 이동이 길어요.',sub:'출발 전 선크림과 물을 확인해 주세요.',cta:'준비 항목 확인',big:null}
+};
+const EVENTS = ['16:30','19:00'];
+
+let cur = 'start', count = 3;
+
+function render(){
+  const s = STATES[cur];
+  const hero = document.getElementById('hero');
+  const isEmpty = count === 0;
+
+  hero.classList.toggle('empty', isEmpty);
+  document.getElementById('emptyCtas').style.display = isEmpty ? 'flex' : 'none';
+  document.getElementById('heroCta').style.display = isEmpty ? 'none' : 'block';
+  document.getElementById('heroMeta').style.display = isEmpty ? 'none' : 'block';
+  document.querySelector('.hero-icons').style.display = isEmpty ? 'none' : 'flex';
+  document.getElementById('prepSec').style.display = isEmpty ? 'none' : 'block';
+  document.getElementById('wellSec').style.display = isEmpty ? 'none' : 'block';
+
+  const badge = document.getElementById('heroBadge');
+  const msg = document.getElementById('heroMsg');
+  const sub = document.getElementById('heroSub');
+
+  if(isEmpty){
+    badge.style.display='none';
+    msg.innerHTML = '관리할 다음 일정이 없어요';
+    msg.style.fontSize = '21px';
+    sub.textContent = '일정을 추가하면 준비 시작 시각을 알려드릴게요.';
+  } else {
+    badge.style.display='block';
+    badge.textContent = s.badge;
+    badge.classList.toggle('caution', s.badgeCaution);
+    msg.style.fontSize = '';
+    msg.innerHTML = s.big
+      ? '<span class="num">'+s.big+'</span> '+s.msg
+      : s.msg;
+    sub.textContent = s.sub;
+    document.getElementById('heroCta').textContent = s.cta;
+  }
+
+  // 웰니스 상태일 때 태그 강조
+  document.getElementById('wtags').style.opacity = (cur==='wellness') ? '1' : '.9';
+
+  // stack
+  const behindCount = Math.min(Math.max(count-1,0),2);
+  const PEEK = 19;
+  hero.style.marginRight = (behindCount*PEEK)+'px';
+  const b1 = document.getElementById('behind1'), b2 = document.getElementById('behind2');
+  b1.style.right = ((behindCount-1)*PEEK)+'px';
+  b2.style.right = '0px';
+  b1.style.display = behindCount>=1 ? 'flex':'none';
+  b2.style.display = behindCount>=2 ? 'flex':'none';
+  document.getElementById('b1text').textContent = EVENTS[0];
+  document.getElementById('b2text').textContent = EVENTS[1];
+  document.getElementById('stackMore').style.display = count>3 ? 'block':'none';
+  document.getElementById('greetSub').textContent = count===0 ? '오늘 등록된 일정이 없어요' : ('오늘 일정 '+count+'개');
+}
+
+document.querySelectorAll('#stateSeg button').forEach(b=>{
+  b.onclick=()=>{
+    document.querySelectorAll('#stateSeg button').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on'); cur=b.dataset.state; render();
+  };
+});
+document.querySelectorAll('#countSeg button').forEach(b=>{
+  b.onclick=()=>{
+    document.querySelectorAll('#countSeg button').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on'); count=+b.dataset.count; render();
+  };
+});
+
+const PERM_TEXT={
+  noti:'알림이 꺼져 있어요 · 준비 시각을 놓칠 수 있어요',
+  loc:'위치 권한이 꺼져 있어요 · 출발·도착을 자동으로 확인할 수 없어요'
+};
+document.querySelectorAll('#permSeg button').forEach(b=>{
+  b.onclick=()=>{
+    document.querySelectorAll('#permSeg button').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');
+    const p=b.dataset.perm;
+    const banner=document.getElementById('permBanner');
+    banner.classList.toggle('on', p!=='none');
+    if(p!=='none') document.getElementById('permText').textContent=PERM_TEXT[p];
+  };
+});
+
+/* 🆕 HM-04 도착 확인 카드 */
+document.querySelectorAll('#arriveSeg button').forEach(b=>{
+  b.onclick=()=>{
+    document.querySelectorAll('#arriveSeg button').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');
+    const card=document.getElementById('arriveCard');
+    card.classList.toggle('on', b.dataset.arrive==='on');
+    if(b.dataset.arrive==='on'){
+      card.classList.remove('answered');
+      document.getElementById('arriveTitle').textContent='강남역 미팅에 도착하셨나요?';
+      document.getElementById('arriveSub').textContent='이동이 끝난 것 같은데 확인이 안 됐어요. 알려주시면 다음 계산에 반영할게요.';
+      document.getElementById('arriveBtns').style.display='flex';
+    }
+  };
+});
+function answerArrive(yes){
+  const card=document.getElementById('arriveCard');
+  card.classList.add('answered');
+  document.getElementById('arriveTitle').textContent = yes ? '확인했어요' : '알겠어요, 계속 확인할게요';
+  document.getElementById('arriveSub').textContent = yes ? '도착 시각을 기록했어요. 다음 계획에 반영할게요.' : '조금 더 이동하면 다시 물어볼게요.';
+  document.getElementById('arriveBtns').style.display='none';
+}
+
+render();
+</script>
+
+<script>(function(){ if(new URLSearchParams(location.search).get('embed')==='1'){ document.body.classList.add('embed'); } })();</script>
+
+</body>
+</html>

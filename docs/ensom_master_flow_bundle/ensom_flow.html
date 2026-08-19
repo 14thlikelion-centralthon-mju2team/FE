@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ensom — 연결 프로토타입</title>
+<style>
+  :root{
+    --lime:#c6f135;--lime-soft:#e4fb9b;--lime-ink:#4e6810;
+    --canvas:#ffffff;--surface-1:#ffffff;--surface-2:#eef0ea;--surface-neutral:#e9e9e6;
+    --hairline:#e3e5e0;--ink:#14150f;--ink-muted:#63655e;--ink-faint:#6f7269;
+    --panel:#15170f;--cta:#1f231a;--caution:#e3a13b;
+    --t-walk:#8b8e84;--t-7:#747f00;--t-bus:#3a7dd0;--t-2:#00a84d;
+    --font:'Pretendard','Apple SD Gothic Neo','Malgun Gothic',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:var(--font);background:#d9dcd3;color:var(--ink);padding:32px 20px 60px;-webkit-font-smoothing:antialiased;}
+  .page-head{max-width:1180px;margin:0 auto 22px;}
+  .page-head h1{font-size:22px;font-weight:700;letter-spacing:-.4px;}
+  .page-head p{font-size:13px;color:#55584f;margin-top:6px;line-height:1.55;}
+  .hint{display:inline-block;background:#15170f;color:#c6f135;font-size:11.5px;font-weight:600;padding:6px 12px;border-radius:999px;margin-top:10px;}
+
+  .stage{max-width:1180px;margin:0 auto;display:flex;gap:36px;flex-wrap:wrap;align-items:flex-start;}
+  .phone{width:344px;height:730px;flex:0 0 auto;background:var(--canvas);border-radius:46px;border:9px solid #16170f;position:relative;overflow:hidden;box-shadow:0 20px 50px rgba(20,21,15,.26);}
+  .notch{position:absolute;top:0;left:50%;transform:translateX(-50%);width:112px;height:26px;background:#16170f;border-radius:0 0 16px 16px;z-index:60;}
+
+  .view{position:absolute;inset:0;display:none;flex-direction:column;padding:46px 18px 0;}
+  .view.on{display:flex;}
+
+  .clickable{cursor:pointer;transition:transform .12s;}
+  .clickable:active{transform:scale(.985);}
+
+  /* ══ shared bits ══ */
+  .iconbtn{width:33px;height:33px;border-radius:999px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;cursor:pointer;}
+  .iconbtn svg{width:15px;height:15px;stroke:var(--ink);fill:none;stroke-width:1.9;}
+  .hdr{display:flex;align-items:center;justify-content:space-between;flex:0 0 auto;padding:0 2px;}
+  .word{font-size:13px;font-weight:700;letter-spacing:1.6px;display:inline-flex;align-items:center;}
+  .word .wm-o, .wm-o{width:.78em;height:.78em;margin:0 1px;flex:0 0 auto;}
+  .acts{display:flex;gap:7px;}
+  .pill{font-size:10.5px;font-weight:700;padding:4px 9px;border-radius:999px;white-space:nowrap;}
+  .pill.pos{background:var(--lime-soft);color:var(--lime-ink);}
+  .pill.neu{background:var(--surface-2);color:var(--ink-muted);}
+  .pill.cau{background:var(--caution);color:var(--ink);}
+  .card{background:var(--surface-1);border:1px solid var(--hairline);border-radius:19px;padding:13px 14px;}
+
+  /* ══ HOME ══ */
+  .greet-row{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-top:18px;flex:0 0 auto;}
+  .greet h2{font-size:22px;font-weight:700;letter-spacing:-.5px;line-height:1.25;}
+  .greet p{font-size:12px;color:var(--ink-muted);margin-top:5px;}
+  .weather{background:#cfe0ee;border-radius:14px;padding:9px 11px;min-width:90px;flex:0 0 auto;}
+  .weather .loc{font-size:9.5px;color:#3d5468;font-weight:600;}
+  .weather .temp{font-size:21px;font-weight:700;color:#1c2f3d;line-height:1.1;margin-top:1px;}
+  .weather .desc{font-size:8.5px;color:#4a637a;margin-top:3px;line-height:1.3;}
+
+  .stack-wrap{position:relative;margin-top:18px;flex:0 0 auto;}
+  .behind{position:absolute;border-radius:28px;box-shadow:0 2px 10px rgba(20,21,15,.10);display:flex;align-items:center;justify-content:flex-end;padding-right:6px;cursor:pointer;}
+  .behind.b1{top:9px;bottom:9px;left:24px;background:var(--surface-2);z-index:2;}
+  .behind.b2{top:18px;bottom:18px;left:34px;right:0;background:var(--surface-neutral);z-index:1;}
+  .vtime{writing-mode:vertical-rl;font-size:9.5px;font-weight:700;color:var(--ink-faint);letter-spacing:.4px;}
+  .hero{position:relative;z-index:3;background:var(--lime);border-radius:28px;padding:17px 17px 19px;display:flex;flex-direction:column;gap:11px;}
+  .hero-top{display:flex;justify-content:space-between;align-items:center;}
+  .hbadge{background:rgba(255,255,255,.62);color:var(--ink);font-size:11px;font-weight:700;padding:5px 11px;border-radius:999px;}
+  .hero-icons{display:flex;gap:6px;}
+  .h-ico{width:28px;height:28px;border-radius:999px;background:rgba(20,21,15,.10);display:flex;align-items:center;justify-content:center;}
+  .h-ico svg{width:13px;height:13px;stroke:var(--ink);fill:none;stroke-width:1.9;}
+  .hero-msg{font-size:25px;font-weight:700;letter-spacing:-.7px;line-height:1.22;word-break:keep-all;}
+  .hero-msg .num{font-size:37px;letter-spacing:-1.2px;}
+  .hero-sub{font-size:12px;color:rgba(20,21,15,.7);line-height:1.45;word-break:keep-all;}
+  .hero-foot{display:flex;justify-content:space-between;align-items:flex-end;gap:10px;margin-top:2px;}
+  .hero-meta{font-size:11.5px;font-weight:700;color:rgba(20,21,15,.8);line-height:1.45;}
+  .cta{background:var(--cta);color:#fff;font-size:13px;font-weight:700;font-family:var(--font);border:0;border-radius:999px;padding:11px 18px;cursor:pointer;white-space:nowrap;flex:0 0 auto;}
+  .sec{margin-top:18px;}
+  .sec-label{font-size:10.5px;font-weight:700;color:var(--ink-faint);letter-spacing:.4px;margin:0 0 8px;text-transform:uppercase;}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;}
+  .chip{background:var(--surface-2);color:var(--ink);font-size:12px;padding:8px 12px;border-radius:13px;}
+  .chip.done{background:var(--surface-neutral);color:var(--ink-faint);text-decoration:line-through;}
+  .wtags{display:flex;flex-wrap:wrap;gap:6px;}
+  .wtag{background:var(--lime-soft);color:var(--lime-ink);font-size:11px;font-weight:600;padding:6px 10px;border-radius:999px;}
+
+  /* ══ CALENDAR ══ */
+  .panel{background:var(--panel);border-radius:30px;padding:17px 17px 19px;margin-top:13px;flex:0 0 auto;box-shadow:0 10px 26px rgba(21,23,15,.20);}
+  .p-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:15px;}
+  .p-month{color:#fff;font-size:18px;font-weight:700;letter-spacing:-.3px;}
+  .p-month small{display:block;font-size:10px;font-weight:500;color:rgba(255,255,255,.45);margin-top:2px;}
+  .p-nav{display:flex;gap:6px;}
+  .pbtn{width:29px;height:29px;border-radius:999px;background:rgba(255,255,255,.09);display:flex;align-items:center;justify-content:center;cursor:pointer;}
+  .pbtn svg{width:12px;height:12px;stroke:#fff;fill:none;stroke-width:2;}
+  .pbtn.solid{background:var(--lime);}
+  .pbtn.solid svg{stroke:var(--ink);}
+  .dowrow{display:grid;grid-template-columns:repeat(7,1fr);margin-bottom:8px;}
+  .dowrow span{text-align:center;font-size:9.5px;font-weight:600;color:rgba(255,255,255,.38);letter-spacing:.5px;}
+  .dgrid{display:grid;grid-template-columns:repeat(7,1fr);row-gap:6px;}
+  .cell{display:flex;align-items:center;justify-content:center;}
+  .dot{width:32px;height:32px;border-radius:999px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:rgba(255,255,255,.72);border:1.4px solid transparent;position:relative;cursor:pointer;}
+  .dot.has{border-color:rgba(198,241,53,.42);color:#fff;}
+  .dot.today{background:var(--lime);color:var(--ink);border-color:var(--lime);font-weight:700;}
+  .dot.sel{background:#fff;color:var(--ink);border-color:#fff;font-weight:700;}
+  .dot.out{color:rgba(255,255,255,.18);}
+  .dot .n{position:absolute;bottom:-1px;right:-1px;width:13px;height:13px;border-radius:999px;background:var(--lime);color:var(--ink);font-size:8px;font-weight:700;display:flex;align-items:center;justify-content:center;border:1.5px solid var(--panel);}
+  .dot.today .n,.dot.sel .n{background:var(--cta);color:#fff;}
+  .weekrow .cell{flex-direction:column;gap:5px;}
+  .weekrow .wd{font-size:9px;font-weight:600;color:rgba(255,255,255,.38);}
+  .filters{display:flex;gap:6px;margin-top:14px;flex:0 0 auto;}
+  .fchip{font-size:11px;font-weight:600;padding:7px 12px;border-radius:999px;background:var(--surface-2);color:var(--ink-muted);cursor:pointer;}
+  .fchip.on{background:var(--cta);color:#fff;}
+  .daylabel{font-size:11px;font-weight:700;color:var(--ink-faint);letter-spacing:.2px;margin:2px 0 9px;}
+  .row{display:flex;gap:10px;}
+  .rail{width:42px;flex:0 0 auto;display:flex;flex-direction:column;align-items:center;}
+  .rtime{font-size:11px;font-weight:700;letter-spacing:-.2px;line-height:1.2;}
+  .rmer{font-size:8px;font-weight:600;color:var(--ink-faint);margin-top:1px;}
+  .rline{flex:1 1 auto;width:1.5px;background:var(--hairline);margin-top:6px;border-radius:2px;}
+  .row:last-child .rline{background:linear-gradient(var(--hairline),transparent);}
+  .ecard{flex:1 1 auto;min-width:0;background:var(--surface-1);border:1px solid var(--hairline);border-radius:18px;padding:12px 13px;margin-bottom:10px;cursor:pointer;}
+  .ecard.hot{border-color:var(--cta);}
+  .c-top{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;}
+  .c-title{font-size:14px;font-weight:700;letter-spacing:-.25px;}
+  .c-place{font-size:11px;color:var(--ink-muted);margin-top:4px;display:flex;align-items:center;gap:4px;}
+  .c-place svg{width:10px;height:10px;stroke:var(--ink-faint);fill:none;stroke-width:1.8;flex:0 0 auto;}
+  .c-foot{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:10px;padding-top:9px;border-top:1px solid var(--hairline);}
+  .c-route{font-size:10px;color:var(--ink-muted);}
+  .c-route b{color:var(--ink);font-weight:700;}
+  .mini{font-size:9.5px;font-weight:700;color:#fff;background:var(--cta);padding:5px 10px;border-radius:999px;}
+  .empty{text-align:center;padding:38px 16px;font-size:12.5px;color:var(--ink-faint);line-height:1.6;}
+
+  /* ══ DETAIL ══ */
+  .nav{display:flex;align-items:center;justify-content:space-between;flex:0 0 auto;padding:0 2px;}
+  .dbody{flex:1 1 auto;overflow-y:auto;overflow-x:hidden;padding:0 2px 130px;margin-top:14px;}
+  .dbody::-webkit-scrollbar{width:0;}
+  .etitle{font-size:25px;font-weight:700;letter-spacing:-.7px;line-height:1.22;word-break:keep-all;}
+  .emeta{display:flex;align-items:center;gap:6px;margin-top:9px;flex-wrap:wrap;}
+  .esub{font-size:12px;color:var(--ink-muted);}
+  .tpanel{background:var(--panel);border-radius:28px;padding:19px 17px 17px;box-shadow:0 10px 26px rgba(21,23,15,.20);margin-top:16px;}
+  .tp-label{font-size:9.5px;font-weight:700;letter-spacing:.9px;color:rgba(255,255,255,.4);text-transform:uppercase;}
+  .tp-remain{color:#fff;font-size:14px;font-weight:600;margin-top:8px;letter-spacing:-.2px;}
+  .tp-remain b{color:var(--lime);font-size:26px;font-weight:700;letter-spacing:-.8px;}
+  .track{position:relative;margin:18px 4px 8px;height:2px;background:rgba(255,255,255,.14);border-radius:2px;}
+  .track .fill{position:absolute;left:0;top:0;bottom:0;background:var(--lime);border-radius:2px;}
+  .node{position:absolute;top:50%;transform:translate(-50%,-50%);width:9px;height:9px;border-radius:999px;background:rgba(255,255,255,.28);}
+  .node.act{background:var(--lime);width:11px;height:11px;box-shadow:0 0 0 4px rgba(198,241,53,.16);}
+  .tp-times{display:flex;justify-content:space-between;margin-top:13px;}
+  .tt{text-align:center;flex:1;}
+  .tt .k{font-size:9px;font-weight:600;color:rgba(255,255,255,.42);}
+  .tt .v{font-size:15px;font-weight:700;color:rgba(255,255,255,.6);letter-spacing:-.4px;margin-top:3px;}
+  .tt.act .v{color:#fff;}
+  .tt.act .k{color:var(--lime);}
+  .sechead{display:flex;align-items:center;justify-content:space-between;margin-bottom:9px;}
+  .sectitle{font-size:12.5px;font-weight:700;}
+  .seclink{font-size:10.5px;font-weight:700;color:var(--ink-faint);cursor:pointer;display:flex;align-items:center;gap:3px;}
+  .seclink svg{width:11px;height:11px;stroke:currentColor;fill:none;stroke-width:2.2;transition:transform .2s;}
+  .seclink.open svg{transform:rotate(180deg);}
+  .brk{display:none;margin-top:6px;border-top:1px solid var(--hairline);padding-top:4px;}
+  .brk.open{display:block;}
+  .brow{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid var(--hairline);}
+  .brow:last-child{border-bottom:0;padding-bottom:0;}
+  .bk{font-size:12px;font-weight:700;}
+  .bd{font-size:10.5px;color:var(--ink-muted);margin-top:3px;line-height:1.45;}
+  .bv{font-size:12.5px;font-weight:700;flex:0 0 auto;}
+  .chk,.wrow{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--hairline);cursor:pointer;}
+  .wrow{align-items:flex-start;}
+  .chk:last-child,.wrow:last-child{border-bottom:0;}
+  .box{width:20px;height:20px;border-radius:7px;border:1.8px solid var(--hairline);flex:0 0 auto;display:flex;align-items:center;justify-content:center;transition:.15s;}
+  .box svg{width:11px;height:11px;stroke:#fff;fill:none;stroke-width:2.6;opacity:0;}
+  .chk.on .box,.wrow.on .box{background:var(--cta);border-color:var(--cta);}
+  .chk.on .box svg,.wrow.on .box svg{opacity:1;}
+  .cn{font-size:13px;font-weight:500;flex:1 1 auto;}
+  .chk.on .cn,.wrow.on .cn{color:var(--ink-faint);text-decoration:line-through;}
+  .wrow .wtag{display:inline-block;margin-top:5px;font-size:10px;}
+  .wrow.on .wtag{background:var(--surface-2);color:var(--ink-faint);}
+  .rsum{display:flex;align-items:center;justify-content:space-between;gap:10px;cursor:pointer;}
+  .rt{font-size:16px;font-weight:700;letter-spacing:-.4px;}
+  .rs{font-size:11px;color:var(--ink-muted);margin-top:3px;}
+  .rchg{font-size:10px;font-weight:700;color:#fff;background:var(--cta);padding:6px 11px;border-radius:999px;white-space:nowrap;}
+  .steps{display:none;margin-top:12px;padding-top:11px;border-top:1px solid var(--hairline);}
+  .steps.open{display:block;}
+  .step{display:flex;align-items:center;gap:9px;padding:6px 0;}
+  .sico{width:20px;flex:0 0 auto;display:flex;justify-content:center;}
+  .sico svg{width:13px;height:13px;stroke:var(--ink-faint);fill:none;stroke-width:1.9;}
+  .sbadge{font-size:9px;font-weight:700;color:#fff;padding:3px 7px;border-radius:6px;flex:0 0 auto;}
+  .stxt{font-size:11.5px;color:var(--ink-muted);flex:1 1 auto;}
+  .smin{font-size:11.5px;font-weight:700;flex:0 0 auto;}
+  .actbar{position:absolute;left:18px;right:18px;bottom:18px;z-index:31;display:flex;gap:8px;}
+  .btn{flex:1 1 auto;height:50px;border-radius:999px;border:0;font-family:var(--font);font-size:13.5px;font-weight:700;cursor:pointer;}
+  .btn.primary{background:var(--cta);color:#fff;flex:2 1 auto;}
+  .btn.ghost{background:var(--surface-2);color:var(--ink);}
+
+  /* chrome */
+  .fab{position:absolute;right:24px;bottom:92px;width:50px;height:50px;border-radius:999px;background:var(--cta);display:flex;align-items:center;justify-content:center;z-index:31;box-shadow:0 8px 20px rgba(20,21,15,.28);}
+  .fab svg{width:21px;height:21px;stroke:#fff;fill:none;stroke-width:2.1;}
+  .fade{position:absolute;left:0;right:0;bottom:0;height:112px;z-index:20;background:linear-gradient(to bottom,rgba(255,255,255,0),var(--canvas) 58%);pointer-events:none;}
+  .scrollarea{flex:1 1 auto;overflow-y:auto;overflow-x:hidden;padding-bottom:120px;}
+  .scrollarea::-webkit-scrollbar{width:0;}
+  .tabbar{position:absolute;left:24px;right:24px;bottom:15px;height:58px;background:var(--surface-2);border-radius:999px;box-shadow:0 6px 20px rgba(20,21,15,.12);display:flex;align-items:center;justify-content:space-around;z-index:50;}
+  .tab{display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--ink-faint);cursor:pointer;padding:4px 10px;}
+  .tab.on{color:var(--ink);}
+  .tab svg{width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:1.8;}
+  .tab span{font-size:9.5px;font-weight:600;}
+
+  .placeholder{flex:1 1 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:var(--ink-faint);font-size:13px;padding-bottom:80px;}
+
+  .notes{flex:1 1 300px;min-width:290px;background:#fff;border-radius:16px;padding:20px 22px;}
+  .notes h3{font-size:14px;font-weight:700;margin-bottom:12px;}
+  .notes h4{font-size:12px;font-weight:700;margin:15px 0 6px;}
+  .notes p,.notes li{font-size:12.5px;line-height:1.65;color:#4c4f47;}
+  .notes ul{padding-left:16px;}
+  .notes li{margin-bottom:5px;}
+  .nb{background:#f3f5ef;border-radius:10px;padding:11px 13px;margin-top:8px;}
+  kbd{background:#15170f;color:#c6f135;font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:5px;font-family:var(--font);}
+
+  /* ═ embed mode (used when loaded inside ensom_master_flow.html) ═ */
+  body.embed{background:transparent;padding:0;overflow:hidden;}
+  body.embed .page-head,body.embed .legend,body.embed .hint{display:none!important;}
+  body.embed .stage{margin:0;padding:0;gap:0;}
+  body.embed .phone{box-shadow:none;}
+</style>
+</head>
+<body>
+
+<div class="page-head">
+  <h1>[참고용 · HM-01/CAL-01/DTL-01 네비게이션 패턴] Ensom — 홈 · 캘린더 · 일정 상세 연결 프로토타입</h1>
+  <p>세 화면이 실제로 연결돼 있습니다. 하단 탭바로 홈↔캘린더를 오가고, 일정 카드를 누르면 상세로 들어갑니다.</p>
+  <div class="hint">눌러볼 것 — 홈의 라임 카드 · 뒤쪽 회색 카드 · 캘린더 일정 카드 · 캘린더 날짜 · 상세의 계산근거/경로/체크박스</div>
+</div>
+
+<div class="stage">
+  <div class="phone">
+    <div class="notch"></div>
+
+    <!-- ═══ HOME ═══ -->
+    <div class="view on" id="v-home">
+      <div class="hdr">
+        <div class="word">ENS<svg class="wm-o" viewBox="0 0 32 32"><circle cx="16" cy="16" r="11" fill="none" stroke="#4e6810" stroke-width="7"/><circle cx="16" cy="16" r="11" fill="none" stroke="#c6f135" stroke-width="7" stroke-dasharray="47 22" transform="rotate(-90 16 16)" stroke-linecap="round"/></svg>M</div>
+        <div class="acts">
+          <div class="iconbtn"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></div>
+          <div class="iconbtn"><svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 01-3.4 0"/></svg></div>
+        </div>
+      </div>
+
+      <div class="greet-row">
+        <div class="greet">
+          <h2>좋은 오후예요,<br>김도현 님</h2>
+          <p>오늘 일정 3개</p>
+        </div>
+        <div class="weather">
+          <div class="loc">서울특별시</div>
+          <div class="temp">31°</div>
+          <div class="desc">부분적으로 흐림<br>최고 31° 최저 23°</div>
+        </div>
+      </div>
+
+      <div class="scrollarea">
+        <div class="stack-wrap">
+          <div class="behind b2 clickable" data-ev="3" style="right:0"><span class="vtime">19:00</span></div>
+          <div class="behind b1 clickable" data-ev="2" style="right:19px"><span class="vtime">16:30</span></div>
+          <div class="hero clickable" data-ev="1" style="margin-right:38px">
+            <div class="hero-top">
+              <div class="hbadge">준비 시작</div>
+              <div class="hero-icons">
+                <div class="h-ico"><svg viewBox="0 0 24 24"><path d="M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3z"/><path d="M9 3v15M15 6v15"/></svg></div>
+                <div class="h-ico"><svg viewBox="0 0 24 24"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/></svg></div>
+              </div>
+            </div>
+            <div class="hero-msg"><span class="num">20분</span> 뒤 준비를 시작하세요</div>
+            <div class="hero-sub">오후 1시 18분에 출발하면 제시간에 도착할 수 있어요.</div>
+            <div class="hero-foot">
+              <div class="hero-meta">14:00 · 강남역 3번 출구</div>
+              <button class="cta">준비 시작</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="sec">
+          <div class="sec-label">준비 항목</div>
+          <div class="chips">
+            <div class="chip">물 챙기기</div><div class="chip">충전기</div><div class="chip done">노트북</div>
+          </div>
+        </div>
+        <div class="sec">
+          <div class="sec-label">환경 웰니스</div>
+          <div class="wtags">
+            <span class="wtag">선크림 바르기 · 자외선 높음</span>
+            <span class="wtag">물 500ml · 기온 31°</span>
+          </div>
+        </div>
+      </div>
+      <div class="fade"></div>
+    </div>
+
+    <!-- ═══ CALENDAR ═══ -->
+    <div class="view" id="v-cal">
+      <div class="hdr">
+        <div class="word">ENS<svg class="wm-o" viewBox="0 0 32 32"><circle cx="16" cy="16" r="11" fill="none" stroke="#4e6810" stroke-width="7"/><circle cx="16" cy="16" r="11" fill="none" stroke="#c6f135" stroke-width="7" stroke-dasharray="47 22" transform="rotate(-90 16 16)" stroke-linecap="round"/></svg>M</div>
+        <div class="acts">
+          <div class="iconbtn"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></div>
+          <div class="iconbtn"><svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 01-3.4 0"/></svg></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="p-top">
+          <div class="p-month">8월 <span id="pSel"></span><small id="pSub">2026 · 8월 3주</small></div>
+          <div class="p-nav">
+            <div class="pbtn" id="toWeek"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h10"/></svg></div>
+            <div class="pbtn solid" id="toMonth"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 9h16"/></svg></div>
+          </div>
+        </div>
+        <div class="dowrow" id="dowRow"></div>
+        <div class="dgrid" id="dGrid"></div>
+      </div>
+
+      <div class="filters">
+        <div class="fchip on">전체</div><div class="fchip">이동 있음</div><div class="fchip">온라인</div>
+      </div>
+
+      <div class="scrollarea" id="calList" style="margin-top:14px"></div>
+      <div class="fab"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></div>
+      <div class="fade"></div>
+    </div>
+
+    <!-- ═══ MAP / PROFILE placeholder ═══ -->
+    <div class="view" id="v-else">
+      <div class="hdr"><div class="word">ENS<svg class="wm-o" viewBox="0 0 32 32"><circle cx="16" cy="16" r="11" fill="none" stroke="#4e6810" stroke-width="7"/><circle cx="16" cy="16" r="11" fill="none" stroke="#c6f135" stroke-width="7" stroke-dasharray="47 22" transform="rotate(-90 16 16)" stroke-linecap="round"/></svg>M</div></div>
+      <div class="placeholder">
+        <svg width="34" height="34" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16v.01"/></svg>
+        <div id="elseTxt">이 화면은 아직 프로토타입에 없어요</div>
+      </div>
+    </div>
+
+    <!-- ═══ DETAIL ═══ -->
+    <div class="view" id="v-detail">
+      <div class="nav">
+        <div class="iconbtn" id="backBtn"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></div>
+        <div class="iconbtn"><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1.4" fill="currentColor" stroke="none"/></svg></div>
+      </div>
+
+      <div class="dbody">
+        <div class="etitle" id="dTitle">강남역 미팅</div>
+        <div class="emeta">
+          <span class="pill" id="dPill">준비 시작</span>
+          <span class="esub" id="dTime">8월 19일 수 · 14:00–15:00</span>
+        </div>
+        <div class="esub" id="dPlace" style="margin-top:6px;">📍 강남역 3번 출구</div>
+
+        <div class="tpanel" id="dPanel">
+          <div class="tp-label">시간 계획</div>
+          <div class="tp-remain" id="dRemain"><b>20분</b> 뒤 준비를 시작하세요</div>
+          <div class="track" id="dTrack"></div>
+          <div class="tp-times" id="dTimes"></div>
+        </div>
+
+        <div class="sec">
+          <div class="sechead"><div class="sectitle">계산 근거</div>
+            <div class="seclink" id="brkToggle">자세히 <svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></div>
+          </div>
+          <div class="card">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">
+              <div><div class="bk" id="dTotalK">총 준비·이동 80분</div><div class="bd" id="dTotalD">최근 8회 기록을 반영해 계산했어요</div></div>
+              <div class="bv" id="dTotalV">80분</div>
+            </div>
+            <div class="brk" id="brk"></div>
+          </div>
+        </div>
+
+        <div class="sec">
+          <div class="sechead"><div class="sectitle">준비 항목</div><div class="seclink">+ 추가</div></div>
+          <div class="card" id="chkList">
+            <div class="chk"><div class="box"><svg viewBox="0 0 24 24"><path d="M4 12l5 5L20 6"/></svg></div><div class="cn">물 챙기기</div></div>
+            <div class="chk"><div class="box"><svg viewBox="0 0 24 24"><path d="M4 12l5 5L20 6"/></svg></div><div class="cn">충전기</div></div>
+            <div class="chk on"><div class="box"><svg viewBox="0 0 24 24"><path d="M4 12l5 5L20 6"/></svg></div><div class="cn">노트북</div></div>
+          </div>
+        </div>
+
+        <div class="sec" id="wellSec">
+          <div class="sechead"><div class="sectitle">환경 웰니스</div></div>
+          <div class="card" id="wellList">
+            <div class="wrow"><div class="box"><svg viewBox="0 0 24 24"><path d="M4 12l5 5L20 6"/></svg></div><div><div class="cn">선크림 바르기</div><span class="wtag">자외선 높음 · 야외 12분</span></div></div>
+            <div class="wrow"><div class="box"><svg viewBox="0 0 24 24"><path d="M4 12l5 5L20 6"/></svg></div><div><div class="cn">물 500ml 챙기기</div><span class="wtag">기온 31° · 습도 68%</span></div></div>
+          </div>
+        </div>
+
+        <div class="sec" id="routeSec">
+          <div class="sechead"><div class="sectitle">경로</div></div>
+          <div class="card">
+            <div class="rsum" id="rsum">
+              <div>
+                <div class="rt" id="rTop">42분 · 환승 1회</div>
+                <div class="rs" id="rSub">13:18 출발 → 13:52 도착 · 도보 12분</div>
+              </div>
+              <div class="rchg">변경</div>
+            </div>
+            <div class="steps" id="steps">
+              <div class="step"><div class="sico"><svg viewBox="0 0 24 24"><path d="M13 4a1.5 1.5 0 100 .01M9 20l2-6 3-2 1 4 3 2M7 11l3-2 3 1"/></svg></div><span class="stxt">도보</span><span class="smin">5분</span></div>
+              <div class="step"><div class="sico"><svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="14" rx="3"/><path d="M7 21l2-3M17 21l-2-3M5 12h14"/></svg></div><span class="sbadge" style="background:var(--t-7)">7</span><span class="stxt">7호선 · 3정거장</span><span class="smin">12분</span></div>
+              <div class="step"><div class="sico"><svg viewBox="0 0 24 24"><path d="M13 4a1.5 1.5 0 100 .01M9 20l2-6 3-2 1 4 3 2M7 11l3-2 3 1"/></svg></div><span class="stxt">도보 · 환승</span><span class="smin">3분</span></div>
+              <div class="step"><div class="sico"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="12" rx="2"/><path d="M7 20l1.5-3M17 20l-1.5-3M4 11h16"/></svg></div><span class="sbadge" style="background:var(--t-bus)">간선</span><span class="stxt">146번 · 5정거장</span><span class="smin">18분</span></div>
+              <div class="step"><div class="sico"><svg viewBox="0 0 24 24"><path d="M13 4a1.5 1.5 0 100 .01M9 20l2-6 3-2 1 4 3 2M7 11l3-2 3 1"/></svg></div><span class="stxt">도보</span><span class="smin">4분</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="fade" id="dFade"></div>
+      <div class="actbar" id="dActbar">
+        <button class="btn ghost">계획 수정</button>
+        <button class="btn primary">준비 시작</button>
+      </div>
+    </div>
+
+    <!-- ═══ TAB BAR ═══ -->
+    <div class="tabbar" id="tabbar">
+      <div class="tab" data-t="cal"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4M3 11h18"/></svg><span>캘린더</span></div>
+      <div class="tab on" data-t="home"><svg viewBox="0 0 24 24"><path d="M3 10l9-7 9 7v10a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg><span>홈</span></div>
+      <div class="tab" data-t="map"><svg viewBox="0 0 24 24"><path d="M9 3L3 6v15l6-3 6 3 6-3V3l-6 3z"/><path d="M9 3v15M15 6v15"/></svg><span>지도</span></div>
+      <div class="tab" data-t="profile"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg><span>프로필</span></div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <h3>연결된 흐름</h3>
+    <p>홈과 캘린더 <b>양쪽에서</b> 같은 상세 화면으로 들어갑니다. 상세에서 뒤로가기를 누르면 들어온 곳으로 돌아가요.</p>
+    <div class="nb">
+      <b>홈</b> → 라임 히어로 카드 탭 → 강남역 미팅 상세<br>
+      <b>홈</b> → 뒤쪽 회색 카드 탭 → 그 일정의 상세<br>
+      <b>캘린더</b> → 일정 카드 탭 → 상세<br>
+      <b>상세</b> → 좌상단 <kbd>‹</kbd> → 왔던 화면으로
+    </div>
+
+    <h4>일정별로 화면이 달라집니다</h4>
+    <ul>
+      <li><b>강남역 미팅</b> — 이동 있음. 경로 구간, 웰니스 제안 전부 표시</li>
+      <li><b>디자인 리뷰</b> — 온라인 일정. 경로 섹션과 웰니스 섹션이 <b>아예 없어지고</b> 시간 계획도 준비 시간만 남습니다</li>
+      <li><b>저녁 약속</b> — 이동 촉박. 상태 배지가 앰버로</li>
+    </ul>
+    <p style="margin-top:8px;">온라인 일정을 눌러보면 "이동이 없으면 화면이 이만큼 비어야 한다"는 게 보입니다. 섹션을 비워두는 게 아니라 통째로 없애는 방식이에요.</p>
+
+    <h4>캘린더 날짜도 눌러집니다</h4>
+    <p>패널의 날짜를 누르면 아래 리스트가 그 날로 바뀝니다. 우상단 두 버튼으로 주간/월간 전환도 돼요. 일정이 없는 날(8/22)도 눌러보세요.</p>
+
+    <h4>확인 포인트</h4>
+    <ul>
+      <li>세 화면을 오갈 때 같은 앱으로 느껴지는가</li>
+      <li>다크 패널이 캘린더·상세 두 곳에 나오는데 과한가</li>
+      <li>홈의 라임 카드 → 상세의 다크 패널 전환이 어색하지 않은가</li>
+      <li>온라인 일정 상세가 너무 비어 보이지 않는가</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+const DOW=['일','월','화','수','목','금','토'];
+const WEEK=[16,17,18,19,20,21,22];
+const TODAY=19;
+
+const EVENTS={
+  1:{n:'강남역 미팅',time:'8월 19일 수 · 14:00–15:00',p:'강남역 3번 출구',online:false,
+     pill:'준비 시작',pc:'',remain:'<b>20분</b> 뒤 준비를 시작하세요',
+     times:[{k:'준비 시작',v:'12:40'},{k:'출발',v:'13:18'},{k:'도착',v:'13:52'}],
+     actIdx:0,
+     totalK:'총 준비·이동 80분',totalD:'최근 8회 기록을 반영해 계산했어요',totalV:'80분',
+     brk:[
+       {k:'개인 준비',d:'최근 8회 기준, 초기 설정보다 +5분',v:'35분'},
+       {k:'준비 항목',d:'선크림 바르기 포함',v:'3분'},
+       {k:'이동',d:'대중교통 · 실시간 교통 반영',v:'34분'},
+       {k:'도착 여유',d:'설정한 기본 여유',v:'8분'}
+     ],
+     route:'42분 · 환승 1회',rsub:'13:18 출발 → 13:52 도착 · 도보 12분'},
+
+  2:{n:'디자인 리뷰',time:'8월 19일 수 · 16:30–17:30',p:'온라인',online:true,
+     pill:'이동 없음',pc:'neu',remain:'<b>16:20</b>부터 준비하면 충분해요',
+     times:[{k:'준비 시작',v:'16:20'},{k:'일정 시작',v:'16:30'}],
+     actIdx:0,
+     totalK:'총 준비 10분',totalD:'이동이 없는 일정이라 준비 시간만 계산했어요',totalV:'10분',
+     brk:[
+       {k:'개인 준비',d:'온라인 일정 기본값',v:'10분'}
+     ]},
+
+  3:{n:'저녁 약속',time:'8월 19일 수 · 18:30–20:30',p:'홍대입구역',online:false,
+     pill:'이동 촉박',pc:'cau',remain:'<b>75분</b> 준비와 이동이 필요해요',
+     times:[{k:'준비 시작',v:'17:15'},{k:'출발',v:'17:39'},{k:'도착',v:'18:30'}],
+     actIdx:0,
+     totalK:'총 준비·이동 75분',totalD:'도착 여유 없이 계산된 촉박한 일정이에요',totalV:'75분',
+     brk:[
+       {k:'개인 준비',d:'최근 8회 기준',v:'24분'},
+       {k:'이동',d:'환승 2회 · 실시간 교통 반영',v:'51분'},
+       {k:'도착 여유',d:'확보하지 못했어요',v:'0분'}
+     ],
+     route:'51분 · 환승 2회',rsub:'17:39 출발 → 18:30 도착 · 도보 16분'}
+};
+
+const PREP={
+  1:[{n:'물 챙기기'},{n:'충전기'},{n:'노트북',done:1}],
+  2:[{n:'노트북 충전',done:1},{n:'회의 자료 확인'}],
+  3:[{n:'지갑'},{n:'우산'}]
+};
+const WELL={
+  1:[{n:'선크림 바르기',t:'자외선 높음 · 야외 12분'},{n:'물 500ml 챙기기',t:'기온 31° · 습도 68%'}],
+  3:[{n:'물 챙기기',t:'야외 16분 · 기온 29°'}]
+};
+
+const DAYEV={
+  17:[{id:1,t:'13:00',m:'PM',n:'점심 약속',p:'서울역',b:'11:40 준비',c:'pos',r:'22분'}],
+  19:[
+    {id:2,t:'09:30',m:'AM',n:'팀 스탠드업',p:'온라인',online:1,b:'이동 없음',c:'neu'},
+    {id:1,t:'14:00',m:'PM',n:'강남역 미팅',p:'강남역 3번 출구',b:'12:40 준비',c:'pos',r:'42분',hot:1},
+    {id:3,t:'18:30',m:'PM',n:'저녁 약속',p:'홍대입구역',b:'이동 촉박',c:'cau',r:'51분'}
+  ],
+  20:[
+    {id:2,t:'11:00',m:'AM',n:'디자인 리뷰',p:'온라인',online:1,b:'이동 없음',c:'neu'},
+    {id:1,t:'16:00',m:'PM',n:'병원 검진',p:'서울대병원',b:'14:20 준비',c:'pos',r:'38분'}
+  ],
+  21:[{id:1,t:'19:00',m:'PM',n:'스터디',p:'합정역',b:'17:30 준비',c:'pos',r:'26분'}],
+  22:[]
+};
+
+let view='home', calView='week', sel=19, cameFrom='home';
+const cnt=d=>(DAYEV[d]||[]).length;
+
+function show(v){
+  document.querySelectorAll('.view').forEach(x=>x.classList.remove('on'));
+  const map={home:'v-home',cal:'v-cal',detail:'v-detail'};
+  document.getElementById(map[v]||'v-else').classList.add('on');
+  document.getElementById('tabbar').style.display = v==='detail'?'none':'flex';
+  view=v;
+}
+
+/* ---- calendar ---- */
+function dotHTML(d,out){
+  const c=['dot'];
+  if(out)c.push('out');
+  else{
+    if(cnt(d))c.push('has');
+    if(d===TODAY)c.push('today');
+    if(d===sel&&d!==TODAY)c.push('sel');
+  }
+  const n=(!out&&cnt(d)>1)?`<span class="n">${cnt(d)}</span>`:'';
+  return `<div class="${c.join(' ')}" ${out?'':`data-day="${d}"`}>${d}${n}</div>`;
+}
+function renderPanel(){
+  const dow=document.getElementById('dowRow'), g=document.getElementById('dGrid');
+  document.getElementById('pSel').textContent = calView==='week'? sel+'일':'';
+  document.getElementById('pSub').textContent = calView==='week'?'2026 · 8월 3주':'2026';
+  if(calView==='week'){
+    dow.style.display='none'; g.className='dgrid weekrow';
+    g.innerHTML=WEEK.map((d,i)=>`<div class="cell"><div class="wd">${DOW[i]}</div>${dotHTML(d)}</div>`).join('');
+  }else{
+    dow.style.display='grid'; dow.innerHTML=DOW.map(x=>`<span>${x}</span>`).join('');
+    g.className='dgrid';
+    let h='';
+    for(let i=26;i<=31;i++) h+=`<div class="cell">${dotHTML(i,true)}</div>`;
+    for(let d=1;d<=31;d++) h+=`<div class="cell">${dotHTML(d)}</div>`;
+    g.innerHTML=h;
+  }
+  g.querySelectorAll('[data-day]').forEach(el=>el.onclick=()=>{sel=+el.dataset.day;renderPanel();renderCal();});
+}
+function renderCal(){
+  const w=document.getElementById('calList');
+  const evs=DAYEV[sel]||[];
+  const i=WEEK.indexOf(sel);
+  const label=`8월 ${sel}일 ${i>=0?DOW[i]+'요일':''}${sel===TODAY?' · 오늘':''}`;
+  w.innerHTML=`<div class="daylabel">${label}</div>`+(evs.length?evs.map(e=>{
+    const ic=e.online
+      ?'<svg viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="14" rx="2"/><path d="M8 21h8"/></svg>'
+      :'<svg viewBox="0 0 24 24"><path d="M12 21s7-6 7-11a7 7 0 10-14 0c0 5 7 11 7 11z"/><circle cx="12" cy="10" r="2.4"/></svg>';
+    const foot=e.r?`<div class="c-foot"><div class="c-route"><b>${e.r}</b> · 이동</div><div class="mini">경로</div></div>`:'';
+    return `<div class="row"><div class="rail"><div class="rtime">${e.t}</div><div class="rmer">${e.m}</div><div class="rline"></div></div>
+      <div class="ecard ${e.hot?'hot':''}" data-ev="${e.id}">
+        <div class="c-top"><div><div class="c-title">${e.n}</div><div class="c-place">${ic}<span>${e.p}</span></div></div>
+        <div class="pill ${e.c}">${e.b}</div></div>${foot}</div></div>`;
+  }).join(''):'<div class="empty">이 날은 등록된 일정이 없어요<br>아래 + 버튼으로 추가할 수 있어요</div>');
+  w.querySelectorAll('[data-ev]').forEach(el=>el.onclick=()=>openDetail(+el.dataset.ev,'cal'));
+}
+
+/* ---- detail ---- */
+function openDetail(id,from){
+  const e=EVENTS[id]; if(!e)return;
+  cameFrom=from;
+  document.getElementById('dTitle').textContent=e.n;
+  document.getElementById('dTime').textContent=e.time;
+  document.getElementById('dPlace').textContent=(e.online?'💻 ':'📍 ')+e.p;
+  const p=document.getElementById('dPill');
+  p.textContent=e.pill; p.className='pill '+(e.pc||'');
+  document.getElementById('dRemain').innerHTML=e.remain;
+
+  // 시간 계획 — 일정마다 지점 개수가 다르다 (이동 없으면 2지점)
+  const n=e.times.length;
+  const pos=i=> n===1?0:(i/(n-1))*100;
+  document.getElementById('dTrack').innerHTML=
+    `<div class="fill" style="width:${pos(e.actIdx)}%"></div>`+
+    e.times.map((_,i)=>`<div class="node ${i===e.actIdx?'act':''}" style="left:${pos(i)}%"></div>`).join('');
+  document.getElementById('dTimes').innerHTML=
+    e.times.map((t,i)=>`<div class="tt ${i===e.actIdx?'act':''}"><div class="k">${t.k}</div><div class="v">${t.v}</div></div>`).join('');
+
+  // 계산 근거
+  document.getElementById('dTotalK').textContent=e.totalK;
+  document.getElementById('dTotalD').textContent=e.totalD;
+  document.getElementById('dTotalV').textContent=e.totalV;
+  document.getElementById('brk').innerHTML=
+    e.brk.map(b=>`<div class="brow"><div><div class="bk">${b.k}</div><div class="bd">${b.d}</div></div><div class="bv">${b.v}</div></div>`).join('');
+
+  // 준비 항목 · 웰니스 — 일정마다 다르다
+  const CHK='<div class="box"><svg viewBox="0 0 24 24"><path d="M4 12l5 5L20 6"/></svg></div>';
+  document.getElementById('chkList').innerHTML=(PREP[id]||[])
+    .map(p=>`<div class="chk ${p.done?'on':''}">${CHK}<div class="cn">${p.n}</div></div>`).join('');
+  const wl=WELL[id]||[];
+  document.getElementById('wellList').innerHTML=wl
+    .map(w=>`<div class="wrow">${CHK}<div><div class="cn">${w.n}</div><span class="wtag">${w.t}</span></div></div>`).join('');
+  document.querySelectorAll('#chkList .chk, #wellList .wrow').forEach(el=>el.onclick=()=>el.classList.toggle('on'));
+
+  const on=e.online;
+  document.getElementById('routeSec').style.display=on?'none':'block';
+  document.getElementById('wellSec').style.display=wl.length?'block':'none';
+  if(!on&&e.route){
+    document.getElementById('rTop').textContent=e.route;
+    document.getElementById('rSub').textContent=e.rsub;
+  }
+  document.getElementById('brk').classList.remove('open');
+  document.getElementById('brkToggle').classList.remove('open');
+  document.getElementById('steps').classList.remove('open');
+  document.querySelector('#v-detail .dbody').scrollTop=0;
+  show('detail');
+}
+
+document.querySelectorAll('#v-home [data-ev]').forEach(el=>{
+  el.onclick=()=>openDetail(+el.dataset.ev,'home');
+});
+document.getElementById('backBtn').onclick=()=>show(cameFrom);
+
+const brk=document.getElementById('brk'), bt=document.getElementById('brkToggle');
+bt.onclick=()=>{brk.classList.toggle('open');bt.classList.toggle('open');};
+document.getElementById('rsum').onclick=()=>document.getElementById('steps').classList.toggle('open');
+
+document.getElementById('toWeek').onclick=()=>{calView='week';renderPanel();};
+document.getElementById('toMonth').onclick=()=>{calView='month';renderPanel();};
+
+document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('on'));
+  t.classList.add('on');
+  const k=t.dataset.t;
+  if(k==='home'||k==='cal') show(k);
+  else{ document.getElementById('elseTxt').textContent=(k==='map'?'지도':'프로필')+' 화면은 아직 프로토타입에 없어요'; show('else'); }
+});
+
+document.querySelectorAll('.fchip').forEach(c=>c.onclick=()=>{
+  document.querySelectorAll('.fchip').forEach(x=>x.classList.remove('on'));c.classList.add('on');});
+
+renderPanel(); renderCal();
+</script>
+
+<script>(function(){ if(new URLSearchParams(location.search).get('embed')==='1'){ document.body.classList.add('embed'); } })();</script>
+
+</body>
+</html>

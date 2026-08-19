@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ensom — 캘린더 v2</title>
+<style>
+  :root{
+    --lime:#c6f135;
+    --lime-soft:#e4fb9b;
+    --lime-ink:#4e6810;
+    --canvas:#ffffff;
+    --surface-1:#ffffff;
+    --surface-2:#eef0ea;
+    --surface-neutral:#e9e9e6;
+    --hairline:#e3e5e0;
+    --ink:#14150f;
+    --ink-muted:#63655e;
+    --ink-faint:#6f7269;
+    --panel:#15170f;
+    --panel-lift:#1e2117;
+    --cta:#1f231a;
+    --caution:#e3a13b;
+    --font:'Pretendard','Apple SD Gothic Neo','Malgun Gothic',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:var(--font);background:#d9dcd3;color:var(--ink);padding:32px 20px 60px;-webkit-font-smoothing:antialiased;}
+  .page-head{max-width:1180px;margin:0 auto 22px;}
+  .page-head h1{font-size:22px;font-weight:700;letter-spacing:-.4px;}
+  .page-head p{font-size:13px;color:#55584f;margin-top:6px;line-height:1.55;}
+
+  .controls{max-width:1180px;margin:0 auto 26px;display:flex;flex-wrap:wrap;gap:20px;background:#fff;border-radius:16px;padding:16px 18px;}
+  .cg{display:flex;flex-direction:column;gap:8px;}
+  .cl{font-size:11px;font-weight:600;letter-spacing:.4px;color:#7a7d74;text-transform:uppercase;}
+  .seg{display:flex;background:var(--surface-2);border-radius:999px;padding:4px;gap:2px;}
+  .seg button{font-family:var(--font);font-size:13px;font-weight:600;border:0;background:transparent;color:var(--ink-muted);padding:8px 15px;border-radius:999px;cursor:pointer;white-space:nowrap;}
+  .seg button.on{background:var(--cta);color:#fff;}
+
+  .stage{max-width:1180px;margin:0 auto;display:flex;gap:36px;flex-wrap:wrap;align-items:flex-start;}
+  .phone{width:344px;height:730px;flex:0 0 auto;background:var(--canvas);border-radius:46px;border:9px solid #16170f;position:relative;overflow:hidden;box-shadow:0 20px 50px rgba(20,21,15,.26);}
+  .notch{position:absolute;top:0;left:50%;transform:translateX(-50%);width:112px;height:26px;background:#16170f;border-radius:0 0 16px 16px;z-index:40;}
+  .screen{position:absolute;inset:0;display:flex;flex-direction:column;padding:46px 18px 0;}
+
+  /* ── header row (텍스트만, 다크바 없음 — 패널이 그 역할) ── */
+  .hdr{display:flex;align-items:center;justify-content:space-between;flex:0 0 auto;padding:0 4px;}
+  .hdr .word{font-size:13px;font-weight:700;letter-spacing:1.6px;color:var(--ink);display:inline-flex;align-items:center;}
+  .word .wm-o, .wm-o{width:.78em;height:.78em;margin:0 1px;flex:0 0 auto;}
+  .hdr .acts{display:flex;gap:7px;}
+  .iconbtn{width:32px;height:32px;border-radius:999px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;}
+  .iconbtn svg{width:15px;height:15px;stroke:var(--ink);fill:none;stroke-width:1.8;}
+
+  /* ── DARK CALENDAR PANEL ── */
+  .panel{
+    background:var(--panel);border-radius:30px;
+    padding:18px 18px 20px;margin-top:14px;flex:0 0 auto;
+    box-shadow:0 10px 26px rgba(21,23,15,.20);
+  }
+  .p-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
+  .p-month{color:#fff;font-size:19px;font-weight:700;letter-spacing:-.3px;}
+  .p-month small{display:block;font-size:10.5px;font-weight:500;color:rgba(255,255,255,.45);letter-spacing:.2px;margin-top:2px;}
+  .p-nav{display:flex;gap:6px;}
+  .pbtn{width:30px;height:30px;border-radius:999px;background:rgba(255,255,255,.09);display:flex;align-items:center;justify-content:center;}
+  .pbtn svg{width:13px;height:13px;stroke:#fff;fill:none;stroke-width:2;}
+  .pbtn.solid{background:var(--lime);}
+  .pbtn.solid svg{stroke:var(--ink);}
+
+  .dowrow{display:grid;grid-template-columns:repeat(7,1fr);margin-bottom:9px;}
+  .dowrow span{text-align:center;font-size:10px;font-weight:600;color:rgba(255,255,255,.38);letter-spacing:.5px;}
+
+  .dgrid{display:grid;grid-template-columns:repeat(7,1fr);row-gap:7px;}
+  .cell{display:flex;align-items:center;justify-content:center;}
+  .dot{
+    width:33px;height:33px;border-radius:999px;
+    display:flex;align-items:center;justify-content:center;
+    font-size:12.5px;font-weight:600;color:rgba(255,255,255,.72);
+    border:1.4px solid transparent;position:relative;
+  }
+  .dot.has{border-color:rgba(198,241,53,.42);color:#fff;}
+  .dot.today{background:var(--lime);color:var(--ink);border-color:var(--lime);font-weight:700;}
+  .dot.sel{background:#fff;color:var(--ink);border-color:#fff;font-weight:700;}
+  .dot.out{color:rgba(255,255,255,.18);}
+  .dot .n{position:absolute;bottom:-1px;right:-1px;width:13px;height:13px;border-radius:999px;background:var(--lime);color:var(--ink);font-size:8px;font-weight:700;display:flex;align-items:center;justify-content:center;border:1.5px solid var(--panel);}
+  .dot.today .n,.dot.sel .n{background:var(--cta);color:#fff;}
+
+  /* week row variant */
+  .weekrow .cell{flex-direction:column;gap:6px;}
+  .weekrow .wd{font-size:9.5px;font-weight:600;color:rgba(255,255,255,.38);letter-spacing:.4px;}
+
+  /* ── filter chips ── */
+  .filters{display:flex;gap:6px;margin-top:16px;flex:0 0 auto;padding:0 2px;}
+  .fchip{
+    font-size:11.5px;font-weight:600;padding:7px 13px;border-radius:999px;
+    background:var(--surface-2);color:var(--ink-muted);cursor:pointer;
+  }
+  .fchip.on{background:var(--cta);color:#fff;}
+
+  /* ── timeline list ── */
+  .listwrap{flex:1 1 auto;overflow:hidden;margin-top:14px;padding:0 2px;}
+  .daylabel{font-size:11.5px;font-weight:600;color:var(--ink-faint);letter-spacing:.2px;margin:2px 0 10px;}
+  .row{display:flex;gap:11px;}
+  .rail{width:44px;flex:0 0 auto;display:flex;flex-direction:column;align-items:center;}
+  .rtime{font-size:11.5px;font-weight:700;letter-spacing:-.2px;color:var(--ink);line-height:1.2;text-align:center;}
+  .rmer{font-size:8.5px;font-weight:600;color:var(--ink-faint);margin-top:1px;}
+  .rline{flex:1 1 auto;width:1.5px;background:var(--hairline);margin-top:7px;border-radius:2px;}
+  .row:last-child .rline{background:linear-gradient(var(--hairline),transparent);}
+  .card{
+    flex:1 1 auto;min-width:0;background:var(--surface-1);
+    border:1px solid var(--hairline);border-radius:19px;
+    padding:13px 14px;margin-bottom:11px;
+  }
+  .card.hot{border-color:var(--cta);}
+  .c-top{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;}
+  .c-title{font-size:14.5px;font-weight:700;letter-spacing:-.25px;}
+  .c-place{font-size:11.5px;color:var(--ink-muted);margin-top:4px;display:flex;align-items:center;gap:4px;}
+  .c-place svg{width:11px;height:11px;stroke:var(--ink-faint);fill:none;stroke-width:1.8;flex:0 0 auto;}
+  .pill{font-size:10px;font-weight:700;padding:4px 9px;border-radius:999px;white-space:nowrap;flex:0 0 auto;letter-spacing:.1px;}
+  .pill.pos{background:var(--lime-soft);color:var(--lime-ink);}
+  .pill.neu{background:var(--surface-2);color:var(--ink-muted);}
+  .pill.cau{background:var(--caution);color:var(--ink);}
+  .c-foot{
+    display:flex;align-items:center;justify-content:space-between;gap:8px;
+    margin-top:11px;padding-top:10px;border-top:1px solid var(--hairline);
+  }
+  .c-route{font-size:10.5px;color:var(--ink-muted);display:flex;align-items:center;gap:5px;}
+  .c-route b{color:var(--ink);font-weight:700;}
+  .mini{
+    font-size:10px;font-weight:700;color:#fff;background:var(--cta);
+    padding:5px 11px;border-radius:999px;
+  }
+  .empty{text-align:center;padding:40px 16px;font-size:12.5px;color:var(--ink-faint);line-height:1.6;}
+  .c-more{width:26px;height:26px;border-radius:999px;display:flex;align-items:center;justify-content:center;flex:0 0 auto;cursor:pointer;}
+  .c-more svg{width:14px;height:14px;stroke:var(--ink-faint);fill:none;stroke-width:1.8;}
+  .card{cursor:pointer;}
+
+  .scrim{position:absolute;inset:0;background:rgba(20,21,15,.5);z-index:80;display:none;align-items:flex-end;justify-content:center;}
+  .scrim.on{display:flex;}
+  .cdialog{background:#fff;border-radius:22px;padding:20px 18px;width:100%;margin:0 18px 90px;}
+  .cdialog h3{font-size:16px;font-weight:700;margin-bottom:8px;}
+  .cdialog p{font-size:12.5px;color:var(--ink-muted);line-height:1.55;}
+  .cbtnrow{display:flex;gap:8px;margin-top:16px;}
+  .cbtn{flex:1;font-family:var(--font);border:0;border-radius:999px;padding:12px;font-size:13.5px;font-weight:700;cursor:pointer;}
+  .cbtn.sec{background:var(--surface-2);color:var(--ink);}
+  .cbtn.danger{background:#c2452f;color:#fff;}
+  .ctoast{position:absolute;left:16px;right:16px;bottom:100px;background:var(--panel);color:#fff;font-size:12.5px;font-weight:600;padding:13px 16px;border-radius:16px;z-index:90;transform:translateY(20px);opacity:0;pointer-events:none;transition:all .2s;}
+  .ctoast.on{transform:translateY(0);opacity:1;}
+
+  .needsclassify{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;color:var(--caution-ink,#7a4f0c);background:#fdf3e3;padding:4px 9px;border-radius:999px;margin-top:8px;cursor:pointer;}
+  .needsclassify svg{width:10px;height:10px;stroke:currentColor;fill:none;stroke-width:2.2;}
+  .csheet{background:#fff;border-radius:22px 22px 0 0;padding:20px 18px calc(20px + env(safe-area-inset-bottom,0px));width:100%;margin:0;}
+  .csheet h3{font-size:16px;font-weight:700;margin-bottom:6px;}
+  .csheet p{font-size:12px;color:var(--ink-muted);line-height:1.5;margin-bottom:16px;}
+  .coption{display:flex;align-items:center;gap:12px;padding:13px;border:1.4px solid var(--hairline);border-radius:14px;margin-bottom:9px;cursor:pointer;}
+  .coption:active{background:var(--surface-2);}
+  .coption .ci{width:34px;height:34px;border-radius:999px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;flex:0 0 auto;}
+  .coption .ci svg{width:16px;height:16px;stroke:var(--ink-muted);fill:none;stroke-width:1.8;}
+  .coption .ct{font-size:13.5px;font-weight:600;}
+
+  .fab{position:absolute;right:24px;bottom:92px;width:52px;height:52px;border-radius:999px;background:var(--cta);display:flex;align-items:center;justify-content:center;z-index:31;box-shadow:0 8px 20px rgba(20,21,15,.28);cursor:pointer;}
+  .fab svg{width:22px;height:22px;stroke:#fff;fill:none;stroke-width:2.1;}
+  .fade{position:absolute;left:0;right:0;bottom:0;height:112px;z-index:20;background:linear-gradient(to bottom,rgba(255,255,255,0),var(--canvas) 60%);pointer-events:none;}
+  .tabbar{position:absolute;left:24px;right:24px;bottom:15px;height:60px;background:var(--surface-2);border-radius:999px;box-shadow:0 6px 20px rgba(20,21,15,.12);display:flex;align-items:center;justify-content:space-around;z-index:30;}
+  .tab{display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--ink-faint);}
+  .tab.on{color:var(--ink);}
+  .tab svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.8;}
+  .tab span{font-size:10px;font-weight:500;}
+
+  .notes{flex:1 1 300px;min-width:290px;background:#fff;border-radius:16px;padding:20px 22px;}
+  .notes h3{font-size:14px;font-weight:700;margin-bottom:12px;}
+  .notes h4{font-size:12px;font-weight:700;margin:16px 0 6px;}
+  .notes p,.notes li{font-size:12.5px;line-height:1.65;color:#4c4f47;}
+  .notes ul{padding-left:16px;}
+  .notes li{margin-bottom:5px;}
+  .note-box{background:#f3f5ef;border-radius:10px;padding:11px 13px;margin-top:8px;}
+
+  /* ═ embed mode (used when loaded inside ensom_master_flow.html) ═ */
+  body.embed{background:transparent;padding:0;overflow:hidden;}
+  body.embed .page-head,body.embed .legend,body.embed .hint,body.embed .controls{display:none!important;}
+  body.embed .stage{margin:0;padding:0;gap:0;}
+  body.embed .phone{box-shadow:none;}
+</style>
+</head>
+<body>
+
+<div class="page-head">
+  <h1>[CAL-01] Ensom — 캘린더 v2 (다크 패널)</h1>
+  <p>레퍼런스대로 날짜 영역을 다크 패널에 담고, 그 아래는 흰 캔버스에 타임라인 리스트를 놓은 구조입니다. 🆕 일정 카드 탭→상세, [⋯]→삭제 확인, FAB(+)→일정 생성, 하단 탭 전환까지 실제로 연결했고, 8/19 "저녁 약속" 카드에서 <b>CAL-05 분류 확인 시트</b>(신규 제작)도 열어볼 수 있어요.</p>
+</div>
+
+<div class="controls">
+  <div class="cg">
+    <div class="cl">뷰</div>
+    <div class="seg" id="viewSeg">
+      <button data-v="week" class="on">주간</button>
+      <button data-v="month">월간</button>
+    </div>
+  </div>
+  <div class="cg">
+    <div class="cl">선택한 날</div>
+    <div class="seg" id="daySeg">
+      <button data-d="19" class="on">8/19 (오늘)</button>
+      <button data-d="20">8/20</button>
+      <button data-d="22">8/22 (없음)</button>
+    </div>
+  </div>
+</div>
+
+<div class="stage">
+  <div class="phone">
+    <div class="notch"></div>
+    <div class="screen">
+
+      <div class="hdr">
+        <div class="word">ENS<svg class="wm-o" viewBox="0 0 32 32"><circle cx="16" cy="16" r="11" fill="none" stroke="#4e6810" stroke-width="7"/><circle cx="16" cy="16" r="11" fill="none" stroke="#c6f135" stroke-width="7" stroke-dasharray="47 22" transform="rotate(-90 16 16)" stroke-linecap="round"/></svg>M</div>
+        <div class="acts">
+          <div class="iconbtn"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></div>
+          <div class="iconbtn"><svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 01-3.4 0"/></svg></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="p-top">
+          <div class="p-month">8월 <span id="pMonthSel"></span><small id="pSub">2026 · 8월 3주</small></div>
+          <div class="p-nav">
+            <div class="pbtn"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></div>
+            <div class="pbtn solid"><svg viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></div>
+          </div>
+        </div>
+        <div class="dowrow" id="dowRow"></div>
+        <div class="dgrid" id="dGrid"></div>
+      </div>
+
+      <div class="filters">
+        <div class="fchip on">전체</div>
+        <div class="fchip">이동 있음</div>
+        <div class="fchip">온라인</div>
+      </div>
+
+      <div class="listwrap" id="listwrap"></div>
+
+      <div class="fab" onclick="location.href='ensom_event_form.html'"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></div>
+      <div class="fade"></div>
+
+      <div class="scrim" id="scrim">
+        <div class="cdialog">
+          <h3>이 일정을 삭제할까요?</h3>
+          <p>예약된 알림도 함께 취소돼요. 이 동작은 되돌릴 수 없어요.</p>
+          <div class="cbtnrow">
+            <button class="cbtn sec" onclick="closeDelete()">취소</button>
+            <button class="cbtn danger" onclick="confirmDelete()">삭제</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 🆕 CAL-05 분류 확인 시트 -->
+      <div class="scrim" id="classifyScrim">
+        <div class="csheet">
+          <h3>이 일정은 이동이 필요한 일정인가요?</h3>
+          <p id="classifyTarget">저녁 약속 · 18:30</p>
+          <div class="coption" onclick="confirmClassify('이동 필요')">
+            <div class="ci"><svg viewBox="0 0 24 24"><path d="M12 21s7-6 7-11a7 7 0 10-14 0c0 5 7 11 7 11z"/><circle cx="12" cy="10" r="2.4"/></svg></div>
+            <div class="ct">네, 장소로 이동해요</div>
+          </div>
+          <div class="coption" onclick="confirmClassify('온라인')">
+            <div class="ci"><svg viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="14" rx="2"/><path d="M8 21h8"/></svg></div>
+            <div class="ct">아니요, 온라인 일정이에요</div>
+          </div>
+          <div class="coption" onclick="confirmClassify('장소 없음')">
+            <div class="ci"><svg viewBox="0 0 24 24"><path d="M4 12l5 5L20 6"/></svg></div>
+            <div class="ct">이동은 없지만 장소는 있어요</div>
+          </div>
+        </div>
+      </div>
+      <div class="ctoast" id="ctoast">삭제했어요 · 되돌리기</div>
+      <div class="tabbar">
+        <div class="tab on"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4M3 11h18"/></svg><span>캘린더</span></div>
+        <div class="tab" onclick="location.href='ensom_prototype.html'"><svg viewBox="0 0 24 24"><path d="M3 10l9-7 9 7v10a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg><span>홈</span></div>
+        <div class="tab" onclick="location.href='ensom_map.html'"><svg viewBox="0 0 24 24"><path d="M9 3L3 6v15l6-3 6 3 6-3V3l-6 3z"/><path d="M9 3v15M15 6v15"/></svg><span>지도</span></div>
+        <div class="tab" onclick="location.href='ensom_profile.html'"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg><span>프로필</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <h3>v1과 뭐가 달라졌나</h3>
+
+    <h4>1. 다크 패널을 하나의 컴포넌트로</h4>
+    <p>날짜 영역 전체를 라운드 30px 다크 패널에 담았습니다. 이전 결과물이 문제였던 건 "검정을 썼다"가 아니라 <b>화면 여기저기에 정체불명의 검정 블록이 흩어져 있었기</b> 때문이에요. 하나의 정의된 패널로 쓰면 상단 바가 다크인 것과 같은 논리라 시스템 안에 들어옵니다.</p>
+    <div class="note-box">대신 상단의 다크 앱바를 없앴습니다. 다크 바 + 다크 패널이 세로로 붙으면 화면 위쪽이 통째로 검게 막혀 보여서요. 워드마크는 텍스트로만 남겼습니다.</div>
+
+    <h4>2. 날짜 상태를 4단계로</h4>
+    <ul>
+      <li><b>기본</b> — 테두리 없음, 흰 글씨 72%</li>
+      <li><b>일정 있는 날</b> — 라임 링(테두리)만. 채우지 않아서 과하지 않음</li>
+      <li><b>오늘</b> — 라임 채움</li>
+      <li><b>선택</b> — 흰색 채움</li>
+    </ul>
+    <p style="margin-top:6px;">일정이 2개 이상인 날은 우하단에 작은 개수 배지가 붙습니다. 점 대신 숫자라 "얼마나 바쁜 날인지"가 바로 읽혀요.</p>
+
+    <h4>3. 리스트를 타임라인으로</h4>
+    <p>레퍼런스처럼 왼쪽에 시각 레일을 두고 세로선으로 연결했습니다. 카드만 나열하는 것보다 "하루가 흘러간다"는 감각이 생겨요. 다음 일정 카드만 테두리가 진해집니다.</p>
+
+    <h4>4. 카드 하단에 경로 요약</h4>
+    <p>이동이 있는 일정만 구분선 아래에 "환승 1회 · 42분 · 12:40 준비 시작"이 붙고 [경로] 버튼이 생깁니다. 온라인 일정은 이 영역 자체가 없어서 카드 높이가 달라지고, 그것만으로 두 종류가 구분됩니다.</p>
+
+    <h4>5. 필터 칩 추가</h4>
+    <p>전체 / 이동 있음 / 온라인. 앤섬은 "이동이 필요한 일정"이 핵심이라 이 축의 필터가 실제로 쓸모 있습니다.</p>
+
+    <h4>남은 판단</h4>
+    <ul>
+      <li>패널 색을 순검정 계열(#15170f) 말고 더 따뜻한 톤으로 갈지</li>
+      <li>일정 개수 배지를 숫자로 둘지 점으로 되돌릴지</li>
+      <li>일간 뷰를 따로 둘지 — 지금은 주간에서 날짜를 고르면 그게 일간 역할을 함</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+const DOW=['일','월','화','수','목','금','토'];
+const WEEK=[16,17,18,19,20,21,22];
+const TODAY=19;
+const EV={
+  16:[],
+  17:[{t:'13:00',m:'PM',n:'점심 약속',p:'서울역',b:'11:40 준비',c:'pos',r:'환승 없음 · 22분'}],
+  18:[],
+  19:[
+    {t:'09:30',m:'AM',n:'팀 스탠드업',p:'온라인',online:1,b:'이동 없음',c:'neu'},
+    {t:'14:00',m:'PM',n:'강남역 미팅',p:'강남역 3번 출구',b:'12:40 준비',c:'pos',r:'환승 1회 · 42분',hot:1},
+    {t:'18:30',m:'PM',n:'저녁 약속',p:'홍대입구역',b:'이동 촉박',c:'cau',r:'환승 2회 · 51분',needsClassify:1}
+  ],
+  20:[
+    {t:'11:00',m:'AM',n:'디자인 리뷰',p:'온라인',online:1,b:'이동 없음',c:'neu'},
+    {t:'16:00',m:'PM',n:'병원 검진',p:'서울대병원',b:'14:20 준비',c:'pos',r:'환승 1회 · 38분'}
+  ],
+  21:[{t:'19:00',m:'PM',n:'스터디',p:'합정역',b:'17:30 준비',c:'pos',r:'환승 없음 · 26분'}],
+  22:[]
+};
+let view='week', sel=19;
+const cnt=d=>(EV[d]||[]).length;
+
+function dotHTML(d,extra=''){
+  const c=['dot'];
+  if(extra)c.push(extra);
+  if(cnt(d))c.push('has');
+  if(d===TODAY)c.push('today');
+  if(d===sel&&d!==TODAY)c.push('sel');
+  const n=cnt(d)>1?`<span class="n">${cnt(d)}</span>`:'';
+  return `<div class="${c.join(' ')}">${d}${n}</div>`;
+}
+
+function renderPanel(){
+  const dow=document.getElementById('dowRow'), g=document.getElementById('dGrid');
+  document.getElementById('pMonthSel').textContent = view==='week'? sel+'일' : '';
+  document.getElementById('pSub').textContent = view==='week'?'2026 · 8월 3주':'2026';
+  if(view==='week'){
+    dow.style.display='none';
+    g.className='dgrid weekrow';
+    g.innerHTML=WEEK.map((d,i)=>`<div class="cell"><div class="wd">${DOW[i]}</div>${dotHTML(d)}</div>`).join('');
+  }else{
+    dow.style.display='grid';
+    dow.innerHTML=DOW.map(x=>`<span>${x}</span>`).join('');
+    g.className='dgrid';
+    let h='';
+    for(let i=26;i<=31;i++) h+=`<div class="cell"><div class="dot out">${i}</div></div>`;
+    for(let d=1;d<=31;d++) h+=`<div class="cell">${dotHTML(d)}</div>`;
+    g.innerHTML=h;
+  }
+}
+
+let delTarget=null;
+function card(e){
+  const icon=e.online
+    ?'<svg viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="14" rx="2"/><path d="M8 21h8"/></svg>'
+    :'<svg viewBox="0 0 24 24"><path d="M12 21s7-6 7-11a7 7 0 10-14 0c0 5 7 11 7 11z"/><circle cx="12" cy="10" r="2.4"/></svg>';
+  const foot=e.r?`<div class="c-foot"><div class="c-route"><b>${e.r.split(' · ')[1]}</b><span>${e.r.split(' · ')[0]}</span></div><div class="mini" onclick="event.stopPropagation();location.href='ensom_map.html'">경로</div></div>`:'';
+  const classify=e.needsClassify?`<div class="needsclassify" onclick="event.stopPropagation();openClassify('${e.n} · ${e.t}')"><svg viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"/></svg>이동이 필요한 일정인가요?</div>`:'';
+  return `<div class="row">
+    <div class="rail"><div class="rtime">${e.t}</div><div class="rmer">${e.m}</div><div class="rline"></div></div>
+    <div class="card ${e.hot?'hot':''}" onclick="location.href='ensom_detail.html'">
+      <div class="c-top">
+        <div><div class="c-title">${e.n}</div><div class="c-place">${icon}<span>${e.p}</span></div></div>
+        <div style="display:flex;align-items:center;gap:4px;">
+          <div class="pill ${e.c}">${e.b}</div>
+          <div class="c-more" onclick="event.stopPropagation();openDelete('${e.n}')"><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1.4" fill="currentColor" stroke="none"/></svg></div>
+        </div>
+      </div>${foot}${classify}
+    </div>
+  </div>`;
+}
+function openDelete(name){ delTarget=name; document.getElementById('scrim').classList.add('on'); }
+function closeDelete(){ document.getElementById('scrim').classList.remove('on'); }
+function confirmDelete(){
+  closeDelete();
+  const t=document.getElementById('ctoast');
+  t.classList.add('on');
+  setTimeout(()=>t.classList.remove('on'),2200);
+}
+
+/* 🆕 CAL-05 분류 확인 시트 — 08_화면상태_체크리스트.md 신규 발견 */
+function openClassify(label){
+  document.getElementById('classifyTarget').textContent = label;
+  document.getElementById('classifyScrim').classList.add('on');
+}
+function closeClassify(){ document.getElementById('classifyScrim').classList.remove('on'); }
+function confirmClassify(choice){
+  closeClassify();
+  const t=document.getElementById('ctoast');
+  t.textContent = '확인했어요 · ' + choice + ' · 다시 묻지 않아요';
+  t.classList.add('on');
+  setTimeout(()=>{ t.classList.remove('on'); t.textContent='삭제했어요 · 되돌리기'; },2400);
+}
+
+function renderList(){
+  const w=document.getElementById('listwrap');
+  const evs=EV[sel]||[];
+  const i=WEEK.indexOf(sel);
+  const label=`8월 ${sel}일 ${i>=0?DOW[i]+'요일':''}${sel===TODAY?' · 오늘':''}`;
+  w.innerHTML=`<div class="daylabel">${label}</div>`+
+    (evs.length?evs.map(card).join(''):'<div class="empty">이 날은 등록된 일정이 없어요<br>아래 + 버튼으로 추가할 수 있어요</div>');
+}
+
+function render(){renderPanel();renderList();}
+document.querySelectorAll('#viewSeg button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('#viewSeg button').forEach(x=>x.classList.remove('on'));b.classList.add('on');view=b.dataset.v;render();});
+document.querySelectorAll('#daySeg button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('#daySeg button').forEach(x=>x.classList.remove('on'));b.classList.add('on');sel=+b.dataset.d;render();});
+render();
+</script>
+
+<script>(function(){ if(new URLSearchParams(location.search).get('embed')==='1'){ document.body.classList.add('embed'); } })();</script>
+
+</body>
+</html>

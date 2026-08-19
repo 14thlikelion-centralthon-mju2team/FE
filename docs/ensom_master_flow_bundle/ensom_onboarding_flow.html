@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>[ONB-02~06] Ensom — 온보딩(로그인~웰니스) 프로토타입</title>
+<style>
+  :root{
+    --lime:#c6f135;--lime-soft:#e4fb9b;--lime-ink:#4e6810;
+    --canvas:#ffffff;--surface-1:#ffffff;--surface-2:#eef0ea;--surface-neutral:#e9e9e6;
+    --hairline:#e3e5e0;--ink:#14150f;--ink-muted:#63655e;--ink-faint:#6f7269;
+    --panel:#15170f;--cta:#1f231a;--caution:#e3a13b;--danger:#c2452f;
+    --font:'Pretendard','Apple SD Gothic Neo','Malgun Gothic',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:var(--font);background:#d9dcd3;color:var(--ink);padding:32px 20px 60px;-webkit-font-smoothing:antialiased;}
+  .page-head{max-width:1180px;margin:0 auto 22px;}
+  .page-head h1{font-size:22px;font-weight:700;letter-spacing:-.4px;}
+  .page-head p{font-size:13px;color:#55584f;margin-top:6px;line-height:1.55;}
+  .stage{max-width:1180px;margin:0 auto;display:flex;gap:36px;flex-wrap:wrap;align-items:flex-start;}
+  .phone{width:344px;height:730px;flex:0 0 auto;background:#fff;border-radius:46px;border:9px solid #16170f;position:relative;overflow:hidden;box-shadow:0 20px 50px rgba(20,21,15,.26);}
+  .notch{position:absolute;top:0;left:50%;transform:translateX(-50%);width:112px;height:26px;background:#16170f;border-radius:0 0 16px 16px;z-index:60;}
+
+  .steps{position:absolute;top:14px;left:0;right:0;display:flex;justify-content:center;gap:5px;z-index:70;}
+  .stepdot{width:18px;height:3px;border-radius:2px;background:var(--surface-neutral);}
+  .stepdot.on{background:var(--cta);}
+  .stepdot.done{background:var(--lime-ink);}
+
+  .selrow{position:absolute;top:8px;left:0;right:0;display:flex;flex-wrap:wrap;gap:4px;justify-content:center;padding:0 10px;z-index:99;}
+  .selrow button{font-family:var(--font);font-size:9px;font-weight:700;border:0;border-radius:999px;padding:5px 7px;background:var(--surface-2);color:var(--ink-muted);cursor:pointer;}
+  .selrow button.on{background:var(--cta);color:#fff;}
+
+  .view{position:absolute;inset:0;display:none;flex-direction:column;}
+  .view.on{display:flex;}
+  .scroll{flex:1 1 auto;overflow-y:auto;padding:14px 18px 20px;}
+  .scroll::-webkit-scrollbar{display:none;}
+  .clickable{cursor:pointer;transition:transform .12s;}
+  .clickable:active{transform:scale(.985);}
+
+  .topbar{flex:0 0 auto;margin:44px 2px 0;height:34px;display:flex;align-items:center;padding:0 2px;}
+  .backbtn{width:32px;height:32px;border-radius:999px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;cursor:pointer;flex:0 0 auto;}
+  .backbtn svg{width:14px;height:14px;stroke:var(--ink);fill:none;stroke-width:2.1;}
+
+  .footer{flex:0 0 auto;padding:12px 18px calc(14px + env(safe-area-inset-bottom,0px));}
+  .pbtn{font-family:var(--font);border:0;border-radius:999px;padding:14px 16px;font-size:14px;font-weight:700;cursor:pointer;width:100%;background:var(--cta);color:#fff;}
+  .pbtn:disabled{opacity:.4;cursor:default;}
+  .textbtn{background:transparent;border:0;font-family:var(--font);font-size:12.5px;color:var(--ink-muted);text-decoration:underline;text-underline-offset:2px;cursor:pointer;width:100%;text-align:center;margin-top:8px;}
+
+  /* ═ v-login ═ */
+  .loginwrap{flex:1 1 auto;display:flex;flex-direction:column;justify-content:center;padding:0 26px;}
+  .word{font-size:24px;font-weight:800;letter-spacing:1.6px;display:inline-flex;align-items:center;align-self:center;}
+  .word .wm-o{width:.72em;height:.72em;margin:0 2px;flex:0 0 auto;}
+  .slogan{font-size:12.5px;color:var(--ink-muted);text-align:center;margin-top:9px;}
+  .socialbtn{width:100%;border:1.4px solid var(--hairline);border-radius:999px;padding:13px 16px;font-family:var(--font);font-size:13.5px;font-weight:700;background:#fff;color:var(--ink);cursor:pointer;margin-top:28px;display:flex;align-items:center;justify-content:center;gap:9px;}
+  .socialbtn svg{width:16px;height:16px;}
+  .loginfoot{text-align:center;font-size:11px;color:var(--ink-faint);margin-top:22px;line-height:1.6;}
+  .loginfoot a{color:var(--ink-muted);text-decoration:underline;text-underline-offset:2px;}
+  .loginerr{background:#fdf2f0;border-radius:12px;padding:11px 13px;margin-top:16px;font-size:11.5px;color:var(--danger);font-weight:600;display:none;line-height:1.5;}
+  .loginerr.on{display:block;}
+
+  /* ═ v-consent ═ */
+  .ctitle{font-size:20px;font-weight:700;letter-spacing:-.4px;margin-top:8px;}
+  .csub{font-size:12px;color:var(--ink-muted);margin-top:6px;}
+  .call{display:flex;align-items:center;gap:10px;background:var(--surface-2);border-radius:14px;padding:13px;margin-top:18px;cursor:pointer;}
+  .cdiv{height:1px;background:var(--hairline);margin:14px 0;}
+  .crow{display:flex;align-items:center;gap:10px;padding:11px 2px;cursor:pointer;}
+  .cbox{width:21px;height:21px;border-radius:7px;border:1.8px solid var(--hairline);flex:0 0 auto;display:flex;align-items:center;justify-content:center;}
+  .cbox svg{width:12px;height:12px;stroke:#fff;fill:none;stroke-width:2.6;opacity:0;}
+  .crow.on .cbox,.call.on .cbox{background:var(--cta);border-color:var(--cta);}
+  .crow.on .cbox svg,.call.on .cbox svg{opacity:1;}
+  .crow .ctext{flex:1 1 auto;font-size:13px;font-weight:500;}
+  .crow .ctag{font-size:10px;font-weight:700;color:var(--ink-faint);}
+  .crow .clink{font-size:11px;color:var(--ink-faint);text-decoration:underline;text-underline-offset:2px;}
+
+  /* ═ v-preptime ═ */
+  .q{font-size:16px;font-weight:700;letter-spacing:-.3px;margin-top:14px;line-height:1.4;word-break:keep-all;}
+  .qsub{font-size:11.5px;color:var(--ink-muted);margin-top:6px;line-height:1.5;}
+  .chiprow{display:flex;gap:7px;margin-top:12px;flex-wrap:wrap;}
+  .chip{background:var(--surface-2);color:var(--ink);font-size:12.5px;font-weight:600;padding:10px 14px;border-radius:14px;cursor:pointer;}
+  .chip.on{background:var(--cta);color:#fff;}
+  .div{height:1px;background:var(--hairline);margin:22px 0 4px;}
+
+  /* ═ v-place ═ */
+  .placetype{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;}
+  .ptype{flex:1 1 40%;border:1.4px solid var(--hairline);border-radius:14px;padding:13px;text-align:center;cursor:pointer;}
+  .ptype.on{border-color:var(--cta);background:var(--surface-2);}
+  .ptype svg{width:20px;height:20px;stroke:var(--ink-muted);fill:none;stroke-width:1.8;margin-bottom:6px;}
+  .ptype span{display:block;font-size:12px;font-weight:600;}
+  .lrow{display:flex;align-items:center;gap:12px;padding:12px 2px;cursor:pointer;border-bottom:1px solid var(--hairline);margin-top:14px;}
+  .lrow .li{width:34px;height:34px;border-radius:999px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;flex:0 0 auto;}
+  .lrow .li svg{width:15px;height:15px;stroke:var(--ink-muted);fill:none;stroke-width:1.8;}
+  .lrow .lval{font-size:13.5px;font-weight:600;}
+  .lrow .lval.ph{color:var(--ink-faint);font-weight:400;}
+  .placeempty{text-align:center;padding:30px 10px;color:var(--ink-faint);font-size:12.5px;line-height:1.7;}
+
+  /* ═ v-wellness ═ */
+  .wrow{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 2px;border-bottom:1px solid var(--hairline);}
+  .wname{font-size:13.5px;font-weight:600;}
+  .toggle{width:42px;height:25px;border-radius:999px;background:var(--surface-neutral);position:relative;cursor:pointer;flex:0 0 auto;transition:background .15s;}
+  .toggle .knob{position:absolute;top:2.5px;left:2.5px;width:20px;height:20px;border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);transition:left .15s;}
+  .toggle.on{background:var(--lime);}
+  .toggle.on .knob{left:19.5px;}
+  .seg{display:flex;background:var(--surface-2);border-radius:13px;padding:3px;gap:3px;margin-top:8px;}
+  .seg .sitem{flex:1 1 0;text-align:center;font-size:12px;font-weight:600;padding:9px 0;border-radius:10px;cursor:pointer;color:var(--ink-muted);}
+  .seg .sitem.on{background:var(--cta);color:#fff;}
+
+  .hint{display:inline-block;background:#15170f;color:#c6f135;font-size:11.5px;font-weight:600;padding:6px 12px;border-radius:999px;margin-top:10px;}
+  .legend{max-width:340px;font-size:12px;color:#55584f;line-height:1.7;}
+  .legend b{color:var(--ink);}
+
+  body.embed{background:transparent;padding:0;overflow:hidden;}
+  body.embed .page-head,body.embed .legend,body.embed .hint{display:none!important;}
+  body.embed .stage{margin:0;padding:0;gap:0;}
+  body.embed .phone{box-shadow:none;}
+</style>
+</head>
+<body>
+
+<div class="page-head">
+  <h1>[ONB-02~06] Ensom — 온보딩 (로그인 · 약관 · 준비시간 · 장소 · 웰니스)</h1>
+  <p>지금까지 HTML이 아예 없던 온보딩 5개 화면. 실제 F1 플로우 순서(로그인→약관→준비시간→장소→웰니스)대로 [다음]을 눌러 이어갈 수 있어요. 위 ☰ 대신 상단 점 5개로 단계를 확인하세요.</p>
+</div>
+
+<div class="stage">
+  <div class="phone">
+    <div class="notch"></div>
+    <div class="steps" id="steps">
+      <div class="stepdot on" data-i="0"></div><div class="stepdot" data-i="1"></div><div class="stepdot" data-i="2"></div><div class="stepdot" data-i="3"></div><div class="stepdot" data-i="4"></div>
+    </div>
+
+    <!-- ═══ ONB-02 로그인 ═══ -->
+    <div class="view on" id="v-login">
+      <div class="loginwrap">
+        <div class="word">ENS<svg class="wm-o" viewBox="0 0 32 32"><circle cx="16" cy="16" r="11" fill="none" stroke="#4e6810" stroke-width="7"/><circle cx="16" cy="16" r="11" fill="none" stroke="#c6f135" stroke-width="7" stroke-dasharray="47 22" transform="rotate(-90 16 16)" stroke-linecap="round"/></svg>M</div>
+        <div class="slogan">늦지 않게, 서두르지 않게.</div>
+        <button class="socialbtn" onclick="tryLogin()">
+          <svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.55c2.08-1.92 3.28-4.74 3.28-8.1z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.55-2.77c-.98.66-2.24 1.05-3.73 1.05-2.87 0-5.3-1.94-6.17-4.54H2.18v2.85A11 11 0 0012 23z"/><path fill="#FBBC05" d="M5.83 14.09A6.6 6.6 0 015.48 12c0-.73.13-1.43.35-2.09V7.06H2.18A11 11 0 001 12c0 1.77.42 3.45 1.18 4.94l3.65-2.85z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1a11 11 0 00-9.82 6.06l3.65 2.85C6.7 7.32 9.13 5.38 12 5.38z"/></svg>
+          Google로 계속하기
+        </button>
+        <div class="loginerr" id="loginErr"></div>
+        <div class="loginfoot">계속 진행하면 <a>이용약관</a>과 <a>개인정보 처리방침</a>에 동의하는 것으로 간주돼요</div>
+      </div>
+    </div>
+
+    <!-- ═══ ONB-03 필수 약관 동의 ═══ -->
+    <div class="view" id="v-consent">
+      <div class="topbar"></div>
+      <div class="scroll">
+        <div class="ctitle">약관에 동의해 주세요</div>
+        <div class="csub">필수 약관에 동의해야 다음으로 진행할 수 있어요</div>
+        <div class="call clickable" id="allAgree" onclick="toggleAll()">
+          <div class="cbox"><svg viewBox="0 0 24 24"><path d="M4 12l5 5L20 6"/></svg></div>
+          <div class="ctext" style="font-weight:700;">전체 동의</div>
+        </div>
+        <div class="cdiv"></div>
+        <div class="crow clickable" data-req="1" onclick="toggleOne(this)">
+          <div class="cbox"><svg viewBox="0 0 24 24"><path d="M4 12l5 5L20 6"/></svg></div>
+          <div class="ctext">[필수] 이용약관</div>
+          <div class="clink">보기</div>
+        </div>
+        <div class="crow clickable" data-req="1" onclick="toggleOne(this)">
+          <div class="cbox"><svg viewBox="0 0 24 24"><path d="M4 12l5 5L20 6"/></svg></div>
+          <div class="ctext">[필수] 개인정보 수집·이용</div>
+          <div class="clink">보기</div>
+        </div>
+        <div class="crow clickable" data-req="0" onclick="toggleOne(this)">
+          <div class="cbox"><svg viewBox="0 0 24 24"><path d="M4 12l5 5L20 6"/></svg></div>
+          <div class="ctext">[선택] 마케팅 정보 수신</div>
+          <div class="clink">보기</div>
+        </div>
+      </div>
+      <div class="footer"><button class="pbtn" id="consentNext" disabled onclick="go(2)">다음</button></div>
+    </div>
+
+    <!-- ═══ ONB-04 준비 시간 + 준비 항목 ═══ -->
+    <div class="view" id="v-preptime">
+      <div class="topbar"></div>
+      <div class="scroll">
+        <div class="q">평소 외출 준비에<br>얼마나 걸리나요?</div>
+        <div class="qsub">정확하지 않아도 괜찮아요. 실제 준비·이동 기록을 바탕으로 Ensom이 계속 조정할게요.</div>
+        <div class="chiprow" id="prepChips">
+          <div class="chip" onclick="pickOne(this,'prepChips')">10분</div>
+          <div class="chip" onclick="pickOne(this,'prepChips')">20분</div>
+          <div class="chip on" onclick="pickOne(this,'prepChips')">30분</div>
+          <div class="chip" onclick="pickOne(this,'prepChips')">45분</div>
+          <div class="chip" onclick="pickOne(this,'prepChips')">1시간 이상</div>
+          <div class="chip" onclick="pickOne(this,'prepChips')">잘 모르겠어요</div>
+        </div>
+        <div class="div"></div>
+        <div class="q" style="font-size:14.5px;">외출 전에 자주 챙기거나<br>하는 일이 있나요?</div>
+        <div class="qsub">선택한 항목은 다음 일정의 준비 체크리스트와 준비 시간에 자동 반영돼요.</div>
+        <div class="chiprow" id="itemChips">
+          <div class="chip on" onclick="toggleMulti(this)">영양제</div>
+          <div class="chip" onclick="toggleMulti(this)">복용약</div>
+          <div class="chip on" onclick="toggleMulti(this)">물/텀블러</div>
+          <div class="chip" onclick="toggleMulti(this)">선크림</div>
+          <div class="chip" onclick="toggleMulti(this)">마스크</div>
+          <div class="chip" onclick="toggleMulti(this)">우산</div>
+          <div class="chip" onclick="toggleMulti(this)">보조배터리</div>
+          <div class="chip" onclick="toggleMulti(this)">+ 직접 추가</div>
+        </div>
+      </div>
+      <div class="footer">
+        <button class="pbtn" onclick="go(3)">저장</button>
+        <button class="textbtn" onclick="go(3)">나중에 설정할게요</button>
+      </div>
+    </div>
+
+    <!-- ═══ ONB-05 주요 장소 설정 ═══ -->
+    <div class="view" id="v-place">
+      <div class="topbar"></div>
+      <div class="scroll">
+        <div class="q">자주 가는 장소를<br>등록해 주세요</div>
+        <div class="qsub">집·직장을 등록하면 출발지를 매번 검색하지 않아도 돼요.</div>
+        <div class="placetype">
+          <div class="ptype on" onclick="pickType(this)"><svg viewBox="0 0 24 24"><path d="M3 10l9-7 9 7v9a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg><span>집</span></div>
+          <div class="ptype" onclick="pickType(this)"><svg viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="1.5"/><path d="M9 21v-4h6v4"/></svg><span>직장</span></div>
+          <div class="ptype" onclick="pickType(this)"><svg viewBox="0 0 24 24"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c0 1.5 2.5 3 6 3s6-1.5 6-3v-5"/></svg><span>학교</span></div>
+          <div class="ptype" onclick="pickType(this)"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/></svg><span>기타</span></div>
+        </div>
+        <div class="lrow clickable" onclick="location.href='ensom_search.html?return=ensom_onboarding_flow.html'">
+          <div class="li"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></div>
+          <div class="lval ph">주소를 검색해 주세요</div>
+        </div>
+        <div class="placeempty" id="placeEmptyMsg">아직 등록된 장소가 없어요</div>
+      </div>
+      <div class="footer">
+        <button class="pbtn" onclick="go(4)">완료</button>
+        <button class="textbtn" onclick="go(4)">나중에 설정할게요</button>
+      </div>
+    </div>
+
+    <!-- ═══ ONB-06 웰니스 관심 항목 (선택) ═══ -->
+    <div class="view" id="v-wellness">
+      <div class="topbar"></div>
+      <div class="scroll">
+        <div class="q">관심 있는 환경 정보를<br>골라주세요 (선택)</div>
+        <div class="qsub">입력하지 않아도 준비 시간 계산 같은 핵심 기능은 그대로 동작해요.</div>
+        <div class="wrow"><div class="wname">자외선</div><div class="toggle on clickable" onclick="this.classList.toggle('on')"><div class="knob"></div></div></div>
+        <div class="wrow"><div class="wname">미세먼지</div><div class="toggle on clickable" onclick="this.classList.toggle('on')"><div class="knob"></div></div></div>
+        <div class="wrow"><div class="wname">기온</div><div class="toggle clickable" onclick="this.classList.toggle('on')"><div class="knob"></div></div></div>
+        <div class="wrow"><div class="wname">강수</div><div class="toggle on clickable" onclick="this.classList.toggle('on')"><div class="knob"></div></div></div>
+        <div class="wrow" style="border-bottom:none;"><div class="wname">수분</div><div class="toggle clickable" onclick="this.classList.toggle('on')"><div class="knob"></div></div></div>
+        <div class="div"></div>
+        <div class="q" style="font-size:14.5px;">선크림 재도포 리마인드</div>
+        <div class="seg">
+          <div class="sitem" onclick="segPick(this)">끄기</div>
+          <div class="sitem on" onclick="segPick(this)">2시간마다</div>
+          <div class="sitem" onclick="segPick(this)">3시간마다</div>
+        </div>
+      </div>
+      <div class="footer">
+        <button class="pbtn" onclick="finish()">완료</button>
+        <button class="textbtn" onclick="finish()">건너뛰기</button>
+      </div>
+    </div>
+
+    <!-- 상단 데모용 화면 전환 -->
+    <div class="selrow">
+      <button class="on" onclick="go(0)">로그인</button>
+      <button onclick="go(1)">약관</button>
+      <button onclick="go(2)">준비시간</button>
+      <button onclick="go(3)">장소</button>
+      <button onclick="go(4)">웰니스</button>
+    </div>
+  </div>
+
+  <div class="legend">
+    <p><b>실제 순서대로 보려면</b> — 로그인 화면에서 [Google로 계속하기]를 눌러보세요. 취소/네트워크/제공자 오류 상태도 무작위로 섞여 나와요(새로고침하면 바뀝니다). 성공하면 약관→준비시간→장소→웰니스로 [다음]/[완료]를 눌러 실제 순서대로 이어집니다.</p>
+    <p style="margin-top:8px;"><b>완료하면</b> → <code>ensom_onboarding_end.html</code>(ONB-09 온보딩 완료)로 이동합니다.</p>
+    <div class="hint">ONB-02~06 · 상단 점 5개 = 진행 단계</div>
+  </div>
+</div>
+
+<script>
+const VIEWS=['v-login','v-consent','v-preptime','v-place','v-wellness'];
+function go(i){
+  VIEWS.forEach((id,n)=>document.getElementById(id).classList.toggle('on',n===i));
+  document.querySelectorAll('.selrow button').forEach((b,n)=>b.classList.toggle('on',n===i));
+  document.querySelectorAll('.stepdot').forEach((d,n)=>{
+    d.classList.toggle('on',n===i);
+    d.classList.toggle('done',n<i);
+  });
+}
+
+/* ONB-02 로그인 — 취소/네트워크/제공자오류 3종을 랜덤으로 보여줌 */
+const ERRS=[
+  null,
+  '로그인이 취소됐어요. 다시 시도해 주세요.',
+  '연결을 확인해 주세요.',
+  '로그인 제공자에 일시적인 문제가 있어요. 잠시 후 다시 시도해 주세요.'
+];
+function tryLogin(){
+  const pick = ERRS[Math.floor(Math.random()*ERRS.length)];
+  const err=document.getElementById('loginErr');
+  if(pick){ err.textContent=pick; err.classList.add('on'); return; }
+  err.classList.remove('on');
+  go(1);
+}
+
+/* ONB-03 약관 */
+function updateConsentNext(){
+  const req=document.querySelectorAll('.crow[data-req="1"]');
+  const allReqOn=[...req].every(r=>r.classList.contains('on'));
+  document.getElementById('consentNext').disabled=!allReqOn;
+}
+function toggleOne(el){
+  el.classList.toggle('on');
+  const all=document.querySelectorAll('.crow');
+  document.getElementById('allAgree').classList.toggle('on',[...all].every(r=>r.classList.contains('on')));
+  updateConsentNext();
+}
+function toggleAll(){
+  const willOn=!document.getElementById('allAgree').classList.contains('on');
+  document.getElementById('allAgree').classList.toggle('on',willOn);
+  document.querySelectorAll('.crow').forEach(r=>r.classList.toggle('on',willOn));
+  updateConsentNext();
+}
+
+/* ONB-04 */
+function pickOne(el,groupId){ document.querySelectorAll('#'+groupId+' .chip').forEach(c=>c.classList.remove('on')); el.classList.add('on'); }
+function toggleMulti(el){ el.classList.toggle('on'); }
+
+/* ONB-05 */
+function pickType(el){ document.querySelectorAll('.ptype').forEach(p=>p.classList.remove('on')); el.classList.add('on'); }
+
+/* ONB-06 */
+function segPick(el){ el.parentNode.querySelectorAll('.sitem').forEach(s=>s.classList.remove('on')); el.classList.add('on'); }
+
+function finish(){ location.href='ensom_onboarding_end.html'; }
+</script>
+
+<script>(function(){ if(new URLSearchParams(location.search).get('embed')==='1'){ document.body.classList.add('embed'); } })();</script>
+
+</body>
+</html>

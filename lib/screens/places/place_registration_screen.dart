@@ -1,6 +1,7 @@
 import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:geolocator/geolocator.dart";
+import "package:go_router/go_router.dart";
 import "package:hive_ce_flutter/hive_ce_flutter.dart";
 import "package:uuid/uuid.dart";
 import "../../local/place_cache_entry.dart";
@@ -12,7 +13,11 @@ import "../../widgets/vium_card.dart";
 const _labelOptions = ["집", "학교", "회사", "직접 입력"];
 
 class PlaceRegistrationScreen extends ConsumerStatefulWidget {
-  const PlaceRegistrationScreen({super.key});
+  const PlaceRegistrationScreen({super.key, this.isOnboarding = false});
+
+  /// 온보딩 흐름에서 호출되면 true — "완료/나중에" 버튼이 표시되고
+  /// 완료 시 /home으로 이동한다.
+  final bool isOnboarding;
 
   @override
   ConsumerState<PlaceRegistrationScreen> createState() =>
@@ -130,7 +135,16 @@ class _PlaceRegistrationScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("등록 장소 관리")),
+      appBar: AppBar(
+        title: Text(widget.isOnboarding ? "주요 장소 설정" : "등록 장소 관리"),
+        actions: [
+          if (widget.isOnboarding)
+            TextButton(
+              onPressed: () => context.go("/onboarding/wellness"),
+              child: const Text("완료"),
+            ),
+        ],
+      ),
       body: ListView(
         padding: const EdgeInsets.all(24),
         children: [

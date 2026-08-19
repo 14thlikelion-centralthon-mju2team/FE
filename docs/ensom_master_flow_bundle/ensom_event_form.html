@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>[CAL-04] Ensom — 일정 생성·수정 프로토타입</title>
+<style>
+  :root{
+    --lime:#c6f135;--lime-soft:#e4fb9b;--lime-ink:#4e6810;
+    --canvas:#ffffff;--surface-1:#ffffff;--surface-2:#eef0ea;--surface-neutral:#e9e9e6;
+    --hairline:#e3e5e0;--ink:#14150f;--ink-muted:#63655e;--ink-faint:#6f7269;
+    --panel:#15170f;--cta:#1f231a;--caution:#e3a13b;--danger:#c2452f;
+    --font:'Pretendard','Apple SD Gothic Neo','Malgun Gothic',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:var(--font);background:#d9dcd3;color:var(--ink);padding:32px 20px 60px;-webkit-font-smoothing:antialiased;}
+  .page-head{max-width:1180px;margin:0 auto 22px;}
+  .page-head h1{font-size:22px;font-weight:700;letter-spacing:-.4px;}
+  .page-head p{font-size:13px;color:#55584f;margin-top:6px;line-height:1.55;}
+  .stage{max-width:1180px;margin:0 auto;display:flex;gap:36px;flex-wrap:wrap;align-items:flex-start;}
+
+  .controls{max-width:1180px;margin:0 auto 24px;display:flex;flex-wrap:wrap;gap:20px;background:#fff;border-radius:16px;padding:16px 18px;}
+  .cg{display:flex;flex-direction:column;gap:8px;}
+  .cl{font-size:11px;font-weight:600;letter-spacing:.4px;color:#7a7d74;text-transform:uppercase;}
+  .cseg{display:flex;background:var(--surface-2);border-radius:999px;padding:4px;gap:2px;}
+  .cseg button{font-family:var(--font);font-size:13px;font-weight:600;border:0;background:transparent;color:var(--ink-muted);padding:8px 14px;border-radius:999px;cursor:pointer;white-space:nowrap;}
+  .cseg button.on{background:var(--cta);color:#fff;}
+
+  .phone{width:344px;height:730px;flex:0 0 auto;background:var(--canvas);border-radius:46px;border:9px solid #16170f;position:relative;overflow:hidden;box-shadow:0 20px 50px rgba(20,21,15,.26);}
+  .notch{position:absolute;top:0;left:50%;transform:translateX(-50%);width:112px;height:26px;background:#16170f;border-radius:0 0 16px 16px;z-index:60;}
+
+  .view{position:absolute;inset:0;display:none;flex-direction:column;}
+  .view.on{display:flex;}
+  .scroll{flex:1 1 auto;overflow-y:auto;padding:14px 18px 24px;}
+  .scroll::-webkit-scrollbar{display:none;}
+  .clickable{cursor:pointer;transition:transform .12s;}
+  .clickable:active{transform:scale(.985);}
+
+  .topbar{flex:0 0 auto;margin:46px 2px 0;height:40px;display:flex;align-items:center;justify-content:space-between;padding:0 2px;}
+  .tbl{display:flex;align-items:center;gap:10px;}
+  .backbtn{width:32px;height:32px;border-radius:999px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;cursor:pointer;flex:0 0 auto;}
+  .backbtn svg{width:14px;height:14px;stroke:var(--ink);fill:none;stroke-width:2.1;}
+  .toptitle{color:var(--ink);font-size:16px;font-weight:700;letter-spacing:-.2px;}
+  .tblink{font-size:13px;font-weight:700;color:var(--ink-muted);cursor:pointer;}
+
+  .field{margin-top:18px;}
+  .field label{font-size:11px;font-weight:600;color:var(--ink-muted);display:block;margin-bottom:7px;}
+  .field input{width:100%;border:1.4px solid var(--hairline);border-radius:14px;padding:13px 14px;font-size:14px;font-weight:600;font-family:var(--font);background:var(--surface-1);}
+  .field input:focus{outline:none;border-color:var(--cta);}
+  .field.err input{border-color:var(--danger);background:#fdf2f0;}
+  .errmsg{font-size:11px;color:var(--danger);margin-top:6px;font-weight:600;display:none;}
+  .field.err .errmsg{display:block;}
+
+  .lrow{display:flex;align-items:center;gap:12px;padding:13px 2px;cursor:pointer;border-bottom:1px solid var(--hairline);}
+  .lrow:last-child{border-bottom:none;}
+  .lrow .li{width:34px;height:34px;border-radius:999px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;flex:0 0 auto;}
+  .lrow .li svg{width:15px;height:15px;stroke:var(--ink-muted);fill:none;stroke-width:1.8;}
+  .lrow .ltext{flex:1 1 auto;min-width:0;}
+  .lrow .ltitle{font-size:11px;font-weight:600;color:var(--ink-muted);}
+  .lrow .lval{font-size:14px;font-weight:600;margin-top:2px;}
+  .lrow .lval.ph{color:var(--ink-faint);font-weight:500;}
+  .lrow .chev{width:14px;height:14px;stroke:var(--ink-faint);fill:none;stroke-width:2;flex:0 0 auto;}
+  .lrow.err .lval{color:var(--danger);}
+
+  .sec-label{font-size:10.5px;font-weight:700;color:var(--ink-faint);letter-spacing:.4px;margin:20px 0 4px;text-transform:uppercase;}
+
+  .seg3{display:flex;background:var(--surface-2);border-radius:14px;padding:3px;gap:3px;margin-top:8px;}
+  .seg3 .sitem{flex:1 1 0;text-align:center;font-size:11.5px;font-weight:700;padding:10px 4px;border-radius:11px;cursor:pointer;color:var(--ink-muted);word-break:keep-all;}
+  .seg3 .sitem.on{background:var(--cta);color:#fff;}
+
+  .chiprow{display:flex;gap:7px;margin-top:9px;flex-wrap:wrap;}
+  .chip{background:var(--surface-2);color:var(--ink);font-size:12px;font-weight:600;padding:9px 13px;border-radius:12px;cursor:pointer;}
+  .chip.on{background:var(--cta);color:#fff;}
+
+  .toggle{width:42px;height:25px;border-radius:999px;background:var(--surface-neutral);position:relative;cursor:pointer;flex:0 0 auto;transition:background .15s;}
+  .toggle .knob{position:absolute;top:2.5px;left:2.5px;width:20px;height:20px;border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);transition:left .15s;}
+  .toggle.on{background:var(--lime);}
+  .toggle.on .knob{left:19.5px;}
+
+  .card{background:var(--surface-1);border:1px solid var(--hairline);border-radius:16px;padding:13px 14px;margin-top:10px;}
+  .card.soft{background:var(--surface-2);border:none;}
+  .rprev-top{display:flex;justify-content:space-between;align-items:center;}
+  .rprev-t{font-size:15px;font-weight:700;}
+  .rprev-b{font-size:10px;font-weight:700;color:var(--lime-ink);background:var(--lime-soft);padding:4px 9px;border-radius:999px;}
+  .rprev-s{font-size:11px;color:var(--ink-muted);margin-top:4px;}
+
+  .pbtn{font-family:var(--font);border:0;border-radius:999px;padding:14px 16px;font-size:14px;font-weight:700;cursor:pointer;width:100%;background:var(--cta);color:#fff;display:flex;align-items:center;justify-content:center;gap:8px;}
+  .pbtn:disabled{opacity:.55;}
+  .pbtn.danger{background:transparent;color:var(--danger);}
+  .textbtn{background:transparent;border:0;font-family:var(--font);font-size:12.5px;color:var(--ink-muted);text-decoration:underline;text-underline-offset:2px;cursor:pointer;width:100%;text-align:center;margin-top:6px;}
+  .footer{flex:0 0 auto;padding:14px 18px calc(14px + env(safe-area-inset-bottom,0px));}
+  .spin{width:15px;height:15px;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:999px;animation:spin .8s linear infinite;display:none;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .pbtn.loading .spin{display:inline-block;}
+  .pbtn.loading .lbl{opacity:.85;}
+
+  /* sheets */
+  .scrim{position:absolute;inset:0;background:rgba(20,21,15,.5);z-index:80;display:none;align-items:flex-end;justify-content:center;}
+  .scrim.on{display:flex;}
+  .dialog{background:#fff;border-radius:22px 22px 0 0;padding:20px 18px calc(20px + env(safe-area-inset-bottom,0px));width:100%;animation:slideup .18s ease-out;}
+  .dialog.centered{border-radius:22px;margin:0 18px 90px;animation:popup .15s ease-out;}
+  @keyframes slideup{from{transform:translateY(100%);}to{transform:translateY(0);}}
+  @keyframes popup{from{transform:scale(.92);opacity:0;}to{transform:scale(1);opacity:1;}}
+  .dialog h3{font-size:16px;font-weight:700;margin-bottom:8px;letter-spacing:-.2px;}
+  .dialog p{font-size:12.5px;color:var(--ink-muted);line-height:1.55;}
+  .btnrow{display:flex;gap:8px;margin-top:16px;}
+  .dbtn{flex:1 1 0;font-family:var(--font);border:0;border-radius:999px;padding:12px 16px;font-size:13.5px;font-weight:700;cursor:pointer;}
+  .dbtn.secondary{background:var(--surface-2);color:var(--ink);}
+  .dbtn.primary{background:var(--cta);color:#fff;}
+  .dbtn.danger{background:var(--danger);color:#fff;}
+
+  .datesheet-grid{display:grid;grid-template-columns:repeat(7,1fr);row-gap:6px;margin-top:10px;}
+  .dcell{text-align:center;font-size:12.5px;font-weight:600;padding:9px 0;border-radius:10px;cursor:pointer;color:var(--ink);}
+  .dcell.sel{background:var(--cta);color:#fff;}
+  .dcell.dow{color:var(--ink-faint);font-weight:700;font-size:10px;cursor:default;}
+  .wheelrow{display:flex;justify-content:center;gap:10px;margin-top:14px;}
+  .wheel{height:150px;overflow-y:auto;width:56px;scroll-snap-type:y mandatory;}
+  .wheel::-webkit-scrollbar{display:none;}
+  .wheel div{height:38px;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:600;color:var(--ink-faint);scroll-snap-align:center;}
+  .wheel div.mid{color:var(--ink);font-weight:700;font-size:19px;}
+
+  .toast{position:absolute;left:16px;right:16px;bottom:100px;background:var(--panel);color:#fff;font-size:12.5px;font-weight:600;padding:13px 16px;border-radius:16px;display:flex;align-items:center;justify-content:space-between;gap:10px;z-index:90;transform:translateY(20px);opacity:0;pointer-events:none;transition:all .2s;}
+  .toast.on{transform:translateY(0);opacity:1;}
+
+  .hint{display:inline-block;background:#15170f;color:#c6f135;font-size:11.5px;font-weight:600;padding:6px 12px;border-radius:999px;margin-top:10px;}
+  .legend{max-width:340px;font-size:12px;color:#55584f;line-height:1.7;}
+  .legend b{color:var(--ink);}
+
+  body.embed{background:transparent;padding:0;overflow:hidden;}
+  body.embed .page-head,body.embed .legend,body.embed .hint,body.embed .controls{display:none!important;}
+  body.embed .stage{margin:0;padding:0;gap:0;}
+  body.embed .phone{box-shadow:none;}
+</style>
+</head>
+<body>
+
+<div class="page-head">
+  <h1>[CAL-04] Ensom — 일정 생성·수정 프로토타입</h1>
+  <p><code>03_화면설계서.md</code>에서 가장 우선순위 높은 갭이었던 화면. 캘린더 FAB(+)와 지도 [캘린더에 추가]가 여기로 들어옵니다. 검증 오류·저장 중 로딩·삭제 확인까지 실제로 눌러볼 수 있어요.</p>
+</div>
+
+<div class="controls">
+  <div class="cg">
+    <div class="cl">진입 방식</div>
+    <div class="cseg" id="modeSeg">
+      <button data-m="new" class="on">신규 생성</button>
+      <button data-m="edit">기존 일정 수정</button>
+      <button data-m="prefill">지도에서 프리필</button>
+    </div>
+  </div>
+</div>
+
+<div class="stage">
+  <div class="phone">
+    <div class="notch"></div>
+
+    <!-- ═══ 메인 폼 ═══ -->
+    <div class="view on" id="v-form">
+      <div class="topbar">
+        <div class="tbl"><div class="backbtn clickable" onclick="location.href='ensom_calendar.html'"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></div><div class="toptitle" id="formTitle">일정 만들기</div></div>
+        <div class="tblink clickable" onclick="save()">저장</div>
+      </div>
+      <div class="scroll">
+        <div class="field" id="nameField">
+          <label>일정명</label>
+          <input id="nameInput" placeholder="예: 강남역 미팅" oninput="clearErr('nameField')">
+          <div class="errmsg">일정명을 입력해 주세요</div>
+        </div>
+
+        <div class="sec-label">시간</div>
+        <div class="lrow clickable" onclick="openSheet('s-date')">
+          <div class="li"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4M3 11h18"/></svg></div>
+          <div class="ltext"><div class="ltitle">날짜</div><div class="lval" id="dateVal">8월 19일 수요일</div></div>
+          <svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
+        </div>
+        <div class="lrow clickable" id="startRow" onclick="openSheet('s-start')">
+          <div class="li"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
+          <div class="ltext"><div class="ltitle">시작 시각</div><div class="lval" id="startVal">14:00</div></div>
+          <svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
+        </div>
+        <div class="lrow clickable" id="endRow" onclick="openSheet('s-end')">
+          <div class="li"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
+          <div class="ltext"><div class="ltitle">종료 시각</div><div class="lval" id="endVal">15:00</div></div>
+          <svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
+        </div>
+        <div class="errmsg" id="timeErr" style="display:none;margin:2px 2px 0;">종료 시각이 시작 시각보다 빨라요</div>
+
+        <div class="sec-label">장소</div>
+        <div class="seg3" id="placeSeg">
+          <div class="sitem on" data-p="need" onclick="pickPlace(this)">장소 필요</div>
+          <div class="sitem" data-p="none" onclick="pickPlace(this)">장소 불필요</div>
+          <div class="sitem" data-p="unset" onclick="pickPlace(this)">아직 몰라요</div>
+        </div>
+        <div id="placeFields">
+          <div class="lrow clickable" onclick="location.href='ensom_search.html?return=ensom_event_form.html'">
+            <div class="li"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></div>
+            <div class="ltext"><div class="ltitle">목적지</div><div class="lval" id="destVal">강남역 3번 출구</div></div>
+            <svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
+          </div>
+          <div class="lrow clickable" onclick="location.href='ensom_search.html?return=ensom_event_form.html'">
+            <div class="li"><svg viewBox="0 0 24 24"><path d="M3 10l9-7 9 7v9a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg></div>
+            <div class="ltext"><div class="ltitle">출발지</div><div class="lval">집 (기본 출발지)</div></div>
+            <svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
+          </div>
+        </div>
+
+        <div class="sec-label" id="routeSecLabel" style="display:none;">지도에서 가져온 경로</div>
+        <div class="card" id="routeCard" style="display:none;">
+          <div class="rprev-top"><div class="rprev-t">42분 · 환승 1회</div><span class="rprev-b">가장 빠른</span></div>
+          <div class="rprev-s">13:18 출발 → 13:52 도착 · 도보 12분</div>
+        </div>
+
+        <div class="sec-label">저장할 캘린더</div>
+        <div class="chiprow" id="calChips">
+          <div class="chip on" onclick="pickChip(this,'calChips')">Ensom 캘린더</div>
+          <div class="chip" onclick="pickChip(this,'calChips')">Google · 개인</div>
+        </div>
+
+        <div class="sec-label">자동 관리</div>
+        <div class="lrow" style="border-bottom:none;">
+          <div class="ltext"><div class="ltitle" style="font-size:13.5px;font-weight:600;color:var(--ink);">이 일정은 자동으로 관리하지 않기</div><div class="lsub" style="font-size:11px;color:var(--ink-faint);margin-top:3px;">켜면 캘린더 동기화가 이 일정의 장소·시각을 자동으로 바꾸지 않아요</div></div>
+          <div class="toggle clickable" id="autoExclude" onclick="this.classList.toggle('on')"><div class="knob"></div></div>
+        </div>
+
+        <div id="deleteZone" style="display:none;margin-top:22px;padding-top:14px;border-top:1px solid var(--hairline);">
+          <button class="pbtn danger" onclick="openConfirm('d-delete')"><span class="lbl">일정 삭제</span></button>
+        </div>
+      </div>
+      <div class="footer">
+        <button class="pbtn" id="saveBtn" onclick="save()"><span class="spin"></span><span class="lbl">저장</span></button>
+      </div>
+    </div>
+
+    <!-- ═══ 날짜 시트 ═══ -->
+    <div class="scrim" id="scrim-date">
+      <div class="dialog" id="s-date">
+        <h3>날짜 선택</h3>
+        <div class="datesheet-grid">
+          <div class="dcell dow">일</div><div class="dcell dow">월</div><div class="dcell dow">화</div><div class="dcell dow">수</div><div class="dcell dow">목</div><div class="dcell dow">금</div><div class="dcell dow">토</div>
+          <div class="dcell">16</div><div class="dcell">17</div><div class="dcell">18</div><div class="dcell sel">19</div><div class="dcell">20</div><div class="dcell">21</div><div class="dcell">22</div>
+        </div>
+        <div class="btnrow"><button class="dbtn primary" style="flex:1" onclick="closeSheet('date')">확인</button></div>
+      </div>
+    </div>
+
+    <!-- ═══ 시작 시각 시트 ═══ -->
+    <div class="scrim" id="scrim-start">
+      <div class="dialog" id="s-start">
+        <h3>시작 시각</h3>
+        <div class="wheelrow">
+          <div class="wheel"><div>12</div><div>13</div><div class="mid">14</div><div>15</div><div>16</div></div>
+          <div class="wheel"><div>50</div><div>55</div><div class="mid">00</div><div>05</div><div>10</div></div>
+        </div>
+        <div class="btnrow"><button class="dbtn primary" style="flex:1" onclick="closeSheet('start')">확인</button></div>
+      </div>
+    </div>
+
+    <!-- ═══ 종료 시각 시트 ═══ -->
+    <div class="scrim" id="scrim-end">
+      <div class="dialog" id="s-end">
+        <h3>종료 시각</h3>
+        <div class="wheelrow">
+          <div class="wheel"><div>14</div><div>15</div><div class="mid">15</div><div>16</div><div>17</div></div>
+          <div class="wheel"><div>50</div><div>55</div><div class="mid">00</div><div>05</div><div>10</div></div>
+        </div>
+        <div class="btnrow"><button class="dbtn primary" style="flex:1" onclick="closeSheet('end')">확인</button></div>
+      </div>
+    </div>
+
+    <!-- ═══ 확인 모달 ═══ -->
+    <div class="scrim" id="scrim-confirm">
+      <div class="dialog centered" id="d-delete">
+        <h3>이 일정을 삭제할까요?</h3>
+        <p>예약된 알림도 함께 취소돼요. 이 동작은 되돌릴 수 없어요.</p>
+        <div class="btnrow">
+          <button class="dbtn secondary" onclick="closeConfirm()">취소</button>
+          <button class="dbtn danger" onclick="doDelete()">삭제</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="toast" id="toast">저장했어요</div>
+  </div>
+
+  <div class="legend">
+    <p><b>보는 법</b> — 위 "진입 방식"을 바꿔보세요. <b>지도에서 프리필</b>이면 출발지·도착지·경로가 이미 채워진 카드가 나타나고, <b>기존 일정 수정</b>이면 하단에 삭제 버튼이 생겨요.</p>
+    <p style="margin-top:8px;"><b>클릭해볼 것</b> — 일정명 비운 채 [저장] (검증 오류) · 날짜/시간 행 (바텀시트) · [저장] 정상 흐름 (로딩→토스트→캘린더로 이동) · 수정 모드의 [일정 삭제] (확인 모달)</p>
+    <p style="margin-top:8px;"><b>왜 이 화면이 최우선이었나</b> — 캘린더 FAB(+)와 지도 [캘린더에 추가]가 전부 이 화면으로 들어와야 하는데, 지금까지 어떤 HTML 프로토타입에도 없었어요. <code>03_화면설계서.md</code> §3 갭 목록 1순위.</p>
+    <div class="hint">CAL-04 · 검증오류·저장로딩·삭제확인 전부 동작</div>
+  </div>
+</div>
+
+<script>
+let mode='new';
+function applyMode(){
+  const title=document.getElementById('formTitle');
+  const del=document.getElementById('deleteZone');
+  const routeLabel=document.getElementById('routeSecLabel');
+  const routeCard=document.getElementById('routeCard');
+  if(mode==='new'){ title.textContent='일정 만들기'; del.style.display='none'; routeLabel.style.display='none'; routeCard.style.display='none'; document.getElementById('nameInput').value=''; }
+  if(mode==='edit'){ title.textContent='일정 수정'; del.style.display='block'; routeLabel.style.display='none'; routeCard.style.display='none'; document.getElementById('nameInput').value='강남역 미팅'; }
+  if(mode==='prefill'){ title.textContent='일정 만들기'; del.style.display='none'; routeLabel.style.display='block'; routeCard.style.display='block'; document.getElementById('nameInput').value=''; }
+}
+document.querySelectorAll('#modeSeg button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('#modeSeg button').forEach(x=>x.classList.remove('on'));
+  b.classList.add('on'); mode=b.dataset.m; applyMode();
+});
+applyMode();
+
+function pickPlace(el){
+  document.querySelectorAll('#placeSeg .sitem').forEach(s=>s.classList.remove('on'));
+  el.classList.add('on');
+  document.getElementById('placeFields').style.display = el.dataset.p==='need' ? 'block' : 'none';
+}
+function pickChip(el,groupId){
+  document.querySelectorAll('#'+groupId+' .chip').forEach(c=>c.classList.remove('on'));
+  el.classList.add('on');
+}
+function clearErr(fieldId){ document.getElementById(fieldId).classList.remove('err'); }
+
+function openSheet(name){ document.getElementById('scrim-'+name).classList.add('on'); }
+function closeSheet(name){ document.getElementById('scrim-'+name).classList.remove('on'); }
+function openConfirm(id){
+  document.querySelectorAll('#scrim-confirm .dialog').forEach(d=>d.style.display='none');
+  document.getElementById(id).style.display='block';
+  document.getElementById('scrim-confirm').classList.add('on');
+}
+function closeConfirm(){ document.getElementById('scrim-confirm').classList.remove('on'); }
+
+function showToast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('on');
+  setTimeout(()=>t.classList.remove('on'),2200);
+}
+
+function save(){
+  const nameField=document.getElementById('nameField');
+  const nameInput=document.getElementById('nameInput');
+  let ok=true;
+  if(!nameInput.value.trim()){ nameField.classList.add('err'); ok=false; }
+  document.getElementById('timeErr').style.display='none';
+  if(!ok) return;
+  const btn=document.getElementById('saveBtn');
+  btn.classList.add('loading'); btn.disabled=true;
+  setTimeout(()=>{
+    btn.classList.remove('loading'); btn.disabled=false;
+    showToast('저장했어요 · 준비 계획을 만들었어요');
+    setTimeout(()=>{ location.href='ensom_detail.html'; },900);
+  },900);
+}
+function doDelete(){
+  closeConfirm();
+  showToast('삭제했어요 · 되돌리기');
+  setTimeout(()=>{ location.href='ensom_calendar.html'; },900);
+}
+</script>
+
+<script>(function(){ if(new URLSearchParams(location.search).get('embed')==='1'){ document.body.classList.add('embed'); } })();</script>
+
+</body>
+</html>

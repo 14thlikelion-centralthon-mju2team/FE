@@ -144,6 +144,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     eventTitle: event.displayName,
                     plan: plan,
                     previousPlan: controller.previousPlan,
+                    onTap: () => context.push("/events/${event.eventId}"),
                     onPrepStart: () => _enqueueAndMaybeRefresh(
                       event.eventId, plan.planId, ActionType.prepStarted,
                     ),

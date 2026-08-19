@@ -33,9 +33,12 @@ class BootstrapData {
 
   factory BootstrapData.fromJson(Map<String, dynamic> json) {
     return BootstrapData(
-      user: BootstrapUser.fromJson(json["user"] as Map<String, dynamic>),
+      user: json["user"] != null
+          ? BootstrapUser.fromJson(json["user"] as Map<String, dynamic>)
+          : const BootstrapUser(
+              userId: "", nickname: "", timezone: "Asia/Seoul", accountStatus: "active"),
       settings:
-          BootstrapSettings.fromJson(json["settings"] as Map<String, dynamic>),
+          BootstrapSettings.fromJson(json["settings"] as Map<String, dynamic>? ?? {}),
       permissions: (json["permissions"] as List<dynamic>?)
               ?.map((e) =>
                   BootstrapPermission.fromJson(e as Map<String, dynamic>))
@@ -47,7 +50,7 @@ class BootstrapData {
       places:
           (json["places"] as List<dynamic>?)?.cast<Map<String, dynamic>>() ??
               [],
-      prepRules: (json["prepRules"] as List<dynamic>?)
+      prepRules: (json["prepItems"] as List<dynamic>?)
               ?.cast<Map<String, dynamic>>() ??
           [],
       nextEvent: json["nextEvent"] as Map<String, dynamic>?,
@@ -143,8 +146,8 @@ class BootstrapEngineConfig {
 
   factory BootstrapEngineConfig.fromJson(Map<String, dynamic> json) {
     return BootstrapEngineConfig(
-      calcVersion: json["calcVersion"] as String? ?? "3.1.0",
-      weightVersion: json["weightVersion"] as String? ?? "w1",
+      calcVersion: json["engineVer"] as String? ?? json["calcVersion"] as String? ?? "3.1.0",
+      weightVersion: json["wisVer"] as String? ?? json["weightVersion"] as String? ?? "w1",
     );
   }
 }

@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ensom — 경로 변경 후보 프로토타입</title>
+<style>
+  :root{
+    --lime:#c6f135;--ink:#14150f;--ink-muted:#63655e;--ink-faint:#9a9c92;
+    --surface-1:#fff;--surface-2:#eef0ea;--cta:#1f231a;--hairline:#e3e5e0;
+    --t-walk:#8b8e84;--t-2:#00a84d;--t-7:#747f00;--t-bus:#3a7dd0;
+    --font:'Pretendard','Apple SD Gothic Neo','Malgun Gothic',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:var(--font);background:#d9dcd3;color:var(--ink);padding:32px 20px 60px;-webkit-font-smoothing:antialiased;}
+  .page-head{max-width:1180px;margin:0 auto 22px;}
+  .page-head h1{font-size:22px;font-weight:700;letter-spacing:-.4px;}
+  .page-head p{font-size:13px;color:#55584f;margin-top:6px;line-height:1.55;}
+  .stage{max-width:1180px;margin:0 auto;display:flex;gap:36px;flex-wrap:wrap;align-items:flex-start;}
+  .phone{width:344px;height:730px;flex:0 0 auto;background:#eef0e8;border-radius:46px;border:9px solid #16170f;position:relative;overflow:hidden;box-shadow:0 20px 50px rgba(20,21,15,.26);display:flex;flex-direction:column;justify-content:flex-end;cursor:pointer;}
+  .notch{position:absolute;top:0;left:50%;transform:translateX(-50%);width:112px;height:26px;background:#16170f;border-radius:0 0 16px 16px;z-index:60;}
+
+  .sheet{background:#fff;border-radius:26px 26px 0 0;padding:10px 18px calc(20px + env(safe-area-inset-bottom,0));max-height:88%;overflow-y:auto;cursor:default;}
+  .handle{width:36px;height:4px;background:var(--surface-2);border-radius:99px;margin:4px auto 14px;cursor:pointer;}
+  .sheethead{display:flex;align-items:center;justify-content:space-between;}
+  .sheet-title{font-size:16px;font-weight:700;letter-spacing:-.2px;}
+  .closebtn{width:28px;height:28px;border-radius:999px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;cursor:pointer;flex:0 0 auto;}
+  .closebtn svg{width:12px;height:12px;stroke:var(--ink-muted);fill:none;stroke-width:2.3;}
+  .sheet-sub{font-size:11.5px;color:var(--ink-muted);margin-top:4px;margin-bottom:14px;}
+
+  .rcard{border:1.6px solid var(--hairline);border-radius:18px;padding:13px 14px;margin-bottom:10px;cursor:pointer;}
+  .rcard.sel{border-color:var(--cta);}
+  .rc-top{display:flex;justify-content:space-between;align-items:flex-start;}
+  .rc-time{font-size:19px;font-weight:700;letter-spacing:-.3px;}
+  .rc-arrive{font-size:11px;color:var(--ink-muted);margin-top:2px;}
+  .rc-tag{font-size:10px;font-weight:700;padding:4px 9px;border-radius:999px;background:var(--surface-2);color:var(--ink-muted);white-space:nowrap;}
+  .rc-meta{font-size:11px;color:var(--ink-muted);margin-top:6px;}
+
+  .segbar{display:flex;gap:2px;margin-top:10px;height:22px;border-radius:8px;overflow:hidden;}
+  .segpiece{display:flex;align-items:center;justify-content:center;font-size:9.5px;font-weight:700;color:#fff;border-radius:4px;}
+  .segpiece.walk{background:var(--t-walk);color:#fff;}
+
+  .expand{margin-top:10px;padding-top:10px;border-top:1px solid var(--hairline);display:none;}
+  .rcard.sel .expand.show{display:block;}
+  .steprow{display:flex;align-items:center;gap:8px;padding:5px 0;font-size:11.5px;}
+  .stepbadge{font-size:9.5px;font-weight:700;color:#fff;padding:3px 7px;border-radius:6px;white-space:nowrap;}
+
+  .pbtn{font-family:var(--font);border:0;border-radius:999px;padding:13px 16px;font-size:14px;font-weight:700;cursor:pointer;width:100%;background:var(--cta);color:#fff;margin-top:6px;}
+
+  .hint{display:inline-block;background:#15170f;color:#c6f135;font-size:11.5px;font-weight:600;padding:6px 12px;border-radius:999px;margin-top:10px;}
+  .legend{max-width:340px;font-size:12px;color:#55584f;line-height:1.7;}
+  .legend b{color:var(--ink);}
+
+  /* ═ embed mode (used when loaded inside ensom_master_flow.html) ═ */
+  body.embed{background:transparent;padding:0;overflow:hidden;}
+  body.embed .page-head,body.embed .legend,body.embed .hint{display:none!important;}
+  body.embed .stage{margin:0;padding:0;gap:0;}
+  body.embed .phone{box-shadow:none;}
+</style>
+</head>
+<body>
+
+<div class="page-head">
+  <h1>[RTE-01] Ensom — 경로 변경 후보 프로토타입</h1>
+  <p>일정 상세에서 "경로 변경" 탭 시 뜨는 시트. 지도 화면의 구간 비율 바(segBar) 컴포넌트를 그대로 재사용.</p>
+</div>
+
+<div class="stage">
+  <div class="phone" onclick="if(event.target===this) closeSheet()">
+    <div class="notch"></div>
+    <div class="sheet">
+      <div class="handle" onclick="closeSheet()"></div>
+      <div class="sheethead">
+        <div class="sheet-title">경로 변경</div>
+        <div class="closebtn" onclick="closeSheet()"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></div>
+      </div>
+      <div class="sheet-sub">현재 · 지하철 42분 환승 1회로 이동 중</div>
+
+      <div id="cardsArea"></div>
+
+      <button class="pbtn" onclick="confirmChange()">이 경로로 변경</button>
+    </div>
+  </div>
+
+  <div class="legend">
+    <p><b>보는 법</b> — 카드를 탭하면 선택(딥차콜 테두리)되면서 구간별 펼침(색상 배지)이 함께 열려. 다른 카드를 탭하면 그쪽으로 선택이 옮겨가.</p>
+    <p style="margin-top:8px;"><b>🆕 닫기</b> — 손잡이·X·빈 배경 탭으로 닫으면 `ensom_detail.html`로 돌아가요. [이 경로로 변경]도 확정 후 잠깐 "변경됨" 문구를 보여주고 자동으로 돌아갑니다. (이전엔 이 화면에 복귀 진입점 자체가 없었어요 — <code>08_화면상태_체크리스트.md</code> 참고)</p>
+    <div class="hint">지도 화면과 동일한 segBar·transit 색상 재사용</div>
+  </div>
+</div>
+
+<script>
+  const ROUTES = [
+    {id:'a', time:42, arrive:'13:52 도착', tag:'가장 빠른', walkAll:false,
+     steps:[{ic:'walk', min:6, label:'도보'},{ic:'subway',min:21,label:'2호선',c:'var(--t-2)'},{ic:'walk',min:4,label:'도보'},{ic:'subway',min:8,label:'7호선',c:'var(--t-7)'},{ic:'walk',min:3,label:'도보'}]},
+    {id:'b', time:38, arrive:'13:48 도착', tag:'환승 적음', walkAll:false,
+     steps:[{ic:'walk', min:9, label:'도보'},{ic:'bus',min:24,label:'146번',c:'var(--t-bus)'},{ic:'walk',min:5,label:'도보'}]},
+    {id:'c', time:51, arrive:'14:01 도착', tag:'도보 적음', walkAll:false,
+     steps:[{ic:'walk', min:3, label:'도보'},{ic:'subway',min:34,label:'2호선',c:'var(--t-2)'},{ic:'walk',min:14,label:'도보'}]},
+  ];
+  let selected = 'a';
+
+  function segBar(r){
+    const total = r.steps.reduce((a,s)=>a+s.min,0);
+    return r.steps.map(s=>{
+      const share = s.min/total*100;
+      const wide = share>=16;
+      if(s.ic==='walk') return `<div class="segpiece walk" style="flex:${s.min};">${wide?s.min:''}</div>`;
+      return `<div class="segpiece" style="flex:${s.min};background:${s.c};">${wide?s.min+'분':(share>=8?s.min:'')}</div>`;
+    }).join('');
+  }
+  function expandSteps(r){
+    return r.steps.map(s=>{
+      const badge = s.ic==='walk'
+        ? `<span class="stepbadge" style="background:var(--t-walk);">도보</span>`
+        : `<span class="stepbadge" style="background:${s.c};">${s.label}</span>`;
+      return `<div class="steprow">${badge}<span>${s.min}분</span></div>`;
+    }).join('');
+  }
+
+  function render(){
+    let html = '';
+    ROUTES.forEach(r=>{
+      const isSel = r.id===selected;
+      html += `
+        <div class="rcard ${isSel?'sel':''}" onclick="pick('${r.id}')">
+          <div class="rc-top">
+            <div><div class="rc-time">${r.time}분</div><div class="rc-arrive">${r.arrive}</div></div>
+            <span class="rc-tag">${r.tag}</span>
+          </div>
+          <div class="segbar">${segBar(r)}</div>
+          <div class="expand ${isSel?'show':''}">${expandSteps(r)}</div>
+        </div>`;
+    });
+    document.getElementById('cardsArea').innerHTML = html;
+  }
+  function pick(id){ selected = id; render(); }
+  function closeSheet(){ location.href='ensom_detail.html'; }
+  function confirmChange(){
+    document.querySelector('.sheet-sub').textContent = `변경됨 · ${ROUTES.find(r=>r.id===selected).time}분 경로로 설정했어요`;
+    setTimeout(closeSheet, 900);
+  }
+  render();
+</script>
+
+<script>(function(){ if(new URLSearchParams(location.search).get('embed')==='1'){ document.body.classList.add('embed'); } })();</script>
+
+</body>
+</html>

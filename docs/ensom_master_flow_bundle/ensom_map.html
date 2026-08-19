@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ensom — 지도</title>
+<style>
+  :root{
+    --lime:#c6f135;--lime-soft:#e4fb9b;--lime-ink:#4e6810;
+    --canvas:#ffffff;--surface-1:#ffffff;--surface-2:#eef0ea;--surface-neutral:#e9e9e6;
+    --hairline:#e3e5e0;--ink:#14150f;--ink-muted:#63655e;--ink-faint:#6f7269;
+    --panel:#15170f;--cta:#1f231a;--caution:#e3a13b;--caution-ink:#7a4f0c;
+    --route:#1f231a;--route-alt:#8b8e84;
+    --t-walk:#8b8e84;--t-2:#00a84d;--t-bus:#3a7dd0;--t-3:#ef7c1c;
+    --font:'Pretendard','Apple SD Gothic Neo','Malgun Gothic',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:var(--font);background:#d9dcd3;color:var(--ink);padding:32px 20px 60px;-webkit-font-smoothing:antialiased;}
+  .page-head{max-width:1180px;margin:0 auto 18px;}
+  .page-head h1{font-size:22px;font-weight:700;letter-spacing:-.4px;}
+  .page-head p{font-size:13px;color:#55584f;margin-top:6px;line-height:1.55;}
+  .hint{display:inline-block;background:#15170f;color:#c6f135;font-size:11.5px;font-weight:600;padding:6px 12px;border-radius:999px;margin-top:10px;}
+
+  .controls{max-width:1180px;margin:18px auto 24px;display:flex;flex-wrap:wrap;gap:20px;background:#fff;border-radius:16px;padding:16px 18px;}
+  .cg{display:flex;flex-direction:column;gap:8px;}
+  .cl{font-size:11px;font-weight:600;letter-spacing:.4px;color:#7a7d74;text-transform:uppercase;}
+  .seg{display:flex;background:var(--surface-2);border-radius:999px;padding:4px;gap:2px;}
+  .seg button{font-family:var(--font);font-size:13px;font-weight:600;border:0;background:transparent;color:var(--ink-muted);padding:8px 14px;border-radius:999px;cursor:pointer;white-space:nowrap;}
+  .seg button.on{background:var(--cta);color:#fff;}
+
+  .stage{max-width:1180px;margin:0 auto;display:flex;gap:36px;flex-wrap:wrap;align-items:flex-start;}
+  .phone{width:344px;height:730px;flex:0 0 auto;border-radius:46px;border:9px solid #16170f;position:relative;overflow:hidden;box-shadow:0 20px 50px rgba(20,21,15,.26);background:#f2f0e9;}
+  .notch{position:absolute;top:0;left:50%;transform:translateX(-50%);width:112px;height:26px;background:#16170f;border-radius:0 0 16px 16px;z-index:70;}
+
+  .map{position:absolute;inset:0;}
+  .map svg{width:100%;height:100%;display:block;}
+  .maplabel{font-size:8.5px;font-weight:600;fill:#6b6d64;font-family:var(--font);}
+  .maplabel.big{font-size:9.5px;fill:#55574f;}
+  .poi{font-size:7.5px;fill:#8a8c82;font-family:var(--font);}
+
+  .topbar{position:absolute;top:46px;left:16px;right:16px;height:46px;z-index:20;background:#fff;border-radius:999px;display:flex;align-items:center;justify-content:space-between;padding:0 6px 0 18px;box-shadow:0 4px 14px rgba(20,21,15,.14);}
+  .word{font-size:13px;font-weight:700;letter-spacing:1.6px;color:var(--ink);display:inline-flex;align-items:center;}
+  .word .wm-o, .wm-o{width:.78em;height:.78em;margin:0 1px;flex:0 0 auto;}
+  .tbico{width:34px;height:34px;border-radius:999px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;cursor:pointer;}
+  .tbico svg{width:15px;height:15px;stroke:var(--ink);fill:none;stroke-width:1.9;}
+
+  /* 출발·도착 입력 (경로 모드) */
+  .odbox{
+    position:absolute;top:102px;left:16px;right:16px;z-index:20;background:#fff;
+    border-radius:20px;padding:11px 14px;box-shadow:0 2px 14px rgba(0,0,0,.11);cursor:pointer;
+  }
+  .odrow{display:flex;align-items:center;gap:10px;padding:5px 0;}
+  .oddot{width:9px;height:9px;border-radius:999px;flex:0 0 auto;}
+  .oddot.o{background:var(--ink-faint);}
+  .oddot.d{background:var(--lime);border:2px solid var(--route);width:11px;height:11px;}
+  .odtext{font-size:13px;font-weight:600;flex:1 1 auto;}
+  .odtext.ph{color:var(--ink-faint);font-weight:400;}
+  .odline{height:1px;background:var(--hairline);margin:2px 0 2px 19px;}
+  .odswap{width:28px;height:28px;border-radius:999px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;flex:0 0 auto;}
+  .odswap svg{width:13px;height:13px;stroke:var(--ink-muted);fill:none;stroke-width:2;}
+
+  /* 검색 전 단일 바 */
+  .searchbar{position:absolute;top:102px;left:16px;right:16px;height:46px;z-index:20;background:#fff;border-radius:999px;display:flex;align-items:center;gap:9px;padding:0 18px;box-shadow:0 2px 12px rgba(0,0,0,.10);cursor:pointer;}
+  .searchbar svg{width:15px;height:15px;stroke:var(--ink-faint);fill:none;stroke-width:2;flex:0 0 auto;}
+  .searchbar span{font-size:13.5px;color:var(--ink-faint);}
+
+  .mapbtns{position:absolute;right:16px;z-index:19;display:flex;flex-direction:column;gap:8px;transition:bottom .3s;}
+  .mbtn{width:40px;height:40px;border-radius:999px;background:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 12px rgba(0,0,0,.10);cursor:pointer;}
+  .mbtn svg{width:17px;height:17px;stroke:var(--ink);fill:none;stroke-width:2;}
+  .zoomgroup{background:#fff;border-radius:22px;box-shadow:0 2px 12px rgba(0,0,0,.10);overflow:hidden;}
+  .zoomgroup .mbtn{box-shadow:none;border-radius:0;}
+  .zoomgroup .mbtn:first-child{border-bottom:1px solid var(--hairline);}
+
+  .attrib{position:absolute;left:16px;z-index:19;font-size:8.5px;color:#8b8d84;background:rgba(255,255,255,.72);padding:3px 8px;border-radius:999px;transition:bottom .3s;}
+
+  .marker-label{position:absolute;z-index:18;background:var(--panel);color:#fff;font-size:10px;font-weight:700;padding:5px 10px;border-radius:999px;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.18);transform:translate(-50%,-100%);}
+
+  /* ── sheet ── */
+  .sheet{
+    position:absolute;left:0;right:0;bottom:0;z-index:30;background:#fff;
+    border-radius:28px 28px 0 0;box-shadow:0 -4px 24px rgba(20,21,15,.13);
+    padding:9px 18px 88px;transition:transform .3s cubic-bezier(.3,.9,.3,1);
+    max-height:74%;display:flex;flex-direction:column;
+  }
+  .handle{width:36px;height:4px;border-radius:999px;background:#d3d5cc;margin:0 auto 12px;flex:0 0 auto;cursor:pointer;}
+  .sheetscroll{overflow-y:auto;flex:1 1 auto;}
+  .sheetscroll::-webkit-scrollbar{width:0;}
+
+  .sheettitle{font-size:14px;font-weight:700;letter-spacing:-.3px;margin-bottom:11px;}
+  .anchorseg{display:flex;background:var(--surface-2);border-radius:999px;padding:3px;margin-bottom:13px;}
+  .anchorseg div{flex:1;text-align:center;font-size:11.5px;font-weight:700;color:var(--ink-muted);padding:7px 0;border-radius:999px;cursor:pointer;}
+  .anchorseg div.on{background:#fff;color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.08);}
+  .anchornote{font-size:10.5px;color:var(--ink-faint);margin:-6px 0 12px;line-height:1.5;}
+
+  .rcard{border:1px solid var(--hairline);border-radius:18px;padding:13px 14px;margin-bottom:8px;cursor:pointer;transition:border-color .15s,background .15s;}
+  .rcard.sel{border-color:var(--cta);border-width:1.5px;background:#fbfcfa;}
+  .rc-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;}
+  .rc-tag{font-size:10px;font-weight:700;color:var(--lime-ink);background:var(--lime-soft);padding:4px 9px;border-radius:999px;}
+  .rc-tag.plain{background:var(--surface-2);color:var(--ink-muted);}
+  .rc-time{font-size:19px;font-weight:700;letter-spacing:-.5px;margin-top:8px;}
+  .rc-time small{font-size:11.5px;font-weight:600;color:var(--ink-muted);margin-left:5px;letter-spacing:0;}
+  .rc-meta{font-size:11.5px;color:var(--ink-muted);margin-top:4px;}
+
+  /* ── 구간 비율 바 ── */
+  .segbar{display:flex;gap:2px;margin-top:11px;height:22px;}
+  .segpiece{
+    border-radius:7px;display:flex;align-items:center;justify-content:center;gap:3px;
+    font-size:10px;font-weight:700;color:#fff;overflow:hidden;min-width:14px;white-space:nowrap;
+  }
+  .segpiece.walk{background:var(--surface-neutral);color:var(--ink-muted);}
+  .segpiece svg{width:11px;height:11px;stroke:currentColor;fill:none;stroke-width:2;flex:0 0 auto;}
+  .seglabels{display:flex;gap:2px;margin-top:4px;}
+  .seglabels span{
+    font-size:9.5px;font-weight:700;text-align:center;overflow:hidden;
+    white-space:nowrap;min-width:14px;
+  }
+  .rc-chev{width:22px;height:22px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;}
+  .rc-chev svg{width:13px;height:13px;stroke:var(--ink-faint);fill:none;stroke-width:2.2;transition:transform .2s;}
+  .rcard.open .rc-chev svg{transform:rotate(180deg);}
+  .steps{display:none;margin-top:12px;padding-top:11px;border-top:1px solid var(--hairline);}
+  .rcard.open .steps{display:block;}
+  .step{display:flex;align-items:center;gap:9px;padding:7px 0;}
+  .sico{width:20px;flex:0 0 auto;display:flex;justify-content:center;}
+  .sico svg{width:14px;height:14px;stroke:var(--ink-faint);fill:none;stroke-width:1.9;}
+  .sbadge{font-size:9px;font-weight:700;color:#fff;padding:3px 7px;border-radius:6px;flex:0 0 auto;min-width:22px;text-align:center;}
+  .stxt{font-size:11.5px;color:var(--ink-muted);flex:1 1 auto;}
+  .smin{font-size:11.5px;font-weight:700;flex:0 0 auto;}
+
+  .sheetcta{display:flex;gap:8px;margin-top:12px;flex:0 0 auto;}
+  .btn{flex:1 1 auto;height:50px;border-radius:999px;border:0;font-family:var(--font);font-size:13.5px;font-weight:700;cursor:pointer;}
+  .btn.primary{background:var(--cta);color:#fff;}
+  .btn.ghost{background:var(--surface-2);color:var(--ink);flex:0 0 auto;padding:0 18px;}
+
+  /* 초기 시트 */
+  .qchips{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px;}
+  .qchip{display:flex;align-items:center;gap:6px;background:var(--surface-2);border-radius:999px;padding:9px 14px;font-size:12.5px;font-weight:600;cursor:pointer;}
+  .qchip svg{width:13px;height:13px;stroke:var(--ink-muted);fill:none;stroke-width:1.9;}
+  .reclist .rec{display:flex;align-items:center;gap:11px;padding:11px 0;border-bottom:1px solid var(--hairline);cursor:pointer;}
+  .reclist .rec:last-child{border-bottom:0;}
+  .recico{width:32px;height:32px;border-radius:999px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;flex:0 0 auto;}
+  .recico svg{width:14px;height:14px;stroke:var(--ink-muted);fill:none;stroke-width:1.9;}
+  .recn{font-size:13.5px;font-weight:600;}
+  .reca{font-size:11px;color:var(--ink-muted);margin-top:2px;}
+  .recd{font-size:11px;color:var(--ink-faint);font-weight:600;flex:0 0 auto;}
+
+  /* 위치 권한 배너 */
+  .locbanner{
+    position:absolute;top:98px;left:16px;right:16px;z-index:21;background:#fdf6ea;border-radius:14px;
+    padding:9px 12px;display:none;align-items:center;gap:9px;cursor:pointer;box-shadow:0 2px 12px rgba(0,0,0,.08);
+  }
+  .locbanner.on{display:flex;}
+  .haslocbanner .odbox,.haslocbanner .searchbar{top:150px;}
+  .locbanner svg{width:15px;height:15px;stroke:var(--caution);fill:none;stroke-width:2;flex:0 0 auto;}
+  .locbanner .lt{flex:1 1 auto;font-size:11px;font-weight:600;color:#7a4f0c;line-height:1.4;}
+  .locbanner .lc{font-size:10px;font-weight:700;color:#7a4f0c;text-decoration:underline;text-underline-offset:2px;white-space:nowrap;}
+
+  /* 오류 배너 */
+  .errbanner{
+    background:var(--surface-2);border-radius:14px;padding:11px 13px;margin-bottom:12px;
+    display:flex;align-items:center;gap:10px;
+  }
+  .errbanner .et{font-size:12px;font-weight:600;flex:1 1 auto;line-height:1.45;}
+  .errbanner .es{font-size:10.5px;color:var(--ink-muted);margin-top:2px;}
+  .retry{font-size:11px;font-weight:700;color:#fff;background:var(--cta);padding:7px 13px;border-radius:999px;flex:0 0 auto;cursor:pointer;}
+
+  /* ── 검색 전체화면 ── */
+  .searchview{position:absolute;inset:0;z-index:50;background:#fff;display:none;flex-direction:column;padding:46px 18px 0;}
+  .searchview.on{display:flex;}
+  .sv-top{display:flex;align-items:center;gap:10px;flex:0 0 auto;}
+  .sv-back{width:34px;height:34px;border-radius:999px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;cursor:pointer;flex:0 0 auto;}
+  .sv-back svg{width:15px;height:15px;stroke:var(--ink);fill:none;stroke-width:2;}
+  .sv-input{
+    flex:1 1 auto;height:44px;border-radius:999px;border:1.5px solid var(--cta);
+    background:#fff;padding:0 16px;font-family:var(--font);font-size:13.5px;color:var(--ink);outline:none;
+  }
+  .sv-input::placeholder{color:var(--ink-faint);}
+  .sv-body{flex:1 1 auto;overflow-y:auto;margin-top:16px;padding-bottom:20px;}
+  .sv-body::-webkit-scrollbar{width:0;}
+  .sv-sec{font-size:10.5px;font-weight:700;color:var(--ink-faint);letter-spacing:.4px;text-transform:uppercase;margin:14px 0 6px;}
+  .sv-sec:first-child{margin-top:0;}
+  .sv-empty{text-align:center;padding:44px 20px;color:var(--ink-faint);font-size:13px;line-height:1.7;}
+  .sv-mapbtn{
+    display:flex;align-items:center;justify-content:center;gap:7px;
+    background:var(--surface-2);border-radius:14px;padding:13px;margin-top:14px;
+    font-size:12.5px;font-weight:700;cursor:pointer;
+  }
+  .sv-mapbtn svg{width:15px;height:15px;stroke:var(--ink);fill:none;stroke-width:1.9;}
+  mark{background:transparent;color:var(--ink);font-weight:800;}
+
+  .tabbar{position:absolute;left:24px;right:24px;bottom:15px;height:58px;background:var(--surface-2);border-radius:999px;box-shadow:0 6px 22px rgba(20,21,15,.16);display:flex;align-items:center;justify-content:space-around;z-index:40;}
+  .tab{display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--ink-faint);}
+  .tab.on{color:var(--ink);}
+  .tab svg{width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:1.8;}
+  .tab span{font-size:9.5px;font-weight:600;}
+
+  .notes{flex:1 1 300px;min-width:290px;background:#fff;border-radius:16px;padding:20px 22px;}
+  .notes h3{font-size:14px;font-weight:700;margin-bottom:12px;}
+  .notes h4{font-size:12px;font-weight:700;margin:15px 0 6px;}
+  .notes p,.notes li{font-size:12.5px;line-height:1.65;color:#4c4f47;}
+  .notes ul{padding-left:16px;}
+  .notes li{margin-bottom:5px;}
+  .nb{background:#f3f5ef;border-radius:10px;padding:11px 13px;margin-top:8px;}
+  .warn{background:#fdf3e3;border-left:3px solid var(--caution);padding:10px 12px;border-radius:0 8px 8px 0;margin-top:8px;}
+
+  /* ═ embed mode (used when loaded inside ensom_master_flow.html) ═ */
+  body.embed{background:transparent;padding:0;overflow:hidden;}
+  body.embed .page-head,body.embed .legend,body.embed .hint,body.embed .controls{display:none!important;}
+  body.embed .stage{margin:0;padding:0;gap:0;}
+  body.embed .phone{box-shadow:none;}
+</style>
+</head>
+<body>
+
+<div class="page-head">
+  <h1>[MAP-01] Ensom — 지도 (경로 검색·비교)</h1>
+  <p>실제 서비스에서는 이 자리에 <b>카카오맵 타일</b>이 들어갑니다. 여기 지도는 그 위에 얹히는 UI의 대비·가독성을 확인하기 위한 스타일 목업이에요.</p>
+  <div class="hint">눌러볼 것 — 상단 검색창(전체 검색으로) · 경로 카드 · 카드 화살표 · 시각 기준 토글 · 시트 손잡이 · 🆕 위치 권한 꺼짐 배너 · [캘린더에 추가]</div>
+</div>
+
+<div class="controls">
+  <div class="cg">
+    <div class="cl">화면 상태</div>
+    <div class="seg" id="stateSeg">
+      <button data-s="initial">검색 전</button>
+      <button data-s="compare" class="on">경로 비교</button>
+      <button data-s="fail">경로 실패</button>
+    </div>
+  </div>
+  <div class="cg">
+    <div class="cl">시트</div>
+    <div class="seg" id="sheetSeg">
+      <button data-h="peek">접힘</button>
+      <button data-h="full" class="on">펼침</button>
+    </div>
+  </div>
+  <div class="cg">
+    <div class="cl">🆕 위치 권한 (08_화면상태_체크리스트.md 신규)</div>
+    <div class="seg" id="locpermSeg">
+      <button data-lp="on" class="on">허용됨</button>
+      <button data-lp="off">꺼짐</button>
+    </div>
+  </div>
+</div>
+
+<div class="stage">
+  <div class="phone">
+    <div class="notch"></div>
+
+    <!-- ════ MAP ════ -->
+    <div class="map">
+      <svg viewBox="0 0 326 712" preserveAspectRatio="xMidYMid slice">
+        <rect width="326" height="712" fill="#f2f0e9"/>
+        <path d="M8 120 L110 108 L146 150 L128 214 L38 226 L2 176 Z" fill="#dde8d0"/>
+        <path d="M196 96 L300 88 L318 150 L246 178 L188 148 Z" fill="#dde8d0"/>
+        <circle cx="60" cy="620" r="46" fill="#dde8d0"/>
+        <path d="M-10 512 Q90 482 170 520 T340 502" stroke="#cbdcea" stroke-width="16" fill="none"/>
+        <g fill="#e9e6dd">
+          <rect x="150" y="228" width="52" height="40" rx="3"/><rect x="212" y="228" width="46" height="40" rx="3"/>
+          <rect x="150" y="278" width="52" height="46" rx="3"/><rect x="212" y="278" width="46" height="46" rx="3"/>
+          <rect x="42" y="256" width="56" height="44" rx="3"/><rect x="42" y="310" width="56" height="40" rx="3"/>
+          <rect x="108" y="336" width="48" height="42" rx="3"/><rect x="166" y="336" width="60" height="42" rx="3"/>
+          <rect x="236" y="336" width="52" height="42" rx="3"/><rect x="60" y="396" width="60" height="44" rx="3"/>
+          <rect x="130" y="396" width="54" height="44" rx="3"/><rect x="194" y="396" width="60" height="44" rx="3"/>
+          <rect x="86" y="652" width="70" height="44" rx="3"/><rect x="180" y="608" width="80" height="52" rx="3"/>
+        </g>
+        <g stroke="#ffffff" fill="none" stroke-linecap="round">
+          <path d="M-10 240 H340" stroke-width="13"/><path d="M-10 330 H340" stroke-width="10"/>
+          <path d="M-10 388 H340" stroke-width="13"/><path d="M-10 460 H340" stroke-width="9"/>
+          <path d="M138 -10 V712" stroke-width="12"/><path d="M36 90 V712" stroke-width="9"/>
+          <path d="M232 90 V712" stroke-width="10"/><path d="M296 200 V712" stroke-width="7"/>
+        </g>
+        <g stroke="#ffffff" fill="none" stroke-width="5" stroke-linecap="round" opacity=".85">
+          <path d="M-10 286 H340"/><path d="M-10 424 H340"/><path d="M-10 560 H340"/>
+          <path d="M86 200 V712"/><path d="M186 200 V712"/><path d="M266 240 V712"/>
+        </g>
+        <path d="M-10 300 Q120 300 180 260 T340 246" stroke="#c9cdd6" stroke-width="2.4" fill="none" opacity=".75"/>
+
+        <g id="altGroup"></g>
+
+        <path id="mainCasing" d="" stroke="#ffffff" stroke-width="10" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        <path id="mainLine" d="" stroke="var(--route)" stroke-width="6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+
+        <g>
+          <circle cx="86" cy="300" r="3.4" fill="#fff" stroke="#a9adb6" stroke-width="1.6"/>
+          <circle cx="186" cy="260" r="3.4" fill="#fff" stroke="#a9adb6" stroke-width="1.6"/>
+          <circle cx="266" cy="246" r="3.4" fill="#fff" stroke="#a9adb6" stroke-width="1.6"/>
+        </g>
+        <text class="maplabel big" x="96" y="296">경복궁역</text>
+        <text class="maplabel big" x="196" y="256">안국역</text>
+        <text class="maplabel big" x="276" y="242">종각역</text>
+        <text class="maplabel" x="46" y="392">서대문역</text>
+        <text class="maplabel" x="146" y="456">시청역</text>
+        <text class="maplabel" x="238" y="456">을지로입구역</text>
+        <text class="maplabel" x="140" y="336">광화문역</text>
+        <text class="poi" x="30" y="170">경복궁</text>
+        <text class="poi" x="216" y="130">국립민속박물관</text>
+        <text class="poi" x="34" y="624">남산공원</text>
+
+        <g id="markers">
+          <circle cx="78" cy="460" r="11" fill="var(--lime)" stroke="var(--route)" stroke-width="2.4"/>
+          <circle cx="78" cy="460" r="3.2" fill="var(--route)"/>
+          <circle cx="212" cy="214" r="11" fill="var(--lime)" stroke="var(--route)" stroke-width="2.4"/>
+          <circle cx="212" cy="214" r="3.2" fill="var(--route)"/>
+        </g>
+        <g id="soloMarker" style="display:none">
+          <circle cx="163" cy="380" r="13" fill="rgba(198,241,53,.28)"/>
+          <circle cx="163" cy="380" r="7" fill="var(--lime)" stroke="var(--route)" stroke-width="2.2"/>
+        </g>
+      </svg>
+      <div class="marker-label" id="destLabel" style="left:65%;top:27.2%">강남역 3번 출구</div>
+    </div>
+
+    <!-- ════ overlays ════ -->
+    <div class="topbar">
+      <div class="word">ENS<svg class="wm-o" viewBox="0 0 32 32"><circle cx="16" cy="16" r="11" fill="none" stroke="#4e6810" stroke-width="7"/><circle cx="16" cy="16" r="11" fill="none" stroke="#c6f135" stroke-width="7" stroke-dasharray="47 22" transform="rotate(-90 16 16)" stroke-linecap="round"/></svg>M</div>
+      <div class="tbico" id="topSearch"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></div>
+    </div>
+
+    <div class="locbanner" id="locBanner" onclick="location.href='ensom_profile.html'">
+      <svg viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"/></svg>
+      <div class="lt">위치 권한이 꺼져 있어요 · 현재 위치 대신 마지막 저장 위치를 사용해요</div>
+      <div class="lc">설정으로</div>
+    </div>
+
+    <!-- 검색 전 -->
+    <div class="searchbar" id="searchbar" style="display:none">
+      <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+      <span>어디로 갈까요?</span>
+    </div>
+
+    <!-- 경로 모드: 출발·도착 -->
+    <div class="odbox" id="odbox">
+      <div class="odrow">
+        <div class="oddot o"></div>
+        <div class="odtext">현재 위치</div>
+        <div class="odswap"><svg viewBox="0 0 24 24"><path d="M7 4v16M7 4l-3 3M7 4l3 3M17 20V4M17 20l3-3M17 20l-3-3"/></svg></div>
+      </div>
+      <div class="odline"></div>
+      <div class="odrow">
+        <div class="oddot d"></div>
+        <div class="odtext">강남역 3번 출구</div>
+      </div>
+    </div>
+
+    <div class="mapbtns" id="mapbtns">
+      <div class="zoomgroup">
+        <div class="mbtn"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></div>
+        <div class="mbtn"><svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg></div>
+      </div>
+      <div class="mbtn"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg></div>
+    </div>
+    <div class="attrib" id="attrib">© Kakao</div>
+
+    <!-- ════ SHEET ════ -->
+    <div class="sheet" id="sheet">
+      <div class="handle" id="handle"></div>
+
+      <!-- 접힘: 선택 경로 요약 + 구간 바 -->
+      <div id="peekBar" style="display:none"></div>
+
+      <!-- 검색 전 -->
+      <div id="initialView" style="display:none">
+        <div class="sheettitle">어디로 갈까요?</div>
+        <div class="qchips">
+          <div class="qchip"><svg viewBox="0 0 24 24"><path d="M3 10l9-7 9 7v10a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>집</div>
+          <div class="qchip"><svg viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>직장</div>
+          <div class="qchip"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>현재 위치 주변</div>
+        </div>
+        <div class="sv-sec">최근 목적지</div>
+        <div class="reclist sheetscroll">
+          <div class="rec"><div class="recico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
+            <div style="flex:1"><div class="recn">강남역 3번 출구</div><div class="reca">서울 강남구 강남대로 지하 396</div></div><div class="recd">1.2km</div></div>
+          <div class="rec"><div class="recico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
+            <div style="flex:1"><div class="recn">서울대병원</div><div class="reca">서울 종로구 대학로 101</div></div><div class="recd">3.4km</div></div>
+          <div class="rec"><div class="recico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
+            <div style="flex:1"><div class="recn">홍대입구역</div><div class="reca">서울 마포구 양화로 지하 160</div></div><div class="recd">6.1km</div></div>
+        </div>
+      </div>
+
+      <!-- 경로 비교 -->
+      <div id="compareView">
+        <div class="anchorseg" id="anchorSeg">
+          <div data-a="arrive" class="on">도착 시각 기준</div>
+          <div data-a="depart">출발 시각 기준</div>
+        </div>
+        <div class="anchornote" id="anchorNote">14:00까지 도착하려면 언제 나가야 하는지 계산합니다.</div>
+        <div class="sheetscroll" id="routeList"></div>
+        <div class="sheetcta">
+          <button class="btn ghost">공유</button>
+          <button class="btn primary" onclick="location.href='ensom_event_form.html'">캘린더에 추가</button>
+        </div>
+      </div>
+
+      <!-- 경로 실패 -->
+      <div id="failView" style="display:none">
+        <div class="errbanner">
+          <div style="flex:1">
+            <div class="et">최신 교통 정보를 가져오지 못했어요</div>
+            <div class="es">14:31 기준 경로를 대신 보여드릴게요</div>
+          </div>
+          <div class="retry">다시 시도</div>
+        </div>
+        <div class="sheetscroll" id="failList"></div>
+        <div class="sheetcta">
+          <button class="btn ghost">공유</button>
+          <button class="btn primary" onclick="location.href='ensom_event_form.html'">캘린더에 추가</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════ 검색 전체화면 ════ -->
+    <div class="searchview" id="searchview">
+      <div class="sv-top">
+        <div class="sv-back" id="svBack"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></div>
+        <input class="sv-input" id="svInput" placeholder="장소, 주소 검색" autocomplete="off">
+      </div>
+      <div class="sv-body" id="svBody"></div>
+    </div>
+
+    <!-- ════ TAB BAR ════ -->
+    <div class="tabbar">
+      <div class="tab" onclick="location.href='ensom_calendar.html'"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4M3 11h18"/></svg><span>캘린더</span></div>
+      <div class="tab" onclick="location.href='ensom_prototype.html'"><svg viewBox="0 0 24 24"><path d="M3 10l9-7 9 7v10a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg><span>홈</span></div>
+      <div class="tab on"><svg viewBox="0 0 24 24"><path d="M9 3L3 6v15l6-3 6 3 6-3V3l-6 3z"/><path d="M9 3v15M15 6v15"/></svg><span>지도</span></div>
+      <div class="tab" onclick="location.href='ensom_profile.html'"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg><span>프로필</span></div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <h3>이번에 더한 것</h3>
+
+    <h4>1. 하단 탭바를 항상 유지</h4>
+    <p>시트가 탭바를 덮지 않고 그 위로 올라옵니다. 시트 안쪽 아래 여백(88px)을 확보해서 CTA가 탭바에 가리지 않아요. 지도는 탭 루트 화면이라 어떤 상태에서도 다른 탭으로 나갈 수 있어야 합니다.</p>
+
+    <h4>2. 출발·도착 입력 ★</h4>
+    <p>기존엔 검색창 하나뿐이었는데, 경로 검색은 <b>두 지점</b>이 필요합니다. 상단 박스에 출발(회색 점)·도착(라임 마커) 두 줄과 뒤집기 버튼을 넣었어요. 출발지 기본값은 "현재 위치"이고 주요 장소(집·직장)로 바꿀 수 있습니다.</p>
+
+    <h4>3. 시각 기준 토글 ★</h4>
+    <p>화면설계서 MAP-01에 있는데 지금까지 어떤 화면에도 없던 겁니다. <b>도착 시각 기준</b>과 <b>출발 시각 기준</b>을 바꾸면 경로 카드의 표시가 "14:00 도착"에서 "지금 출발 → 14:06 도착"으로 바뀝니다.</p>
+    <div class="nb">앤섬에선 이게 특히 중요해요. "2시 약속"은 도착 시각 기준이고, 여기서 역산해야 준비 시작 시각이 나옵니다. 기본값을 <b>도착 시각 기준</b>으로 둔 이유예요.</div>
+
+    <h4>4. 검색 전체화면 ★</h4>
+    <p>상단 검색 아이콘이나 검색창을 누르면 전체화면 검색으로 갑니다. 입력하기 전엔 최근 검색·주요 장소가 뜨고, <b>실제로 타이핑하면 결과가 필터링</b>됩니다. "강남", "서울", "홍대" 등을 쳐보세요. 없는 걸 치면 결과 없음 상태도 볼 수 있어요.</p>
+
+    <h4>5. 경로 실패 상태</h4>
+    <p>화면을 덮는 오류 화면 대신 시트 상단 배너로 처리했습니다. <b>마지막 성공 경로는 그대로 보여주고</b> "14:31 기준"만 명시해요. 빨강 없이 중립 회색 배너입니다.</p>
+
+    <h4>6. 지도 저작권 표기</h4>
+    <p>지난번 지적한 대로 좌하단에 "© Kakao"를 넣었습니다. 우하단은 현위치 버튼 자리라 겹쳐서요. 실제 연동 시 카카오 가이드라인 확인이 필요합니다.</p>
+
+    <h4>7. 구간 비율 바 ★ (네이버 참고)</h4>
+    <p>각 경로 카드에 <b>소요 시간에 비례하는 가로 바</b>를 넣었습니다. 펼치지 않아도 "이 경로는 버스가 대부분이구나", "이건 도보가 길구나"가 한눈에 들어와요. 세 경로를 나란히 놓고 바 모양만 비교해도 성격 차이가 읽힙니다.</p>
+    <div class="nb">
+      네이버와 다르게 한 점: 조각을 <b>붙이지 않고 2px 띄우고 각각 라운드</b>를 줬습니다. 앤섬은 직각 모서리를 쓰지 않는 시스템이고, 띄우면 환승 지점이 더 명확해집니다.<br><br>
+      색은 이미 정한 <code>transit-*</code> 토큰 그대로예요 — 2호선 초록, 3호선 주황, 간선버스 파랑, 도보는 중립 회색. 새 색을 만들지 않았습니다.
+    </div>
+    <p style="margin-top:8px;">조각이 좁으면 글자를 자동으로 뺍니다. 13% 이상이면 "12분", 7% 이상이면 숫자만, 그보다 좁으면 색만 남아요. 도보 1분짜리도 바에서 사라지지 않게 최소 폭을 뒀습니다.</p>
+
+    <h4>8. 접힘 상태가 쓸모 있어짐</h4>
+    <p>시트를 접으면 선택한 경로의 <b>요약 + 구간 바</b>만 남습니다. 지도를 넓게 보면서도 경로 구성은 계속 보이는 상태예요. 손잡이를 눌러보세요.</p>
+
+    <h4>남은 판단</h4>
+    <ul>
+      <li>바에 요금(3,300원)도 넣을지 — 네이버는 넣는데 앤섬 PRD엔 요금 개념이 없음</li>
+      <li>출발·도착 박스가 상단바 바로 아래라 지도 가시 영역이 줄어듦 — 시트 안으로 넣을지</li>
+      <li>시각 기준 토글을 시트가 아니라 상단 박스에 붙일지</li>
+      <li>"공유" 버튼이 실제로 필요한지 (PRD엔 없는 기능)</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+const ROUTES=[
+  {id:'a',tag:'가장 빠른',plain:false,min:42,arrive:'14:00',depart:'13:18',walk:12,transfer:1,
+   path:'M78 460 L78 400 L112 400 L112 306 L166 306 L166 240 L212 240 L212 214',
+   steps:[{ic:'walk',t:'도보 · 강남대로 방향',m:'5분',min:5},
+          {ic:'sub',b:'2',c:'var(--t-2)',t:'2호선 승차 · 3정거장',m:'12분',min:12,no:'2호선'},
+          {ic:'walk',t:'도보 · 환승 통로',m:'3분',min:3},
+          {ic:'bus',b:'간선',c:'var(--t-bus)',t:'간선버스 146 · 4정거장',m:'18분',min:18,no:'146'},
+          {ic:'walk',t:'도보 · 3번 출구까지',m:'4분',min:4}]},
+  {id:'b',tag:'도보 적음',plain:true,min:48,arrive:'14:06',depart:'13:18',walk:5,transfer:1,
+   path:'M78 460 L142 460 L142 356 L196 356 L196 268 L212 268 L212 214',
+   steps:[{ic:'walk',t:'도보 · 정류장까지',m:'2분',min:2},
+          {ic:'bus',b:'간선',c:'var(--t-bus)',t:'간선버스 402 · 9정거장',m:'31분',min:31,no:'402'},
+          {ic:'walk',t:'도보 · 환승',m:'1분',min:1},
+          {ic:'sub',b:'3',c:'var(--t-3)',t:'3호선 승차 · 2정거장',m:'12분',min:12,no:'3호선'},
+          {ic:'walk',t:'도보 · 출구까지',m:'2분',min:2}]},
+  {id:'c',tag:'환승 없음',plain:true,min:51,arrive:'14:09',depart:'13:18',walk:16,transfer:0,
+   path:'M78 460 L142 460 L142 396 L232 396 L232 268 L212 268 L212 214',
+   steps:[{ic:'walk',t:'도보 · 정류장까지',m:'8분',min:8},
+          {ic:'sub',b:'2',c:'var(--t-2)',t:'2호선 승차 · 7정거장',m:'35분',min:35,no:'2호선'},
+          {ic:'walk',t:'도보 · 3번 출구까지',m:'8분',min:8}]}
+];
+const ICONS={
+  walk:'<svg viewBox="0 0 24 24"><path d="M13 4a1.5 1.5 0 100 .01M9 20l2-6 3-2 1 4 3 2M7 11l3-2 3 1"/></svg>',
+  sub:'<svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="14" rx="3"/><path d="M7 21l2-3M17 21l-2-3M5 12h14"/></svg>',
+  bus:'<svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="12" rx="2"/><path d="M7 20l1.5-3M17 20l-1.5-3M4 11h16"/></svg>'
+};
+const PLACES=[
+  {n:'강남역 3번 출구',a:'서울 강남구 강남대로 지하 396',d:'1.2km',recent:1},
+  {n:'강남역',a:'서울 강남구 역삼동',d:'1.3km'},
+  {n:'강남세브란스병원',a:'서울 강남구 언주로 211',d:'2.8km'},
+  {n:'서울대병원',a:'서울 종로구 대학로 101',d:'3.4km',recent:1},
+  {n:'서울역',a:'서울 중구 한강대로 405',d:'4.2km'},
+  {n:'서울시청',a:'서울 중구 세종대로 110',d:'3.9km'},
+  {n:'홍대입구역',a:'서울 마포구 양화로 지하 160',d:'6.1km',recent:1},
+  {n:'합정역',a:'서울 마포구 양화로 지하 78',d:'6.8km'}
+];
+const HOME=[{n:'집',a:'서울 강남구 논현로 123',d:'—'},{n:'직장',a:'서울 중구 세종대로 39',d:'3.6km'}];
+
+let selId='a', openId=null, state='compare', sheetH='full', anchor='arrive';
+
+function drawAlts(){
+  document.getElementById('altGroup').innerHTML=ROUTES.filter(r=>r.id!==selId).map(r=>
+    `<path d="${r.path}" stroke="#ffffff" stroke-width="7" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity=".9"/>
+     <path d="${r.path}" stroke="var(--route-alt)" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`).join('');
+}
+function drawRoute(){
+  const r=ROUTES.find(x=>x.id===selId);
+  document.getElementById('mainCasing').setAttribute('d',r.path);
+  document.getElementById('mainLine').setAttribute('d',r.path);
+  drawAlts();
+}
+const WALKICO='<svg viewBox="0 0 24 24"><path d="M13 4a1.5 1.5 0 100 .01M9 20l2-6 3-2 1 4 3 2M7 11l3-2 3 1"/></svg>';
+
+/* 네이버 스타일 구간 비율 바 — 폭이 소요 시간에 비례한다 */
+function segBar(r){
+  const total=r.steps.reduce((a,s)=>a+s.min,0);
+  const pieces=r.steps.map(s=>{
+    const share=s.min/total*100;
+    const wide=share>=13;          // 분 표기를 넣을 만큼 넓은가
+    const mid=share>=7;            // 아이콘만이라도 들어가는가
+    if(s.ic==='walk'){
+      return `<div class="segpiece walk" style="flex:${s.min}" title="도보 ${s.min}분">
+        ${mid?WALKICO:''}${wide?s.min+'':''}</div>`;
+    }
+    return `<div class="segpiece" style="flex:${s.min};background:${s.c}" title="${s.no} ${s.min}분">
+      ${wide?s.min+'분':(mid?s.min:'')}</div>`;
+  }).join('');
+  const labels=r.steps.map(s=>{
+    const share=s.min/total*100;
+    return `<span style="flex:${s.min};color:${s.no?s.c:'transparent'}">${(s.no&&share>=13)?s.no:''}</span>`;
+  }).join('');
+  return `<div class="segbar">${pieces}</div><div class="seglabels">${labels}</div>`;
+}
+
+function routeCard(r,dim){
+  return `<div class="rcard ${r.id===selId?'sel':''} ${r.id===openId?'open':''}" data-id="${r.id}" ${dim?'style="opacity:.92"':''}>
+    <div class="rc-top">
+      <div style="flex:1 1 auto;min-width:0">
+        <span class="rc-tag ${r.plain?'plain':''}">${r.tag}</span>
+        <div class="rc-time">${r.min}분<small>${anchor==='arrive'?r.arrive+' 도착':r.depart+' 출발'}</small></div>
+        <div class="rc-meta">${anchor==='arrive'?r.depart+' 출발':r.arrive+' 도착'} · 도보 ${r.walk}분 · ${r.transfer?'환승 '+r.transfer+'회':'환승 없음'}</div>
+      </div>
+      <div class="rc-chev" data-chev="${r.id}"><svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></div>
+    </div>
+    ${segBar(r)}
+    <div class="steps">${r.steps.map(s=>`<div class="step"><div class="sico">${ICONS[s.ic]}</div>
+      ${s.b?`<span class="sbadge" style="background:${s.c}">${s.b}</span>`:''}
+      <span class="stxt">${s.t}</span><span class="smin">${s.m}</span></div>`).join('')}</div>
+  </div>`;
+}
+function bindCards(scope){
+  scope.querySelectorAll('.rcard').forEach(c=>c.onclick=e=>{
+    const id=c.dataset.id;
+    if(e.target.closest('[data-chev]')) openId=(openId===id?null:id);
+    else { selId=id; if(openId&&openId!==id) openId=null; }
+    renderRoutes(); drawRoute(); applySheet();
+  });
+}
+function renderRoutes(){
+  const l=document.getElementById('routeList');
+  l.innerHTML=ROUTES.map(r=>routeCard(r)).join(''); bindCards(l);
+  const f=document.getElementById('failList');
+  f.innerHTML=ROUTES.slice(0,2).map(r=>routeCard(r,true)).join(''); bindCards(f);
+  document.getElementById('anchorNote').textContent = anchor==='arrive'
+    ? '14:00까지 도착하려면 언제 나가야 하는지 계산합니다.'
+    : '지금 출발하면 언제 도착하는지 계산합니다.';
+}
+
+function applyState(){
+  const init=state==='initial';
+  document.getElementById('searchbar').style.display=init?'flex':'none';
+  document.getElementById('odbox').style.display=init?'none':'block';
+  document.getElementById('markers').style.display=init?'none':'block';
+  document.getElementById('soloMarker').style.display=init?'block':'none';
+  document.getElementById('destLabel').style.display=init?'none':'block';
+  document.getElementById('mainLine').style.display=init?'none':'block';
+  document.getElementById('mainCasing').style.display=init?'none':'block';
+  document.getElementById('altGroup').style.display=init?'none':'block';
+  applySheet();
+}
+function applySheet(){
+  const sheet=document.getElementById('sheet');
+  const peek=sheetH==='peek';
+  const init=state==='initial';
+  const r=ROUTES.find(x=>x.id===selId);
+
+  document.getElementById('peekBar').style.display=(peek&&!init)?'block':'none';
+  if(peek&&!init){
+    document.getElementById('peekBar').innerHTML=`
+      <div class="collapsed-row">
+        <div class="cr-left">
+          <div class="cr-t">${r.min}분<small style="font-size:11.5px;font-weight:600;color:var(--ink-muted);margin-left:6px">${r.depart} 출발 → ${r.arrive} 도착</small></div>
+          <div class="cr-s">${r.tag} 경로 · 도보 ${r.walk}분 · ${r.transfer?'환승 '+r.transfer+'회':'환승 없음'}</div>
+        </div>
+        <div class="cr-more">경로 3개 <svg viewBox="0 0 24 24"><path d="M18 15l-6-6-6 6"/></svg></div>
+      </div>
+      ${segBar(r)}`;
+  }
+  // 접힘일 땐 본문 숨김
+  ['compareView','failView','initialView'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(!el) return;
+    const shouldShow = (id==='compareView'&&state==='compare')||(id==='failView'&&state==='fail')||(id==='initialView'&&init);
+    el.style.display = (shouldShow && !(peek&&!init)) ? 'block':'none';
+  });
+
+  sheet.style.maxHeight=peek?'auto':'74%';
+  setTimeout(()=>{
+    document.getElementById('mapbtns').style.bottom=(sheet.offsetHeight+14)+'px';
+    document.getElementById('attrib').style.bottom=(sheet.offsetHeight+18)+'px';
+  },10);
+}
+
+/* 검색 */
+function renderSearch(q){
+  const b=document.getElementById('svBody');
+  const mapBtn=`<div class="sv-mapbtn"><svg viewBox="0 0 24 24"><path d="M9 3L3 6v15l6-3 6 3 6-3V3l-6 3z"/><path d="M9 3v15M15 6v15"/></svg>지도에서 직접 선택</div>`;
+  const row=p=>`<div class="rec"><div class="recico">
+    <svg viewBox="0 0 24 24">${p.recent&&!q?'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>':'<path d="M12 21s7-6 7-11a7 7 0 10-14 0c0 5 7 11 7 11z"/><circle cx="12" cy="10" r="2.4"/>'}</svg></div>
+    <div style="flex:1"><div class="recn">${q?p.n.replace(new RegExp('('+q+')','g'),'<mark>$1</mark>'):p.n}</div><div class="reca">${p.a}</div></div>
+    <div class="recd">${p.d}</div></div>`;
+  if(!q){
+    b.innerHTML=`<div class="sv-sec">최근 검색</div><div class="reclist">${PLACES.filter(p=>p.recent).map(row).join('')}</div>
+      <div class="sv-sec">주요 장소</div><div class="reclist">${HOME.map(row).join('')}</div>${mapBtn}`;
+    return;
+  }
+  const hits=PLACES.filter(p=>p.n.includes(q)||p.a.includes(q));
+  b.innerHTML = hits.length
+    ? `<div class="sv-sec">검색 결과 ${hits.length}</div><div class="reclist">${hits.map(row).join('')}</div>${mapBtn}`
+    : `<div class="sv-empty">검색 결과가 없어요<br>다른 이름으로 찾아보시겠어요?</div>${mapBtn}`;
+}
+function openSearch(){document.getElementById('searchview').classList.add('on');document.getElementById('svInput').value='';renderSearch('');setTimeout(()=>document.getElementById('svInput').focus(),50);}
+function closeSearch(){document.getElementById('searchview').classList.remove('on');}
+
+document.getElementById('topSearch').onclick=openSearch;
+document.getElementById('searchbar').onclick=openSearch;
+document.getElementById('odbox').onclick=openSearch;
+document.getElementById('svBack').onclick=closeSearch;
+document.getElementById('svInput').oninput=e=>renderSearch(e.target.value.trim());
+document.getElementById('svBody').addEventListener('click',e=>{
+  if(e.target.closest('.rec')){closeSearch();state='compare';document.querySelectorAll('#stateSeg button').forEach(b=>b.classList.toggle('on',b.dataset.s==='compare'));applyState();}
+});
+
+document.getElementById('handle').onclick=()=>{sheetH=(sheetH==='peek'?'full':'peek');
+  document.querySelectorAll('#sheetSeg button').forEach(b=>b.classList.toggle('on',b.dataset.h===sheetH));applySheet();};
+document.querySelectorAll('#sheetSeg button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('#sheetSeg button').forEach(x=>x.classList.remove('on'));b.classList.add('on');sheetH=b.dataset.h;applySheet();});
+document.querySelectorAll('#stateSeg button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('#stateSeg button').forEach(x=>x.classList.remove('on'));b.classList.add('on');state=b.dataset.s;applyState();});
+document.querySelectorAll('#locpermSeg button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('#locpermSeg button').forEach(x=>x.classList.remove('on'));b.classList.add('on');
+  const off=b.dataset.lp==='off';
+  document.querySelector('.phone').classList.toggle('haslocbanner',off);
+  document.getElementById('locBanner').classList.toggle('on',off);
+  setTimeout(applySheet,10);
+});
+document.querySelectorAll('#anchorSeg div').forEach(d=>d.onclick=()=>{
+  document.querySelectorAll('#anchorSeg div').forEach(x=>x.classList.remove('on'));d.classList.add('on');anchor=d.dataset.a;renderRoutes();});
+
+renderRoutes(); drawRoute(); applyState();
+</script>
+
+<script>(function(){ if(new URLSearchParams(location.search).get('embed')==='1'){ document.body.classList.add('embed'); } })();</script>
+
+</body>
+</html>

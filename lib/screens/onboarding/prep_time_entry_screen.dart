@@ -205,7 +205,7 @@ class _PrepTimeEntryScreenState extends ConsumerState<PrepTimeEntryScreen> {
         );
       }
 
-      context.go("/home");
+      context.go("/onboarding/places");
     } on ApiException catch (e) {
       // settings PATCH 자체가 실패한 경우
       setState(() {
@@ -224,7 +224,7 @@ class _PrepTimeEntryScreenState extends ConsumerState<PrepTimeEntryScreen> {
 
   void _skip() {
     // 맞춤 항목은 선택 사항 — 건너뛰어도 온보딩 완료를 막지 않음 (PRD §11.3)
-    context.go("/home");
+    context.go("/onboarding/places");
   }
 
   // ── UI ────────────────────────────────────────────────────────────

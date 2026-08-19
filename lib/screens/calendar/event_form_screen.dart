@@ -2,7 +2,9 @@ import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:go_router/go_router.dart";
 import "../../models/event.dart";
+import "../../network/kakao_local_search_service.dart";
 import "../../repository/providers.dart";
+import "../search/place_search_screen.dart";
 
 /// CAL-01. 내부 일정(sourceType=internal) 생성 폼 — 캘린더 탭 FAB에서 진입.
 /// 지도 검색 결과 저장 흐름(CAL-05)은 event_create_from_map_screen.dart가 담당한다.
@@ -17,12 +19,29 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen> {
   final _labelController = TextEditingController();
   DateTime _startsAt = DateTime.now().add(const Duration(hours: 1));
   LocationState _locationState = LocationState.notRequired;
+  String? _destinationName;
+  double? _destinationLat;
+  double? _destinationLng;
   bool _saving = false;
 
   @override
   void dispose() {
     _labelController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickDestination() async {
+    final result = await Navigator.push<KakaoSearchResult>(
+      context,
+      MaterialPageRoute(builder: (_) => const PlaceSearchScreen()),
+    );
+    if (result != null && mounted) {
+      setState(() {
+        _destinationName = result.name;
+        _destinationLat = result.lat;
+        _destinationLng = result.lng;
+      });
+    }
   }
 
   Future<void> _pickTime() async {
@@ -56,13 +75,22 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen> {
         displayName: label,
         startsAt: _startsAt,
         endsAt: _startsAt.add(const Duration(hours: 1)),
-        locationState: _locationState,
+        locationState: _locationState == LocationState.requiredMissing && _destinationName != null
+            ? LocationState.requiredResolved
+            : _locationState,
+        destinationName: _destinationName,
+        destinationLat: _destinationLat,
+        destinationLng: _destinationLng,
         anchor: EventAnchor.arriveBy,
         sourceType: EventSourceType.internal,
       );
       await ref.read(ensomRepositoryProvider).createEvent(event);
       if (!mounted) return;
-      context.pop();
+      // 저장 성공 → 일정 상세(DTL-01)로 이동
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("일정을 저장했어요."), duration: Duration(seconds: 2)),
+      );
+      context.go("/home");
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -104,6 +132,19 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen> {
             selected: {_locationState},
             onSelectionChanged: (s) => setState(() => _locationState = s.first),
           ),
+          if (_locationState == LocationState.requiredMissing) ...[
+            const SizedBox(height: 12),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.place_outlined),
+              title: Text(_destinationName ?? "목적지 검색"),
+              subtitle: _destinationName != null
+                  ? null
+                  : const Text("탭해서 장소를 선택하세요"),
+              trailing: const Icon(Icons.search),
+              onTap: _pickDestination,
+            ),
+          ],
           const SizedBox(height: 24),
           FilledButton(
             onPressed: _saving ? null : _save,
