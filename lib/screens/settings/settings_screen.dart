@@ -2,15 +2,33 @@ import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:go_router/go_router.dart";
 import "package:hive_ce_flutter/hive_ce_flutter.dart";
+import "../../core/local_notification_service.dart";
 import "../../local/place_cache_entry.dart";
 import "../../providers/auth_providers.dart";
+import "../../providers/offline_queue_providers.dart";
 import "../../repository/providers.dart";
 
 /// SET-03 · 계정 수명주기(로그아웃/개인화 초기화/탈퇴, §16).
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
-  Future<void> _clearLocalCaches() async {
+  /// 로그아웃/탈퇴 시 사용자별 로컬 상태 전부 제거.
+  /// - 예약된 로컬 알림 전체 취소 (이전 사용자의 알림이 울리지 않도록)
+  /// - 오프라인 action queue 전체 삭제 (이전 사용자의 미전송 행동이 다음 세션에서 전송되지 않도록)
+  /// - 장소 캐시 클리어
+  Future<void> _clearLocalCaches(WidgetRef ref) async {
+    // 로컬 알림 전체 취소
+    await LocalNotificationService.instance.cancelAll();
+
+    // 오프라인 action queue 전체 삭제
+    try {
+      final db = ref.read(appDatabaseProvider);
+      await db.delete(db.offlineActionQueue).go();
+    } catch (_) {
+      // DB 접근 실패해도 로그아웃 흐름을 막지 않는다
+    }
+
+    // 장소 캐시 클리어
     if (Hive.isBoxOpen("place_cache")) {
       await Hive.box<PlaceCacheEntry>("place_cache").clear();
     }
@@ -46,7 +64,7 @@ class SettingsScreen extends ConsumerWidget {
 
   Future<void> _logout(BuildContext context, WidgetRef ref) async {
     await ref.read(authNotifierProvider.notifier).logout();
-    await _clearLocalCaches();
+    await _clearLocalCaches(ref);
     if (!context.mounted) return;
     context.go("/onboarding/auth");
   }
@@ -72,7 +90,7 @@ class SettingsScreen extends ConsumerWidget {
     try {
       await ref.read(ensomRepositoryProvider).deleteAccount();
       await ref.read(authNotifierProvider.notifier).logout();
-      await _clearLocalCaches();
+      await _clearLocalCaches(ref);
       if (!context.mounted) return;
       context.go("/onboarding/auth");
     } catch (e) {
