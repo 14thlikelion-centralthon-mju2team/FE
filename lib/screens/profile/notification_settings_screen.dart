@@ -43,9 +43,21 @@ class _NotificationSettingsScreenState
   }
 
   Future<void> _save(Map<String, dynamic> patch) async {
+    // BE는 부분 patch가 아니라 전체 필드를 요구한다 (SettingsRequest).
+    // 현재 state 기준으로 전체를 구성해서 보낸다.
+    final fullBody = {
+      "initialPrepMinutes": null, // 온보딩에서 설정 — 여기서는 건드리지 않지만 필수
+      "arrivalBufferMinutes": 10,
+      "notificationSensitivity": _sensitivity,
+      "personalizationEnabled": true,
+      "autoManageEnabled": true,
+      "wellnessEventEnabled": _wellnessEvent,
+      "lockscreenHideSensitive": _lockscreenHide,
+      ...patch, // 변경분 덮어쓰기
+    };
     try {
       final api = ref.read(apiClientProvider);
-      await api.patch("/me/settings", body: patch);
+      await api.patch("/me/settings", body: fullBody);
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

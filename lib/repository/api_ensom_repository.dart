@@ -173,9 +173,13 @@ class ApiEnsomRepository implements EnsomRepository {
 
   @override
   Future<void> updateSettings(Map<String, dynamic> patch) async {
+    // BE SettingsRequest는 전체 필드를 요구한다 (부분 patch 불가).
+    // 현재 값을 먼저 읽고 변경분을 merge해서 전송한다.
+    final current = await _client.get<Map<String, dynamic>>("/me/settings");
+    final merged = {...current, ...patch};
     await _client.patch<Map<String, dynamic>>(
       "/me/settings",
-      body: patch,
+      body: merged,
     );
   }
 
