@@ -2,7 +2,9 @@ import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:go_router/go_router.dart";
 import "../../models/wellness_pref.dart";
+import "../../providers/auth_providers.dart";
 import "../settings/wellness_prefs_screen.dart";
+import "../../theme/ensom_colors.dart";
 
 /// ONB-06 웰니스 관심 항목 설정 (온보딩 context)
 /// 기존 WellnessPrefsScreen의 provider를 재사용하되,
@@ -20,7 +22,10 @@ class WellnessOnboardingScreen extends ConsumerWidget {
         title: const Text("웰니스 관심 항목"),
         actions: [
           TextButton(
-            onPressed: () => context.go("/onboarding/complete"),
+            onPressed: () {
+              ref.read(secureStorageProvider).setOnboardingStep("permissions");
+              context.go("/onboarding/complete");
+            },
             child: const Text("건너뛰기"),
           ),
         ],
@@ -34,7 +39,10 @@ class WellnessOnboardingScreen extends ConsumerWidget {
               Text("불러오지 못했어요: $err"),
               const SizedBox(height: 12),
               ElevatedButton(
-                onPressed: () => context.go("/onboarding/complete"),
+                onPressed: () {
+                  ref.read(secureStorageProvider).setOnboardingStep("permissions");
+                  context.go("/onboarding/complete");
+                },
                 child: const Text("건너뛰고 시작하기"),
               ),
             ],
@@ -53,7 +61,7 @@ class WellnessOnboardingScreen extends ConsumerWidget {
                   const SizedBox(height: 4),
                   const Text(
                     "선택하지 않아도 핵심 기능은 정상 동작해요.",
-                    style: TextStyle(color: Colors.grey, fontSize: 13),
+                    style: TextStyle(color: EnsomColors.inkMuted, fontSize: 13),
                   ),
                   const SizedBox(height: 16),
                   for (final pref in prefs)
@@ -69,7 +77,10 @@ class WellnessOnboardingScreen extends ConsumerWidget {
               child: SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: () => context.go("/onboarding/complete"),
+                  onPressed: () {
+                    ref.read(secureStorageProvider).setOnboardingStep("permissions");
+                    context.go("/onboarding/complete");
+                  },
                   child: const Text("완료"),
                 ),
               ),

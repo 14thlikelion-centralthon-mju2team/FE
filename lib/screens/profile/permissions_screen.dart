@@ -1,5 +1,6 @@
 import "package:flutter/material.dart";
 import "package:permission_handler/permission_handler.dart";
+import "../../theme/ensom_colors.dart";
 
 /// PRF-05 권한 관리
 /// OS 설정으로 이동하는 간단한 상태 표시 화면
@@ -37,7 +38,11 @@ class _PermissionsScreenState extends State<PermissionsScreen>
 
   Future<void> _checkPermissions() async {
     final current = <Permission, PermissionStatus>{};
-    for (final p in [Permission.notification, Permission.location, Permission.locationAlways]) {
+    for (final p in [
+      Permission.notification,
+      Permission.location,
+      Permission.locationAlways,
+    ]) {
       current[p] = await p.status;
     }
     if (mounted) setState(() => _statuses = current);
@@ -97,20 +102,23 @@ class _PermissionTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final granted = status?.isGranted ?? false;
     return ListTile(
-      leading: Icon(icon, color: granted ? Colors.green : Colors.grey),
+      leading: Icon(
+        icon,
+        color: granted ? EnsomColors.limeInk : EnsomColors.inkMuted,
+      ),
       title: Text(label),
       subtitle: description != null ? Text(description!) : null,
       trailing: Chip(
         label: Text(
           granted ? "허용" : "꺼짐",
           style: TextStyle(
-            color: granted ? Colors.green : Colors.orange,
+            color: granted ? EnsomColors.limeInk : EnsomColors.caution,
             fontSize: 12,
           ),
         ),
         backgroundColor: granted
-            ? Colors.green.withOpacity(0.1)
-            : Colors.orange.withOpacity(0.1),
+            ? EnsomColors.limeSoft
+            : EnsomColors.caution.withValues(alpha: 0.1),
       ),
     );
   }

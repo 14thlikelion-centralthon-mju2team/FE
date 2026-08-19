@@ -7,6 +7,8 @@ import "../../models/plan.dart";
 import "../../network/api_client.dart";
 import "../../providers/auth_providers.dart";
 import "../../repository/providers.dart";
+import "../../theme/ensom_colors.dart";
+import "../../widgets/permission_degraded_banner.dart";
 import "../../widgets/prep_item_add_sheet.dart";
 import "../../widgets/route_change_sheet.dart";
 
@@ -79,7 +81,10 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
               const PopupMenuItem(value: "edit", child: Text("계획 수정")),
               const PopupMenuItem(
                 value: "delete",
-                child: Text("일정 삭제", style: TextStyle(color: Colors.red)),
+                child: Text(
+                  "일정 삭제",
+                  style: TextStyle(color: EnsomColors.caution),
+                ),
               ),
             ],
           ),
@@ -98,7 +103,7 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(_error!, style: const TextStyle(color: Colors.red)),
+            Text(_error!, style: const TextStyle(color: EnsomColors.caution)),
             const SizedBox(height: 16),
             ElevatedButton(onPressed: _loadDetail, child: const Text("다시 시도")),
           ],
@@ -110,6 +115,7 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          const PermissionDegradedBanner(type: DegradedPermissionType.location),
           _buildHeader(),
           if (_plan != null) ...[
             const SizedBox(height: 24),
@@ -141,7 +147,7 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
             const Center(
               child: Text(
                 "이 일정은 이동 계획이 없어요.",
-                style: TextStyle(color: Colors.grey),
+                style: TextStyle(color: EnsomColors.inkMuted),
               ),
             ),
           ],
@@ -166,7 +172,11 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
             if (event.destinationName != null)
               Row(
                 children: [
-                  const Icon(Icons.place, size: 16, color: Colors.grey),
+                  const Icon(
+                    Icons.place,
+                    size: 16,
+                    color: EnsomColors.inkMuted,
+                  ),
                   const SizedBox(width: 4),
                   Text(event.destinationName!),
                 ],
@@ -174,7 +184,11 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
             const SizedBox(height: 4),
             Row(
               children: [
-                const Icon(Icons.access_time, size: 16, color: Colors.grey),
+                const Icon(
+                  Icons.access_time,
+                  size: 16,
+                  color: EnsomColors.inkMuted,
+                ),
                 const SizedBox(width: 4),
                 Text(_formatDateTime(event.startsAt)),
                 const Text(" ~ "),
@@ -199,8 +213,7 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text("시간 계획",
-                style: Theme.of(context).textTheme.titleMedium),
+            Text("시간 계획", style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 12),
             _timeRow("준비 시작", plan.prepStartAt),
             _timeRow("권장 출발", plan.recommendedDepartAt),
@@ -210,16 +223,18 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Colors.orange.shade50,
+                  color: EnsomColors.surface2,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Row(
                   children: [
-                    Icon(Icons.warning_amber, color: Colors.orange, size: 20),
-                    SizedBox(width: 8),
-                    Expanded(
-                      child: Text("시간이 충분하지 않을 수 있어요."),
+                    Icon(
+                      Icons.warning_amber,
+                      color: EnsomColors.caution,
+                      size: 20,
                     ),
+                    SizedBox(width: 8),
+                    Expanded(child: Text("시간이 충분하지 않을 수 있어요.")),
                   ],
                 ),
               ),
@@ -236,7 +251,7 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: const TextStyle(color: Colors.grey)),
+          Text(label, style: const TextStyle(color: EnsomColors.inkMuted)),
           Text(
             _formatDateTime(time),
             style: const TextStyle(fontWeight: FontWeight.w600),
@@ -254,8 +269,7 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text("계산 근거",
-                style: Theme.of(context).textTheme.titleMedium),
+            Text("계산 근거", style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 12),
             _breakdownRow("개인 준비", breakdown.estimatedPrepMinutes),
             _breakdownRow("추가 준비", breakdown.extraPrepMinutes),
@@ -275,10 +289,7 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label),
-          Text("$minutes분"),
-        ],
+        children: [Text(label), Text("$minutes분")],
       ),
     );
   }
@@ -292,22 +303,24 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text("준비 항목",
-                style: Theme.of(context).textTheme.titleMedium),
+            Text("준비 항목", style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 12),
             ...checklist.map((item) {
               // TR-10: 화면 내에서도 민감 항목 마스킹 적용.
               // 잠금화면/푸시 마스킹과 별개로, 화면 공유·스크린샷 시 노출 방지.
               // 사용자가 자기 항목명을 보려면 "자세히" 등 별도 인터랙션 추가 필요(후속).
               final name = item.isSensitive ? "개인 준비" : item.itemName;
-              final done = item.completionStatus == ChecklistCompletionStatus.completed;
+              final done =
+                  item.completionStatus == ChecklistCompletionStatus.completed;
               return CheckboxListTile(
                 value: done,
                 title: Text(name),
                 subtitle: item.reason != null && item.reason!.isNotEmpty
                     ? Text(item.reason!, style: const TextStyle(fontSize: 12))
                     : null,
-                onChanged: done ? null : (_) => _resolveItem(item.planPrepItemId),
+                onChanged: done
+                    ? null
+                    : (_) => _resolveItem(item.planPrepItemId),
                 controlAffinity: ListTileControlAffinity.leading,
                 dense: true,
               );
@@ -349,17 +362,14 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
       final planId = _plan!.planId;
       await apiClient.post(
         "/plans/$planId/prep-items/$itemId/resolve",
-        body: {
-          "completionStatus": "completed",
-          "clientEventId": _uuid.v4(),
-        },
+        body: {"completionStatus": "completed", "clientEventId": _uuid.v4()},
       );
       await _loadDetail();
     } on ApiException catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.message)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
       }
     }
   }
@@ -391,7 +401,7 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
               Navigator.pop(ctx);
               _deleteEvent();
             },
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            style: TextButton.styleFrom(foregroundColor: EnsomColors.caution),
             child: const Text("삭제"),
           ),
         ],
@@ -404,16 +414,16 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
       final apiClient = ref.read(apiClientProvider);
       await apiClient.delete("/events/${widget.eventId}");
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("삭제했어요.")),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text("삭제했어요.")));
         context.pop();
       }
     } on ApiException catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.message)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
       }
     }
   }
@@ -423,7 +433,9 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
     final now = DateTime.now();
     final h = local.hour.toString().padLeft(2, "0");
     final m = local.minute.toString().padLeft(2, "0");
-    if (local.year == now.year && local.month == now.month && local.day == now.day) {
+    if (local.year == now.year &&
+        local.month == now.month &&
+        local.day == now.day) {
       return "$h:$m";
     }
     return "${local.month}/${local.day} $h:$m";

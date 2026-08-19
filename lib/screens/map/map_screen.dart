@@ -8,6 +8,8 @@ import "../../models/plan.dart";
 import "../../network/kakao_local_search_service.dart";
 import "../../providers/map_providers.dart";
 import "../../repository/providers.dart";
+import "../../widgets/permission_degraded_banner.dart";
+import "../../theme/ensom_colors.dart";
 
 /// MAP-01~04, CAL-05. 기본 지도 화면 -- 현재 위치 표시, 목적지 검색,
 /// 경로 후보 조회, 캘린더 저장(일정 생성)까지가 이 화면의 범위다
@@ -208,9 +210,9 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       context.push("/events/create-from-map");
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("경로를 찾지 못했어요. 다시 시도해주세요.")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("경로를 찾지 못했어요. 다시 시도해주세요.")));
     } finally {
       if (mounted) setState(() => _routing = false);
     }
@@ -232,11 +234,18 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                 children: [
                   SegmentedButton<EventAnchor>(
                     segments: const [
-                      ButtonSegment(value: EventAnchor.arriveBy, label: Text("도착 시각 기준")),
-                      ButtonSegment(value: EventAnchor.departAt, label: Text("출발 시각 기준")),
+                      ButtonSegment(
+                        value: EventAnchor.arriveBy,
+                        label: Text("도착 시각 기준"),
+                      ),
+                      ButtonSegment(
+                        value: EventAnchor.departAt,
+                        label: Text("출발 시각 기준"),
+                      ),
                     ],
                     selected: {anchorMode},
-                    onSelectionChanged: (s) => setSheetState(() => anchorMode = s.first),
+                    onSelectionChanged: (s) =>
+                        setSheetState(() => anchorMode = s.first),
                   ),
                   const SizedBox(height: 12),
                   ListTile(
@@ -260,13 +269,20 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                       );
                       if (time == null) return;
                       setSheetState(() {
-                        at = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+                        at = DateTime(
+                          date.year,
+                          date.month,
+                          date.day,
+                          time.hour,
+                          time.minute,
+                        );
                       });
                     },
                   ),
                   const SizedBox(height: 12),
                   FilledButton(
-                    onPressed: () => Navigator.of(sheetContext).pop((anchorMode, at)),
+                    onPressed: () =>
+                        Navigator.of(sheetContext).pop((anchorMode, at)),
                     child: const Text("경로 검색"),
                   ),
                 ],
@@ -348,15 +364,25 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                 borderRadius: BorderRadius.circular(12),
                 onTap: _openSearchSheet,
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 14,
+                  ),
                   child: Row(
                     children: [
-                      const Icon(Icons.search, color: Colors.grey),
+                      const Icon(Icons.search, color: EnsomColors.inkMuted),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          _destName ?? (search.isAvailable ? "목적지를 검색하세요" : "지도를 눌러 목적지를 선택해주세요"),
-                          style: TextStyle(color: _destName != null ? Colors.black : Colors.grey),
+                          _destName ??
+                              (search.isAvailable
+                                  ? "목적지를 검색하세요"
+                                  : "지도를 눌러 목적지를 선택해주세요"),
+                          style: TextStyle(
+                            color: _destName != null
+                                ? EnsomColors.ink
+                                : EnsomColors.inkMuted,
+                          ),
                         ),
                       ),
                     ],
@@ -371,17 +397,28 @@ class _MapScreenState extends ConsumerState<MapScreen> {
               left: 16,
               right: 16,
               child: Material(
-                color: Colors.black87,
+                color: EnsomColors.panel,
                 borderRadius: BorderRadius.circular(8),
                 child: Padding(
                   padding: const EdgeInsets.all(12),
                   child: Text(
                     _error!,
-                    style: const TextStyle(color: Colors.white, fontSize: 13),
+                    style: const TextStyle(
+                      color: EnsomColors.canvas,
+                      fontSize: 13,
+                    ),
                   ),
                 ),
               ),
             ),
+          Positioned(
+            top: _error != null ? 140 : 76,
+            left: 16,
+            right: 16,
+            child: const PermissionDegradedBanner(
+              type: DegradedPermissionType.location,
+            ),
+          ),
           if (destSelected)
             Positioned(
               left: 16,
@@ -395,7 +432,10 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                   child: Row(
                     children: [
                       Expanded(
-                        child: Text(_destName!, overflow: TextOverflow.ellipsis),
+                        child: Text(
+                          _destName!,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
                       FilledButton(
                         onPressed: _routing ? null : _searchRoutes,
@@ -403,7 +443,9 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                             ? const SizedBox(
                                 width: 16,
                                 height: 16,
-                                child: CircularProgressIndicator(strokeWidth: 2),
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
                               )
                             : const Text("경로 검색"),
                       ),
@@ -419,7 +461,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
               onPressed: _locating ? null : _moveToCurrentLocation,
               child: _locating
                   ? const SizedBox(
-                      width: 20, height: 20,
+                      width: 20,
+                      height: 20,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   : const Icon(Icons.my_location),

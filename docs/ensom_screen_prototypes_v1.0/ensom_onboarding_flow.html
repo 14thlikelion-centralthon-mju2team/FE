@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ensom — 온보딩 전체 플로우 프로토타입</title>
+<style>
+  :root{
+    --lime:#c6f135;--lime-soft:#e4fb9b;--lime-ink:#4e6810;
+    --canvas:#ffffff;--surface-1:#ffffff;--surface-2:#eef0ea;--surface-neutral:#e9e9e6;
+    --hairline:#e3e5e0;--ink:#14150f;--ink-muted:#63655e;--ink-faint:#6f7269;
+    --panel:#15170f;--cta:#1f231a;--caution:#e3a13b;
+    --font:'Pretendard','Apple SD Gothic Neo','Malgun Gothic',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:var(--font);background:#d9dcd3;color:var(--ink);padding:32px 20px 60px;-webkit-font-smoothing:antialiased;}
+  .page-head{max-width:1180px;margin:0 auto 22px;}
+  .page-head h1{font-size:22px;font-weight:700;letter-spacing:-.4px;}
+  .page-head p{font-size:13px;color:#55584f;margin-top:6px;line-height:1.55;}
+  .stage{max-width:1180px;margin:0 auto;display:flex;gap:36px;flex-wrap:wrap;align-items:flex-start;}
+  .phone{width:344px;height:730px;flex:0 0 auto;background:var(--canvas);border-radius:46px;border:9px solid #16170f;position:relative;overflow:hidden;box-shadow:0 20px 50px rgba(20,21,15,.26);}
+  .notch{position:absolute;top:0;left:50%;transform:translateX(-50%);width:112px;height:26px;background:#16170f;border-radius:0 0 16px 16px;z-index:60;}
+
+  .selrow{position:absolute;top:8px;left:0;right:0;display:flex;flex-wrap:wrap;gap:3px;justify-content:center;padding:0 10px;z-index:99;}
+  .selrow button{font-family:var(--font);font-size:9px;font-weight:700;border:0;border-radius:999px;padding:4px 7px;background:var(--surface-2);color:var(--ink-muted);cursor:pointer;}
+  .selrow button.on{background:var(--cta);color:#fff;}
+
+  .view{position:absolute;inset:0;display:none;flex-direction:column;background:var(--canvas);}
+  .view.on{display:flex;}
+  .scroll{flex:1 1 auto;overflow-y:auto;padding:14px 18px 24px;scrollbar-width:none;}
+  .scroll::-webkit-scrollbar{display:none;}
+  .scroll.toppad{padding-top:64px;}
+
+  /* 진행 인디케이터 */
+  .prog{flex:0 0 auto;margin:58px 0 0;height:40px;display:flex;align-items:center;gap:10px;padding:0 16px;}
+  .prog .backbtn{width:32px;height:32px;border-radius:999px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;cursor:pointer;flex:0 0 auto;border:0;}
+  .prog .backbtn svg{width:14px;height:14px;stroke:var(--ink);fill:none;stroke-width:2.1;stroke-linecap:round;stroke-linejoin:round;}
+  .prog .track{flex:1 1 auto;height:4px;background:var(--surface-2);border-radius:999px;overflow:hidden;}
+  .prog .fill{height:100%;background:var(--cta);border-radius:999px;transition:width .2s;}
+  .prog .num{font-size:11px;font-weight:700;color:var(--ink-faint);flex:0 0 auto;}
+
+  /* 하단 고정 액션 영역 */
+  .actions{flex:0 0 auto;padding:12px 18px calc(18px + env(safe-area-inset-bottom,0px));background:#fff;}
+  .actions .pbtn + .pbtn{margin-top:8px;}
+
+  /* 재사용 컴포넌트 */
+  .pill{font-size:10.5px;font-weight:700;padding:4px 9px;border-radius:999px;white-space:nowrap;}
+  .pill.neu{background:var(--surface-2);color:var(--ink-muted);}
+  .pbtn{font-family:var(--font);border:0;border-radius:999px;padding:13px 16px;font-size:14px;font-weight:700;cursor:pointer;width:100%;}
+  .pbtn.primary{background:var(--cta);color:#fff;}
+  .pbtn.secondary{background:var(--surface-2);color:var(--ink);}
+  .pbtn.text{background:transparent;color:var(--ink-muted);text-decoration:underline;text-underline-offset:2px;font-size:12.5px;padding:11px 4px;}
+  .pbtn:disabled{opacity:.4;cursor:not-allowed;}
+  .card{background:var(--surface-1);border:1px solid var(--hairline);border-radius:18px;padding:14px;}
+  .card.soft{background:var(--surface-2);border:none;}
+  .caption{font-size:10.5px;color:var(--ink-faint);line-height:1.5;}
+  .div{height:1px;background:var(--hairline);margin:14px 0;}
+  .chiprow{display:flex;gap:7px;margin-top:9px;flex-wrap:wrap;}
+  .chip{background:var(--surface-2);color:var(--ink);font-size:12px;font-weight:600;padding:8px 13px;border-radius:12px;cursor:pointer;border:0;font-family:var(--font);}
+  .chip.on{background:var(--cta);color:#fff;}
+  .field input{width:100%;border:1.4px solid var(--hairline);border-radius:12px;padding:12px 13px;font-size:13px;font-family:var(--font);background:var(--surface-1);color:var(--ink);}
+  .field input:focus{outline:none;border-color:var(--cta);}
+  .field input::placeholder{color:#a3a69d;}
+  .field input[readonly]{cursor:pointer;}
+
+  /* 토글 스위치 */
+  .toggle{width:42px;height:25px;border-radius:999px;background:var(--surface-neutral);position:relative;cursor:pointer;flex:0 0 auto;transition:background .15s;}
+  .toggle .knob{position:absolute;top:2.5px;left:2.5px;width:20px;height:20px;border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);transition:left .15s, background .15s;}
+  .toggle.on{background:var(--cta);}
+  .toggle.on .knob{left:19.5px;background:var(--lime);}
+
+  /* 리스트 행 */
+  .lrow{display:flex;align-items:center;gap:12px;padding:13px 2px;}
+  .lrow .li{width:34px;height:34px;border-radius:999px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;flex:0 0 auto;}
+  .lrow .li svg{width:15px;height:15px;stroke:var(--ink-muted);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;}
+  .lrow .ltext{flex:1 1 auto;min-width:0;}
+  .lrow .ltitle{font-size:14px;font-weight:600;}
+  .lrow .lsub{font-size:11px;color:var(--ink-faint);margin-top:2px;}
+
+  /* 공통 타이포 */
+  .h1{font-size:19px;font-weight:700;letter-spacing:-.3px;line-height:1.4;}
+  .h2{font-size:16px;font-weight:600;letter-spacing:-.2px;}
+  .sub{font-size:12.5px;color:var(--ink-muted);line-height:1.6;margin-top:7px;}
+  .body{font-size:13px;color:var(--ink-muted);line-height:1.65;}
+  .qlabel{font-size:15px;font-weight:700;letter-spacing:-.2px;}
+  .chev{width:14px;height:14px;stroke:#b3b6ad;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:0 0 auto;}
+
+  /* 워드마크 */
+  .word{font-size:26px;font-weight:800;letter-spacing:2px;display:inline-flex;align-items:center;}
+  .wm-o{width:.72em;height:.72em;margin:0 2px;flex:0 0 auto;}
+
+  /* 로그인 */
+  .v0wrap{display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;min-height:100%;}
+  .v0slogan{font-size:13.5px;font-weight:600;color:var(--ink-muted);margin-top:14px;letter-spacing:-.2px;}
+  .v0desc{font-size:12.5px;color:var(--ink-faint);margin-top:8px;line-height:1.6;}
+  .gbtn{background:#fff;color:var(--ink);border:1px solid var(--hairline)!important;display:flex;align-items:center;justify-content:center;gap:8px;}
+  .gbtn svg{width:16px;height:16px;flex:0 0 auto;}
+  .legal{text-align:center;font-size:10.5px;color:var(--ink-faint);margin-top:12px;}
+  .legal span{cursor:pointer;text-decoration:underline;text-underline-offset:2px;}
+
+  /* 체크박스 */
+  .cb{width:22px;height:22px;border-radius:7px;border:1.8px solid var(--hairline);background:#fff;display:flex;align-items:center;justify-content:center;flex:0 0 auto;transition:background .12s,border-color .12s;}
+  .cb svg{width:13px;height:13px;stroke:#fff;fill:none;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round;opacity:0;transition:opacity .12s;}
+  .cb.on{background:var(--cta);border-color:var(--cta);}
+  .cb.on svg{opacity:1;}
+  .cbrow{display:flex;align-items:center;gap:11px;padding:11px 2px;cursor:pointer;}
+  .cbrow .cbname{flex:1 1 auto;font-size:13px;min-width:0;}
+  .cbrow .cbname b{font-weight:500;}
+  .allrow{display:flex;align-items:center;gap:11px;padding:14px;cursor:pointer;}
+  .allrow .alltxt{flex:1 1 auto;}
+  .allrow .alltitle{font-size:16px;font-weight:600;letter-spacing:-.2px;}
+  .badge{font-size:10px;font-weight:700;padding:2px 6px;border-radius:6px;background:var(--surface-2);color:var(--ink-muted);flex:0 0 auto;}
+  .badge.req{background:var(--cta);color:#fff;}
+
+  /* 인라인 드롭다운 */
+  .fwrap{position:relative;}
+  .ddrop{display:none;margin-top:6px;border:1px solid var(--hairline);border-radius:14px;overflow:hidden;background:#fff;}
+  .ddrop.open{display:block;}
+  .ddrop div{padding:11px 13px;font-size:12.5px;cursor:pointer;color:var(--ink);}
+  .ddrop div + div{border-top:1px solid var(--hairline);}
+  .ddrop div:hover{background:var(--surface-2);}
+
+  /* 아이콘 원 */
+  .iconcircle{width:64px;height:64px;border-radius:999px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;margin:0 auto 16px;}
+  .iconcircle svg{width:26px;height:26px;stroke:var(--ink);fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;}
+
+  /* 프라이밍 카드 */
+  .primetop{display:flex;align-items:center;gap:9px;}
+  .primetop svg{width:15px;height:15px;stroke:var(--ink);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:0 0 auto;}
+  .primetop .pt{font-size:13.5px;font-weight:700;letter-spacing:-.2px;}
+  .primebtns{display:flex;gap:8px;margin-top:12px;}
+  .sbtn{font-family:var(--font);border:0;border-radius:999px;padding:9px 14px;font-size:12.5px;font-weight:700;cursor:pointer;flex:1 1 auto;}
+  .sbtn.solid{background:var(--cta);color:#fff;}
+  .sbtn.ghost{background:#fff;color:var(--ink-muted);border:1px solid var(--hairline);}
+  .granted{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:600;color:var(--lime-ink);margin-top:12px;}
+  .granted svg{width:14px;height:14px;stroke:var(--lime-ink);fill:none;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round;}
+
+  /* 값 표시 행 */
+  .vrow{display:flex;align-items:center;gap:10px;padding:12px 13px;border:1.4px solid var(--hairline);border-radius:12px;cursor:pointer;}
+  .vrow .vlab{flex:1 1 auto;font-size:13px;color:var(--ink-muted);}
+  .vrow .vval{font-size:13px;font-weight:600;}
+  .flabel{font-size:11.5px;font-weight:700;color:var(--ink-muted);margin-bottom:6px;}
+
+  /* 계산 중 */
+  .loadwrap{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 0;}
+  .spin{width:26px;height:26px;border-radius:999px;border:2.5px solid var(--surface-2);border-top-color:var(--cta);animation:sp .8s linear infinite;}
+  @keyframes sp{to{transform:rotate(360deg);}}
+  .loadtxt{font-size:13px;color:var(--ink-muted);margin-top:14px;}
+
+  /* 라임 계획 카드 */
+  .plan{background:var(--lime);border-radius:22px;padding:18px;}
+  .plan .plabel{font-size:11px;font-weight:700;color:var(--lime-ink);letter-spacing:.2px;}
+  .plan .pbig{font-size:28px;font-weight:800;letter-spacing:-.8px;margin-top:8px;color:var(--ink);line-height:1.15;}
+  .plan .psub{font-size:13px;color:var(--lime-ink);margin-top:5px;font-weight:600;}
+  .plan .pdiv{height:1px;background:rgba(78,104,16,.24);margin:14px 0 12px;}
+  .plan .prow{display:flex;align-items:center;justify-content:space-between;font-size:12.5px;color:var(--lime-ink);font-weight:600;}
+  .plan .prow + .prow{margin-top:7px;}
+  .plan .prow b{font-size:13px;color:var(--ink);font-weight:700;}
+  .why{margin-top:12px;}
+  .why div{font-size:12px;color:var(--ink-muted);line-height:1.6;display:flex;gap:7px;}
+  .why div::before{content:"";width:3px;height:3px;border-radius:999px;background:#b3b6ad;flex:0 0 auto;margin-top:8px;}
+
+  /* 완료 */
+  .donecircle{width:72px;height:72px;border-radius:999px;background:var(--lime);display:flex;align-items:center;justify-content:center;margin:0 auto 18px;}
+  .donecircle svg{width:30px;height:30px;stroke:#fff;fill:none;stroke-width:3;stroke-linecap:round;stroke-linejoin:round;}
+
+  /* 홈 미리보기 */
+  .hero{background:var(--lime);border-radius:22px;padding:18px;}
+  .hero .hname{font-size:17px;font-weight:700;letter-spacing:-.3px;color:var(--ink);}
+  .hero .hmeta{font-size:12.5px;color:var(--lime-ink);margin-top:6px;font-weight:600;}
+  .hero .hdiv{height:1px;background:rgba(78,104,16,.24);margin:13px 0 11px;}
+  .hero .hstart{font-size:13px;font-weight:700;color:var(--ink);}
+
+  .hint{display:inline-block;background:#15170f;color:#c6f135;font-size:11.5px;font-weight:600;padding:6px 12px;border-radius:999px;margin-top:10px;}
+  .legend{max-width:340px;font-size:12px;color:#55584f;line-height:1.7;}
+  .legend b{color:var(--ink);}
+  .legend p + p{margin-top:10px;}
+
+  /* ═ embed mode ═ */
+  body.embed{background:transparent;padding:0;overflow:hidden;}
+  body.embed .page-head,body.embed .legend,body.embed .hint{display:none!important;}
+  body.embed .stage{margin:0;padding:0;gap:0;}
+  body.embed{height:100vh;}
+  body.embed .stage{height:100%;align-items:stretch;}
+  body.embed .phone{width:100%!important;height:100%!important;max-width:100%;border:0!important;border-radius:0!important;box-shadow:none!important;}
+  body.embed .notch{display:none!important;}
+</style>
+</head>
+<body>
+
+<div class="page-head">
+  <h1>Ensom — 온보딩 전체 플로우 프로토타입</h1>
+  <p>첫 실행(로그인)부터 홈 도착까지 이어지는 온보딩 워크스루 9단계. 권한은 한 번에 몰아 요청하지 않고 가치가 보이는 시점에 하나씩 요청합니다.</p>
+</div>
+
+<div class="stage">
+  <div class="phone">
+    <div class="notch"></div>
+    <div class="selrow" id="selrow"></div>
+
+    <!-- ══════════ STEP 0 · 로그인 ══════════ -->
+    <div class="view on" id="v0">
+      <div class="scroll toppad">
+        <div class="v0wrap">
+          <div class="word">ENS<svg class="wm-o" viewBox="0 0 32 32"><circle cx="16" cy="16" r="11" fill="none" stroke="#4e6810" stroke-width="7"/><circle cx="16" cy="16" r="11" fill="none" stroke="#c6f135" stroke-width="7" stroke-dasharray="47 22" transform="rotate(-90 16 16)" stroke-linecap="round"/></svg>M</div>
+          <div class="v0slogan">늦지 않게, 서두르지 않게.</div>
+          <div class="v0desc">다음 일정까지, 언제부터 준비하면<br>되는지 알려드려요.</div>
+        </div>
+      </div>
+      <div class="actions">
+        <button class="pbtn primary" id="btn-email" onclick="goStep(1)">이메일로 계속하기</button>
+        <button class="pbtn gbtn" id="btn-google" onclick="goStep(1)">
+          <svg viewBox="0 0 48 48"><path fill="#4285F4" d="M45.1 24.5c0-1.6-.1-2.8-.4-4H24v7.3h12.1c-.2 2-1.6 5-4.5 7l-.1.3 6.5 5 .5.1c4.1-3.8 6.6-9.4 6.6-15.7z"/><path fill="#34A853" d="M24 46c5.9 0 10.9-2 14.5-5.3l-6.9-5.4c-1.8 1.3-4.3 2.2-7.6 2.2-5.8 0-10.7-3.8-12.5-9.1l-.3 0-6.7 5.2-.1.2C8 40.4 15.4 46 24 46z"/><path fill="#FBBC05" d="M11.5 28.4c-.5-1.4-.8-2.9-.8-4.4s.3-3 .7-4.4v-.3l-6.8-5.3-.2.1C2.9 17 2 20.4 2 24s.9 7 2.4 9.9l7.1-5.5z"/><path fill="#EA4335" d="M24 9.5c4.1 0 6.9 1.8 8.5 3.3l6.2-6C34.9 3.4 29.9 1 24 1 15.4 1 8 6.6 4.4 14.1l7.1 5.5C13.3 14.3 18.2 9.5 24 9.5z"/></svg>
+          Google로 계속하기
+        </button>
+        <div class="legal"><span>개인정보 처리방침</span> · <span>고객지원</span></div>
+      </div>
+    </div>
+
+    <!-- ══════════ STEP 1 · 약관 동의 ══════════ -->
+    <div class="view" id="v1">
+      <div class="prog"><button class="backbtn" onclick="goStep(0)"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><div class="track"><div class="fill"></div></div><div class="num"></div></div>
+      <div class="scroll">
+        <div class="h1">서비스 이용을 위해<br>약관에 동의해 주세요</div>
+        <div class="sub">Ensom을 시작하려면 필수 약관 동의가 필요해요.</div>
+
+        <div class="card soft" style="margin-top:18px;padding:0;">
+          <div class="allrow" id="row-all" onclick="toggleTerm('all')">
+            <div class="cb" id="cb-all"><svg viewBox="0 0 24 24"><path d="M4 12l5 5L20 6"/></svg></div>
+            <div class="alltxt">
+              <div class="alltitle">전체 동의</div>
+              <div class="caption" style="margin-top:3px;">선택 항목 동의를 포함합니다</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="div"></div>
+
+        <div class="cbrow" onclick="toggleTerm('tos')">
+          <div class="cb" id="cb-tos"><svg viewBox="0 0 24 24"><path d="M4 12l5 5L20 6"/></svg></div>
+          <div class="cbname"><span class="badge req">필수</span> <b>이용약관</b></div>
+          <svg class="chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>
+        </div>
+        <div class="cbrow" onclick="toggleTerm('privacy')">
+          <div class="cb" id="cb-privacy"><svg viewBox="0 0 24 24"><path d="M4 12l5 5L20 6"/></svg></div>
+          <div class="cbname"><span class="badge req">필수</span> <b>개인정보 수집 및 이용 동의</b></div>
+          <svg class="chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>
+        </div>
+        <div class="cbrow" onclick="toggleTerm('loc')">
+          <div class="cb" id="cb-loc"><svg viewBox="0 0 24 24"><path d="M4 12l5 5L20 6"/></svg></div>
+          <div class="cbname"><span class="badge req">필수</span> <b>위치기반 서비스 이용약관</b></div>
+          <svg class="chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>
+        </div>
+        <div class="cbrow" onclick="toggleTerm('mkt')">
+          <div class="cb" id="cb-mkt"><svg viewBox="0 0 24 24"><path d="M4 12l5 5L20 6"/></svg></div>
+          <div class="cbname"><span class="badge">선택</span> <b>마케팅 정보 수신 동의</b></div>
+          <svg class="chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>
+        </div>
+
+        <div class="caption" style="margin-top:12px;">선택 항목에 동의하지 않아도 서비스를 이용할 수 있어요.</div>
+      </div>
+      <div class="actions">
+        <button class="pbtn primary" id="btn-terms" onclick="goStep(2)" disabled>동의하고 시작하기</button>
+      </div>
+    </div>
+
+    <!-- ══════════ STEP 2 · 준비 시간 + 준비 항목 ══════════ -->
+    <div class="view" id="v2">
+      <div class="prog"><button class="backbtn" onclick="goStep(1)"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><div class="track"><div class="fill"></div></div><div class="num"></div></div>
+      <div class="scroll">
+        <div class="qlabel">평소 외출 준비에 얼마나 걸리나요?</div>
+        <div class="sub">정확하지 않아도 괜찮아요. 실제 준비와 이동 기록을 바탕으로 Ensom이 계속 조정할게요.</div>
+        <div class="chiprow" id="prepchips"></div>
+
+        <div class="div"></div>
+
+        <div class="qlabel">외출 전에 자주 챙기거나 하는 일이 있나요?</div>
+        <div class="sub">선택한 항목은 다음 일정의 준비 체크리스트와 준비 시간에 자동 반영됩니다.</div>
+        <div class="chiprow" id="itemchips"></div>
+        <div class="caption" id="medNote" style="margin-top:10px;display:none;">복용약은 잠금화면에 ‘준비 항목’으로만 표시돼요</div>
+      </div>
+      <div class="actions">
+        <button class="pbtn primary" onclick="goStep(3)">다음</button>
+        <button class="pbtn text" onclick="goStep(3)">나중에 설정할게요</button>
+      </div>
+    </div>
+
+    <!-- ══════════ STEP 3 · 주요 장소 ══════════ -->
+    <div class="view" id="v3">
+      <div class="prog"><button class="backbtn" onclick="goStep(2)"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><div class="track"><div class="fill"></div></div><div class="num"></div></div>
+      <div class="scroll">
+        <div class="h1">자주 출발하는 곳을<br>알려주세요</div>
+        <div class="sub">출발지를 등록해두면 이동 시간을 미리 계산할 수 있어요.</div>
+
+        <div style="margin-top:20px;">
+          <div class="lrow" style="padding-bottom:6px;">
+            <div class="li"><svg viewBox="0 0 24 24"><path d="M3 10.5L12 3l9 7.5"/><path d="M5.5 9.5V21h13V9.5"/></svg></div>
+            <div class="ltext"><div class="ltitle">집</div><div class="lsub">가장 자주 출발하는 곳</div></div>
+          </div>
+          <div class="field fwrap">
+            <input id="in-home" readonly placeholder="주소를 검색하세요" onclick="openDrop('dd-home')">
+            <div class="ddrop" id="dd-home">
+              <div onclick="pickAddr('home','서울 마포구 성산동 12-3')">서울 마포구 성산동 12-3</div>
+              <div onclick="pickAddr('home','서울 마포구 월드컵로 240')">서울 마포구 월드컵로 240</div>
+              <div onclick="pickAddr('home','서울 서대문구 연희동 88-1')">서울 서대문구 연희동 88-1</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-top:18px;">
+          <div class="lrow" style="padding-bottom:6px;">
+            <div class="li"><svg viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M9 7.5h2M13 7.5h2M9 11.5h2M13 11.5h2M9 15.5h2M13 15.5h2"/></svg></div>
+            <div class="ltext"><div class="ltitle">직장 · 학교</div><div class="lsub">평일에 주로 오가는 곳</div></div>
+          </div>
+          <div class="field fwrap">
+            <input id="in-work" readonly placeholder="주소를 검색하세요" onclick="openDrop('dd-work')">
+            <div class="ddrop" id="dd-work">
+              <div onclick="pickAddr('work','서울 강남구 테헤란로 152')">서울 강남구 테헤란로 152</div>
+              <div onclick="pickAddr('work','서울 중구 을지로 100')">서울 중구 을지로 100</div>
+              <div onclick="pickAddr('work','서울 성동구 성수이로 77')">서울 성동구 성수이로 77</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="caption" style="margin-top:16px;">주소는 이동 시간 계산에만 사용되고, 언제든 설정에서 바꿀 수 있어요.</div>
+      </div>
+      <div class="actions">
+        <button class="pbtn primary" onclick="goStep(4)">다음</button>
+        <button class="pbtn text" onclick="goStep(4)">나중에 설정할게요</button>
+      </div>
+    </div>
+
+    <!-- ══════════ STEP 4 · 캘린더 연동 프라이밍 ══════════ -->
+    <div class="view" id="v4">
+      <div class="prog"><button class="backbtn" onclick="goStep(3)"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><div class="track"><div class="fill"></div></div><div class="num"></div></div>
+      <div class="scroll">
+        <div style="margin-top:14px;">
+          <div class="iconcircle"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4M3 10h18"/></svg></div>
+          <div class="h1" style="text-align:center;">다음 일정과 장소를<br>자동으로 인식하려면</div>
+          <div class="body" style="text-align:center;margin-top:12px;">캘린더를 연동하면 일정마다 시간과 장소를 다시 입력하지 않아도, 언제부터 준비를 시작해야 하는지 자동으로 알려드려요.</div>
+        </div>
+
+        <div class="card soft" id="cal-info" style="margin-top:20px;">
+          <div class="body" style="font-size:12.5px;color:var(--ink);">일정의 시간과 장소만 읽어와요 — 참석자·본문 내용은 저장하지 않고, 제목은 분류에만 잠깐 쓰고 바로 폐기해요</div>
+        </div>
+
+        <div class="card soft" id="cal-done" style="margin-top:20px;display:none;">
+          <div class="granted" style="margin-top:0;">
+            <svg viewBox="0 0 24 24"><path d="M4 12l5 5L20 6"/></svg>
+            캘린더를 연동했어요
+          </div>
+          <div class="body" style="font-size:12.5px;margin-top:8px;color:var(--ink);">개인 캘린더 · 업무 캘린더 2개를 가져왔어요</div>
+          <div class="caption" style="margin-top:6px;">연동할 캘린더는 설정에서 다시 고를 수 있어요.</div>
+        </div>
+      </div>
+      <div class="actions">
+        <button class="pbtn primary" id="btn-cal" onclick="linkCalendar()">캘린더 연동하기</button>
+        <button class="pbtn text" id="btn-cal-later" onclick="skipCalendar()">나중에 할게요</button>
+      </div>
+    </div>
+
+    <!-- ══════════ STEP 5 · 첫 일정 + 위치 권한 ══════════ -->
+    <div class="view" id="v5">
+      <div class="prog"><button class="backbtn" onclick="goStep(4)"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><div class="track"><div class="fill"></div></div><div class="num"></div></div>
+      <div class="scroll">
+        <div class="h1">첫 일정을 만들어 볼까요?</div>
+        <div class="sub">일정을 하나 등록하면 준비 계획이 어떻게 만들어지는지 바로 볼 수 있어요.</div>
+
+        <div style="margin-top:20px;">
+          <div class="flabel">일정 이름</div>
+          <div class="field"><input id="in-name" placeholder="예: 친구 만나기" oninput="onNameInput(this.value)"></div>
+        </div>
+
+        <div style="margin-top:14px;">
+          <div class="flabel">시작 시각</div>
+          <div class="vrow" onclick="toggleTimeChips()">
+            <span class="vlab">시작</span>
+            <span class="vval" id="val-time">내일 오후 2:00</span>
+            <svg class="chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>
+          </div>
+          <div class="chiprow" id="timechips" style="display:none;">
+            <button class="chip" onclick="pickTime('오전 10:00')">오전 10:00</button>
+            <button class="chip" onclick="pickTime('오후 2:00')">오후 2:00</button>
+            <button class="chip" onclick="pickTime('오후 6:00')">오후 6:00</button>
+          </div>
+        </div>
+
+        <div style="margin-top:14px;">
+          <div class="flabel">목적지</div>
+          <div class="field fwrap">
+            <input id="in-dest" readonly placeholder="어디로 가시나요?" onclick="openDrop('dd-dest')">
+            <div class="ddrop" id="dd-dest">
+              <div onclick="pickDest('강남역 3번 출구')">강남역 3번 출구</div>
+              <div onclick="pickDest('서울대병원')">서울대병원</div>
+              <div onclick="pickDest('홍대입구역 9번 출구')">홍대입구역 9번 출구</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card soft" id="locprime" style="margin-top:16px;display:none;">
+          <div class="primetop">
+            <svg viewBox="0 0 24 24"><path d="M12 21s7-6.2 7-11a7 7 0 1 0-14 0c0 4.8 7 11 7 11z"/><circle cx="12" cy="10" r="2.4"/></svg>
+            <div class="pt">출발·도착을 자동으로 확인할까요?</div>
+          </div>
+          <div class="body" style="font-size:12.5px;margin-top:9px;">출발한 시각과 도착한 시각을 직접 입력하지 않아도 되고, 실제 이동 시간을 반영해 준비 시간을 더 정확히 맞출 수 있어요.</div>
+          <div class="caption" style="margin-top:8px;">위치 정보는 준비·이동 시간 계산에만 사용되고 암호화되어 저장돼요</div>
+          <div class="primebtns" id="locbtns">
+            <button class="sbtn solid" onclick="setLoc(true)">허용하기</button>
+            <button class="sbtn ghost" onclick="setLoc(false)">나중에</button>
+          </div>
+          <div class="granted" id="locgranted" style="display:none;">
+            <svg viewBox="0 0 24 24"><path d="M4 12l5 5L20 6"/></svg>
+            <span id="loctxt">위치 접근을 허용했어요</span>
+          </div>
+        </div>
+      </div>
+      <div class="actions">
+        <button class="pbtn primary" id="btn-ev" onclick="goStep(6)" disabled>다음</button>
+        <button class="pbtn text" onclick="goStep(6)">건너뛰기</button>
+      </div>
+    </div>
+
+    <!-- ══════════ STEP 6 · 첫 준비 계획 + 알림 권한 ══════════ -->
+    <div class="view" id="v6">
+      <div class="prog"><button class="backbtn" onclick="goStep(5)"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><div class="track"><div class="fill"></div></div><div class="num"></div></div>
+      <div class="scroll" style="padding-bottom:18px;">
+        <div id="plan-loading" class="loadwrap">
+          <div class="spin"></div>
+          <div class="loadtxt">준비 계획을 만들고 있어요</div>
+        </div>
+
+        <div id="plan-result" style="display:none;">
+          <div class="h1">준비 계획이 만들어졌어요</div>
+          <div class="sub" id="plan-evname">‘친구 만나기’ 일정 기준이에요.</div>
+
+          <div class="plan" style="margin-top:16px;">
+            <div class="plabel">첫 준비 계획</div>
+            <div class="pbig">오후 12시 40분</div>
+            <div class="psub">부터 준비를 시작하면 돼요</div>
+            <div class="pdiv"></div>
+            <div class="prow"><span>준비 시작</span><b>12:40</b></div>
+            <div class="prow"><span>권장 출발</span><b>13:18</b></div>
+            <div class="prow"><span>도착 예상</span><b>13:52</b></div>
+          </div>
+
+          <div class="why">
+            <div>개인 준비 시간 30분 — 처음 입력하신 값 기준이에요</div>
+            <div>이동 시간 42분 — 지도 기준 예상 시간</div>
+            <div>도착 여유 10분</div>
+          </div>
+
+          <div class="card soft" id="notiprime" style="margin-top:18px;">
+            <div class="primetop">
+              <svg viewBox="0 0 24 24"><path d="M6 9a6 6 0 1 1 12 0c0 5 2 6 2 6H4s2-1 2-6z"/><path d="M10.4 19.4a2.2 2.2 0 0 0 3.2 0"/></svg>
+              <div class="pt">준비할 시간을 알려드릴까요?</div>
+            </div>
+            <div class="body" style="font-size:12.5px;margin-top:9px;">알림을 켜두면 준비 시작·출발 시각을 놓치지 않아요. 필요한 순간에만 보내드려요.</div>
+            <div class="caption" style="margin-top:8px;">알림 빈도는 나중에 설정에서 조절할 수 있어요</div>
+            <div class="primebtns" id="notibtns">
+              <button class="sbtn solid" onclick="setNoti(true)">알림 켜기</button>
+              <button class="sbtn ghost" onclick="setNoti(false)">나중에</button>
+            </div>
+            <div class="granted" id="notigranted" style="display:none;">
+              <svg viewBox="0 0 24 24"><path d="M4 12l5 5L20 6"/></svg>
+              <span id="notitxt">알림을 켰어요</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="actions">
+        <button class="pbtn primary" onclick="goStep(7)">다음</button>
+      </div>
+    </div>
+
+    <!-- ══════════ STEP 7 · 웰니스 관심 항목 ══════════ -->
+    <div class="view" id="v7">
+      <div class="prog"><button class="backbtn" onclick="goStep(6)"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><div class="track"><div class="fill"></div></div><div class="num"></div></div>
+      <div class="scroll">
+        <div class="h1">관심 있는 환경 정보가<br>있나요?</div>
+        <div class="sub">선택한 항목만 준비 제안에 반영돼요. 지금 설정하지 않아도 핵심 기능은 그대로 동작해요.</div>
+
+        <div style="margin-top:14px;" id="wellrows">
+          <div class="lrow" onclick="toggleWell('uv')"><div class="ltext"><div class="ltitle">자외선</div><div class="lsub">자외선이 강한 날 선크림을 제안해요</div></div><div class="toggle" id="tg-uv"><div class="knob"></div></div></div>
+          <div class="lrow" onclick="toggleWell('dust')"><div class="ltext"><div class="ltitle">미세먼지</div><div class="lsub">공기가 나쁜 날 마스크를 제안해요</div></div><div class="toggle" id="tg-dust"><div class="knob"></div></div></div>
+          <div class="lrow" onclick="toggleWell('temp')"><div class="ltext"><div class="ltitle">기온</div><div class="lsub">기온에 맞는 옷차림을 제안해요</div></div><div class="toggle" id="tg-temp"><div class="knob"></div></div></div>
+          <div class="lrow" onclick="toggleWell('rain')"><div class="ltext"><div class="ltitle">강수</div><div class="lsub">비·눈 예보가 있으면 우산을 제안해요</div></div><div class="toggle" id="tg-rain"><div class="knob"></div></div></div>
+          <div class="lrow" onclick="toggleWell('water')"><div class="ltext"><div class="ltitle">수분</div><div class="lsub">외출 전 물 챙기기를 제안해요</div></div><div class="toggle" id="tg-water"><div class="knob"></div></div></div>
+        </div>
+
+        <div class="caption" style="margin-top:10px;">환경 정보는 참고용 제안이며, 의료적 판단에 사용하지 않아요.</div>
+      </div>
+      <div class="actions">
+        <button class="pbtn primary" onclick="goStep(8)">다음</button>
+        <button class="pbtn text" onclick="goStep(8)">나중에 설정할게요</button>
+      </div>
+    </div>
+
+    <!-- ══════════ STEP 8 · 완료 ══════════ -->
+    <div class="view" id="v8">
+      <div class="scroll toppad">
+        <div class="v0wrap">
+          <div class="donecircle"><svg viewBox="0 0 24 24"><path d="M4 12l5 5L20 6"/></svg></div>
+          <div style="font-size:22px;font-weight:700;letter-spacing:-.4px;">준비됐어요</div>
+          <div class="body" style="margin-top:12px;">이제 일정을 추가하면 언제부터<br>준비해야 할지 알려드릴게요.</div>
+        </div>
+      </div>
+      <div class="actions">
+        <button class="pbtn primary" onclick="goStep(9)">시작하기</button>
+      </div>
+    </div>
+
+    <!-- ══════════ STEP 9 · 홈 도착 ══════════ -->
+    <div class="view" id="v9">
+      <div class="scroll toppad">
+        <div class="word" style="font-size:20px;">ENS<svg class="wm-o" viewBox="0 0 32 32"><circle cx="16" cy="16" r="11" fill="none" stroke="#4e6810" stroke-width="7"/><circle cx="16" cy="16" r="11" fill="none" stroke="#c6f135" stroke-width="7" stroke-dasharray="47 22" transform="rotate(-90 16 16)" stroke-linecap="round"/></svg>M</div>
+
+        <div class="hero" style="margin-top:18px;">
+          <div class="hname" id="home-name">친구 만나기</div>
+          <div class="hmeta" id="home-meta">오후 2:00 · 강남역 3번 출구</div>
+          <div class="hdiv"></div>
+          <div class="hstart">준비 시작 12:40</div>
+        </div>
+
+        <div class="caption" style="margin-top:16px;">온보딩 플로우는 여기까지예요. 실제 홈 화면은 홈 탭에서 볼 수 있어요.</div>
+      </div>
+      <div class="actions">
+        <button class="pbtn text" onclick="restartFlow()">처음부터 다시 보기</button>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="legend">
+    <p><b>보는 법</b> — 폰 하단 버튼을 눌러 STEP 0 → 9까지 실제로 진행해 보세요. 상단 칩 줄은 QA용 단계 점프입니다.</p>
+    <p><b>권한 요청 순서</b> — 캘린더(STEP 4) · 위치(STEP 5) · 알림(STEP 6)을 한 번에 몰아 묻지 않고, 각 기능의 가치가 보이는 순간에 하나씩 요청합니다.</p>
+    <p><b>건너뛰기</b> — STEP 2·3·7과 권한 요청은 모두 건너뛸 수 있고, 건너뛰어도 온보딩은 끝까지 진행됩니다. 필수 약관(STEP 1)만 건너뛸 수 없습니다.</p>
+    <p><b>상태 유지</b> — 입력한 값은 뒤로 갔다 와도 남아 있고, STEP 5에서 만든 일정이 STEP 9 홈 미리보기에 그대로 반영됩니다.</p>
+    <div class="hint">라임은 STEP 6 계획 카드와 STEP 8 완료 체크에만 씁니다</div>
+  </div>
+</div>
+
+<script>
+  // ═══════ 상태 ═══════
+  const DEFAULTS = () => ({
+    prepMin:null, prepItems:[], home:'', work:'', calLinked:null,
+    eventName:'', eventTime:'오후 2:00', dest:'', locPerm:null, notiPerm:null,
+    wellness:{uv:true, dust:true, temp:true, rain:true, water:false}
+  });
+  let S = DEFAULTS();
+  let terms = {tos:false, privacy:false, loc:false, mkt:false};
+  let step = 0;
+  let planShown = false;
+
+  const PREP_OPTS = ['10분','20분','30분','45분','1시간 이상','잘 모르겠어요'];
+  const ITEM_OPTS = ['영양제','복용약','물·텀블러','선크림','마스크','우산','보조배터리','커피·차·간식'];
+  const STEP_LABELS = ['0 로그인','1 약관','2 준비','3 장소','4 캘린더','5 일정','6 계획','7 웰니스','8 완료','9 홈'];
+
+  // ═══════ 초기 렌더 ═══════
+  function buildSelrow(){
+    const el = document.getElementById('selrow');
+    el.innerHTML = STEP_LABELS.map((l,i)=>'<button data-step="'+i+'" onclick="goStep('+i+')">'+l+'</button>').join('');
+  }
+  function buildChips(){
+    document.getElementById('prepchips').innerHTML =
+      PREP_OPTS.map(o=>'<button class="chip" data-v="'+o+'" onclick="pickPrep(\''+o+'\')">'+o+'</button>').join('');
+    document.getElementById('itemchips').innerHTML =
+      ITEM_OPTS.map(o=>'<button class="chip" data-v="'+o+'" onclick="toggleItem(\''+o+'\')">'+o+'</button>').join('');
+  }
+
+  // ═══════ 단계 이동 ═══════
+  function goStep(n){
+    if(n < 0) n = 0;
+    if(n > 9) n = 9;
+    step = n;
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('on'));
+    const view = document.getElementById('v'+n);
+    view.classList.add('on');
+    const sc = view.querySelector('.scroll');
+    if(sc) sc.scrollTop = 0;
+    document.querySelectorAll('#selrow button').forEach(b=>{
+      b.classList.toggle('on', Number(b.dataset.step) === n);
+    });
+    closeAllDrops();
+    render();
+    if(n === 6) runPlan();
+  }
+
+  // ═══════ 전체 렌더 ═══════
+  function render(){
+    // 진행 인디케이터
+    for(let i=1;i<=7;i++){
+      const v = document.getElementById('v'+i);
+      const fill = v.querySelector('.prog .fill');
+      const num = v.querySelector('.prog .num');
+      fill.style.width = Math.round((i/7)*100) + '%';
+      num.textContent = i + ' / 7';
+    }
+    renderTerms();
+    renderPrep();
+    renderPlaces();
+    renderCalendar();
+    renderEvent();
+    renderPerm();
+    renderWellness();
+    renderHome();
+  }
+
+  // ── STEP 1 약관 ──
+  const CB_ID = {all:'cb-all', tos:'cb-tos', privacy:'cb-privacy', loc:'cb-loc', mkt:'cb-mkt'};
+  function toggleTerm(key){
+    if(key === 'all'){
+      const next = !allChecked();
+      terms.tos = terms.privacy = terms.loc = terms.mkt = next;
+    } else {
+      terms[key] = !terms[key];
+    }
+    renderTerms();
+  }
+  function allChecked(){ return terms.tos && terms.privacy && terms.loc && terms.mkt; }
+  function requiredOk(){ return terms.tos && terms.privacy && terms.loc; }
+  function renderTerms(){
+    document.getElementById(CB_ID.all).classList.toggle('on', allChecked());
+    ['tos','privacy','loc','mkt'].forEach(k=>{
+      document.getElementById(CB_ID[k]).classList.toggle('on', terms[k]);
+    });
+    document.getElementById('btn-terms').disabled = !requiredOk();
+  }
+
+  // ── STEP 2 준비 ──
+  function pickPrep(v){ S.prepMin = (S.prepMin === v) ? null : v; renderPrep(); }
+  function toggleItem(v){
+    const i = S.prepItems.indexOf(v);
+    if(i >= 0) S.prepItems.splice(i,1); else S.prepItems.push(v);
+    renderPrep();
+  }
+  function renderPrep(){
+    document.querySelectorAll('#prepchips .chip').forEach(c=>{
+      c.classList.toggle('on', c.dataset.v === S.prepMin);
+    });
+    document.querySelectorAll('#itemchips .chip').forEach(c=>{
+      c.classList.toggle('on', S.prepItems.indexOf(c.dataset.v) >= 0);
+    });
+    document.getElementById('medNote').style.display =
+      S.prepItems.indexOf('복용약') >= 0 ? 'block' : 'none';
+  }
+
+  // ── STEP 3 장소 ──
+  function closeAllDrops(){ document.querySelectorAll('.ddrop').forEach(d=>d.classList.remove('open')); }
+  function openDrop(id){
+    const d = document.getElementById(id);
+    const wasOpen = d.classList.contains('open');
+    closeAllDrops();
+    if(!wasOpen) d.classList.add('open');
+  }
+  function pickAddr(which, val){
+    S[which] = val;
+    closeAllDrops();
+    renderPlaces();
+  }
+  function renderPlaces(){
+    document.getElementById('in-home').value = S.home;
+    document.getElementById('in-work').value = S.work;
+  }
+
+  // ── STEP 4 캘린더 ──
+  function linkCalendar(){
+    S.calLinked = true;
+    renderCalendar();
+    setTimeout(function(){ if(step === 4) goStep(5); }, 1100);
+  }
+  function skipCalendar(){ S.calLinked = false; goStep(5); }
+  function renderCalendar(){
+    const linked = S.calLinked === true;
+    document.getElementById('cal-info').style.display = linked ? 'none' : 'block';
+    document.getElementById('cal-done').style.display = linked ? 'block' : 'none';
+    const b = document.getElementById('btn-cal');
+    b.textContent = linked ? '캘린더를 연동했어요' : '캘린더 연동하기';
+    b.disabled = linked;
+    document.getElementById('btn-cal-later').textContent = linked ? '다음' : '나중에 할게요';
+  }
+
+  // ── STEP 5 일정 ──
+  function onNameInput(v){ S.eventName = v.trim(); renderEvent(); }
+  function toggleTimeChips(){
+    const el = document.getElementById('timechips');
+    el.style.display = (el.style.display === 'none' || !el.style.display) ? 'flex' : 'none';
+  }
+  function pickTime(v){ S.eventTime = v; renderEvent(); renderHome(); }
+  function pickDest(v){ S.dest = v; closeAllDrops(); renderEvent(); renderHome(); }
+  function renderEvent(){
+    const nameEl = document.getElementById('in-name');
+    if(nameEl.value !== S.eventName && document.activeElement !== nameEl) nameEl.value = S.eventName;
+    document.getElementById('val-time').textContent = '내일 ' + S.eventTime;
+    document.querySelectorAll('#timechips .chip').forEach(c=>{
+      c.classList.toggle('on', c.textContent === S.eventTime);
+    });
+    document.getElementById('in-dest').value = S.dest;
+    document.getElementById('locprime').style.display = S.dest ? 'block' : 'none';
+    document.getElementById('btn-ev').disabled = !S.eventName;
+  }
+
+  // ── 권한 (위치 / 알림) ──
+  function setLoc(ok){ S.locPerm = ok; renderPerm(); }
+  function setNoti(ok){ S.notiPerm = ok; renderPerm(); }
+  function renderPerm(){
+    const lb = document.getElementById('locbtns'), lg = document.getElementById('locgranted');
+    if(S.locPerm === null){ lb.style.display = 'flex'; lg.style.display = 'none'; }
+    else {
+      lb.style.display = 'none'; lg.style.display = 'flex';
+      document.getElementById('loctxt').textContent =
+        S.locPerm ? '위치 접근을 허용했어요' : '나중에 설정에서 켤 수 있어요';
+    }
+    const nb = document.getElementById('notibtns'), ng = document.getElementById('notigranted');
+    if(S.notiPerm === null){ nb.style.display = 'flex'; ng.style.display = 'none'; }
+    else {
+      nb.style.display = 'none'; ng.style.display = 'flex';
+      document.getElementById('notitxt').textContent =
+        S.notiPerm ? '알림을 켰어요' : '나중에 설정에서 켤 수 있어요';
+    }
+  }
+
+  // ── STEP 6 계획 ──
+  function runPlan(){
+    const load = document.getElementById('plan-loading'), res = document.getElementById('plan-result');
+    document.getElementById('plan-evname').textContent =
+      '‘' + (S.eventName || '친구 만나기') + '’ 일정 기준이에요.';
+    if(planShown){ load.style.display = 'none'; res.style.display = 'block'; return; }
+    load.style.display = 'flex'; res.style.display = 'none';
+    setTimeout(function(){
+      planShown = true;
+      load.style.display = 'none';
+      res.style.display = 'block';
+    }, 1000);
+  }
+
+  // ── STEP 7 웰니스 ──
+  function toggleWell(k){ S.wellness[k] = !S.wellness[k]; renderWellness(); }
+  function renderWellness(){
+    Object.keys(S.wellness).forEach(k=>{
+      document.getElementById('tg-'+k).classList.toggle('on', S.wellness[k]);
+    });
+  }
+
+  // ── STEP 9 홈 ──
+  function renderHome(){
+    document.getElementById('home-name').textContent = S.eventName || '친구 만나기';
+    document.getElementById('home-meta').textContent = S.eventTime + ' · ' + (S.dest || '강남역 3번 출구');
+  }
+
+  function restartFlow(){
+    S = DEFAULTS();
+    terms = {tos:false, privacy:false, loc:false, mkt:false};
+    planShown = false;
+    document.getElementById('in-name').value = '';
+    document.getElementById('timechips').style.display = 'none';
+    goStep(0);
+  }
+
+  // ═══════ 부팅 ═══════
+  buildSelrow();
+  buildChips();
+  goStep(0);
+</script>
+
+<script>(function(){ if(window.self!==window.top){ document.body.classList.add('embed'); } })();</script>
+
+</body>
+</html>

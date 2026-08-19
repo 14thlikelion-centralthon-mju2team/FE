@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ensom — 로그인 · 약관 · 고객지원 프로토타입</title>
+<style>
+  :root{
+    --lime:#c6f135;--lime-soft:#e4fb9b;--lime-ink:#4e6810;
+    --canvas:#ffffff;--surface-1:#ffffff;--surface-2:#eef0ea;--surface-neutral:#e9e9e6;
+    --hairline:#e3e5e0;--ink:#14150f;--ink-muted:#63655e;--ink-faint:#6f7269;
+    --panel:#15170f;--cta:#1f231a;--caution:#e3a13b;
+    --font:'Pretendard','Apple SD Gothic Neo','Malgun Gothic',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:var(--font);background:#d9dcd3;color:var(--ink);padding:32px 20px 60px;-webkit-font-smoothing:antialiased;}
+  .page-head{max-width:1180px;margin:0 auto 22px;}
+  .page-head h1{font-size:22px;font-weight:700;letter-spacing:-.4px;}
+  .page-head p{font-size:13px;color:#55584f;margin-top:6px;line-height:1.55;}
+  .stage{max-width:1180px;margin:0 auto;display:flex;gap:36px;flex-wrap:wrap;align-items:flex-start;}
+  .phone{width:344px;height:730px;flex:0 0 auto;background:var(--canvas);border-radius:46px;border:9px solid #16170f;position:relative;overflow:hidden;box-shadow:0 20px 50px rgba(20,21,15,.26);}
+  .notch{position:absolute;top:0;left:50%;transform:translateX(-50%);width:112px;height:26px;background:#16170f;border-radius:0 0 16px 16px;z-index:60;}
+
+  .selrow{position:absolute;top:8px;left:0;right:0;display:flex;flex-wrap:wrap;gap:4px;justify-content:center;padding:0 12px;z-index:99;}
+  .selrow button{font-family:var(--font);font-size:9.5px;font-weight:700;border:0;border-radius:999px;padding:5px 8px;background:var(--surface-2);color:var(--ink-muted);cursor:pointer;}
+  .selrow button.on{background:var(--cta);color:#fff;}
+
+  .view{position:absolute;inset:0;display:none;flex-direction:column;}
+  .view.on{display:flex;}
+  .scroll{flex:1 1 auto;overflow-y:auto;padding:14px 18px 24px;}
+  .scroll::-webkit-scrollbar{display:none;}
+
+  /* ═ 공통 컴포넌트 ═ */
+  .topbar{flex:0 0 auto;margin:46px 2px 0;height:40px;background:transparent;color:var(--ink);display:flex;align-items:center;gap:10px;padding:0 16px;}
+  .backbtn{width:32px;height:32px;border-radius:999px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;cursor:pointer;flex:0 0 auto;}
+  .backbtn svg{width:14px;height:14px;stroke:var(--ink);fill:none;stroke-width:2.1;}
+  .toptitle{color:var(--ink);font-size:16px;font-weight:700;letter-spacing:-.2px;}
+
+  .pill{font-size:10.5px;font-weight:700;padding:4px 9px;border-radius:999px;white-space:nowrap;}
+  .pill.neu{background:var(--surface-2);color:var(--ink-muted);}
+  .pbtn{font-family:var(--font);border:0;border-radius:999px;padding:13px 16px;font-size:14px;font-weight:700;cursor:pointer;width:100%;}
+  .pbtn.primary{background:var(--cta);color:#fff;}
+  .pbtn.secondary{background:var(--surface-2);color:var(--ink);}
+  .pbtn.text{background:transparent;color:var(--ink-muted);text-decoration:underline;text-underline-offset:2px;}
+  .pbtn:disabled{opacity:.4;cursor:not-allowed;}
+  .card{background:var(--surface-1);border:1px solid var(--hairline);border-radius:18px;padding:14px;}
+  .card.soft{background:var(--surface-2);border:none;}
+  .caption{font-size:10.5px;color:var(--ink-faint);line-height:1.5;}
+  .div{height:1px;background:var(--hairline);margin:14px 0;}
+  .sec-label{font-size:10.5px;font-weight:700;color:var(--ink-faint);letter-spacing:.4px;margin:18px 0 4px;text-transform:uppercase;}
+  .seg{display:flex;background:var(--surface-2);border-radius:13px;padding:3px;gap:3px;}
+  .seg .sitem{flex:1 1 0;text-align:center;font-size:12.5px;font-weight:600;padding:9px 0;border-radius:10px;cursor:pointer;color:var(--ink-muted);}
+  .seg .sitem.on{background:var(--cta);color:#fff;}
+  .field input{width:100%;border:1.4px solid var(--hairline);border-radius:12px;padding:12px 13px;font-size:13px;font-family:var(--font);background:var(--surface-1);}
+  .field input:focus{outline:none;border-color:var(--cta);}
+
+  /* ═ 워드마크 ═ */
+  .word{font-size:26px;font-weight:800;letter-spacing:2px;display:inline-flex;align-items:center;}
+  .wm-o{width:.72em;height:.72em;margin:0 2px;flex:0 0 auto;}
+
+  /* ═ 화면 1·2 · 로그인 레이아웃 ═ */
+  .auth{flex:1 1 auto;display:flex;flex-direction:column;padding:46px 22px 26px;overflow-y:auto;}
+  .auth::-webkit-scrollbar{display:none;}
+  .brand{padding-top:52px;text-align:center;}
+  .brand .slogan{font-size:13px;color:var(--ink-muted);margin-top:12px;letter-spacing:-.2px;}
+  .brand .desc{font-size:12.5px;color:var(--ink-faint);margin-top:10px;line-height:1.6;letter-spacing:-.2px;word-break:keep-all;padding:0 8px;}
+  .spacer{flex:1 1 auto;min-height:22px;}
+  .authbtns{display:flex;flex-direction:column;gap:10px;}
+  .sbtn{font-family:var(--font);width:100%;border-radius:999px;padding:13px 16px;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:9px;letter-spacing:-.2px;}
+  .sbtn.mail{background:var(--cta);color:#fff;border:0;}
+  .sbtn.google{background:#fff;color:var(--ink);border:1px solid var(--hairline);}
+  .sbtn svg{width:17px;height:17px;flex:0 0 auto;}
+  .footlinks{margin-top:18px;text-align:center;font-size:11px;color:var(--ink-faint);line-height:1.6;}
+  .footlinks span[role="button"]{cursor:pointer;text-underline-offset:2px;}
+  .footlinks span[role="button"]:hover{text-decoration:underline;}
+  .footlinks .dot{margin:0 6px;color:var(--hairline);}
+  .mailform{display:flex;flex-direction:column;gap:9px;}
+  .mailform .back{background:transparent;border:0;font-family:var(--font);font-size:12.5px;color:var(--ink-muted);cursor:pointer;padding:6px 0 0;text-align:center;}
+
+  /* ═ 화면 2 · 오류 상태 ═ */
+  .quiet-note{font-size:12px;color:var(--ink-muted);text-align:center;line-height:1.6;background:var(--surface-2);border-radius:12px;padding:10px 12px;margin-bottom:12px;letter-spacing:-.2px;}
+  .banner{display:flex;align-items:center;gap:11px;border-radius:14px;padding:12px 13px;margin-bottom:12px;background:var(--surface-2);}
+  .banner.caution{background:#faf0dd;}
+  .banner .bar{width:3px;align-self:stretch;border-radius:999px;background:var(--caution);flex:0 0 auto;}
+  .banner .bar.neu{background:var(--ink-faint);opacity:.4;}
+  .banner .bt{flex:1 1 auto;min-width:0;}
+  .banner .bt .t{font-size:12.5px;font-weight:700;letter-spacing:-.3px;line-height:1.4;word-break:keep-all;}
+  .banner .bt .s{font-size:11px;color:var(--ink-muted);margin-top:3px;line-height:1.5;letter-spacing:-.2px;word-break:keep-all;}
+  .banner .retry{background:transparent;border:0;font-family:var(--font);font-size:12px;font-weight:700;color:var(--ink);cursor:pointer;text-decoration:underline;text-underline-offset:2px;flex:0 0 auto;white-space:nowrap;padding:0 0 0 4px;}
+  .errseg{margin-bottom:14px;}
+  .overlay-tag{font-size:10px;font-weight:700;color:var(--ink-faint);letter-spacing:.3px;text-align:center;margin-bottom:8px;}
+
+  /* ═ 화면 3 · 약관 동의 ═ */
+  .headline{font-size:19px;font-weight:700;letter-spacing:-.3px;line-height:1.35;margin:4px 0 16px;}
+  .agree-all{display:flex;align-items:center;gap:12px;background:var(--surface-2);border-radius:16px;padding:15px 14px;cursor:pointer;}
+  .agree-all .lab{font-size:16px;font-weight:600;letter-spacing:-.3px;}
+  .agree-all .cap{font-size:11px;color:var(--ink-faint);margin-top:3px;}
+  .trow{display:flex;align-items:center;gap:12px;padding:11px 2px;}
+  .trow .hit{display:flex;align-items:center;gap:10px;flex:1 1 auto;min-width:0;cursor:pointer;}
+  .trow .nm{font-size:13px;font-weight:500;letter-spacing:-.2px;}
+  .trow .view-link{width:26px;height:26px;border-radius:999px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex:0 0 auto;}
+  .trow .view-link svg{width:12px;height:12px;stroke:var(--ink-faint);fill:none;stroke-width:2.2;}
+  .cbx{width:22px;height:22px;border-radius:8px;border:1.8px solid var(--hairline);background:#fff;display:flex;align-items:center;justify-content:center;flex:0 0 auto;transition:background .12s,border-color .12s;}
+  .cbx svg{width:12px;height:12px;stroke:#fff;fill:none;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round;opacity:0;}
+  .cbx.on{background:var(--cta);border-color:var(--cta);}
+  .cbx.on svg{opacity:1;}
+  .bottombar{flex:0 0 auto;padding:12px 18px 22px;background:var(--surface-1);border-top:1px solid var(--hairline);}
+
+  /* ═ 화면 4·5 · 문서 뷰어 ═ */
+  .doc-date{font-size:11px;color:var(--ink-faint);margin:2px 0 16px;}
+  .art{margin-bottom:16px;}
+  .art h3{font-size:13px;font-weight:600;letter-spacing:-.2px;margin-bottom:6px;}
+  .art p{font-size:12.5px;color:var(--ink-muted);line-height:1.75;letter-spacing:-.2px;}
+  .art p + p{margin-top:6px;}
+
+  /* ═ 화면 6 · 고객지원 ═ */
+  .faq{border-bottom:1px solid var(--hairline);}
+  .faq .q{display:flex;align-items:center;gap:10px;padding:14px 2px;cursor:pointer;}
+  .faq .q .qt{flex:1 1 auto;font-size:13px;font-weight:600;letter-spacing:-.2px;}
+  .faq .q .chev{width:14px;height:14px;flex:0 0 auto;transition:transform .18s;}
+  .faq .q .chev svg{width:14px;height:14px;stroke:var(--ink-faint);fill:none;stroke-width:2.2;display:block;}
+  .faq.open .q .chev{transform:rotate(90deg);}
+  .faq .a{display:none;font-size:12.5px;color:var(--ink-muted);line-height:1.75;letter-spacing:-.2px;padding:0 2px 14px;}
+  .faq.open .a{display:block;}
+  .contact{display:flex;align-items:center;gap:12px;padding:13px 0;}
+  .contact .ic{width:34px;height:34px;border-radius:999px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;flex:0 0 auto;}
+  .contact .ic svg{width:16px;height:16px;stroke:var(--ink);fill:none;stroke-width:1.8;}
+  .contact .ct .t{font-size:13px;font-weight:600;letter-spacing:-.2px;}
+  .contact .ct .s{font-size:11.5px;color:var(--ink-muted);margin-top:2px;}
+
+  .hint{display:inline-block;background:#15170f;color:#c6f135;font-size:11.5px;font-weight:600;padding:6px 12px;border-radius:999px;margin-top:10px;}
+  .legend{max-width:340px;font-size:12px;color:#55584f;line-height:1.7;}
+  .legend b{color:var(--ink);}
+
+  /* ═ embed mode ═ */
+  body.embed{background:transparent;padding:0;overflow:hidden;}
+  body.embed .page-head,body.embed .legend,body.embed .hint{display:none!important;}
+  body.embed .stage{margin:0;padding:0;gap:0;}
+  body.embed{height:100vh;}
+  body.embed .stage{height:100%;align-items:stretch;}
+  body.embed .phone{width:100%!important;height:100%!important;max-width:100%;border:0!important;border-radius:0!important;box-shadow:none!important;}
+  body.embed .notch{display:none!important;}
+</style>
+</head>
+<body>
+
+<div class="page-head">
+  <h1>Ensom — 로그인 · 약관 동의 · 고객지원 프로토타입</h1>
+  <p>회원 전용 진입 지점(S-01)부터 필수 약관 동의(S-02), 약관·개인정보 문서 뷰어, 고객지원까지 6개 화면. 이메일과 Google 두 가지 제공자만 지원하며, 오류 상황에도 경고색과 빨강을 쓰지 않습니다.</p>
+</div>
+
+<div class="stage">
+  <div class="phone">
+    <div class="notch"></div>
+    <div class="selrow">
+      <button class="on" onclick="show(0,this)">로그인</button>
+      <button onclick="show(1,this)">로그인 오류</button>
+      <button onclick="show(2,this)">약관 동의</button>
+      <button onclick="show(3,this)">약관 본문</button>
+      <button onclick="show(4,this)">개인정보</button>
+      <button onclick="show(5,this)">고객지원</button>
+    </div>
+
+    <!-- ══════════ 화면 1 · 로그인 ══════════ -->
+    <div class="view on" id="v0">
+      <div class="auth">
+        <div class="brand">
+          <div class="word">ENS<svg class="wm-o" viewBox="0 0 32 32"><circle cx="16" cy="16" r="11" fill="none" stroke="#4e6810" stroke-width="7"/><circle cx="16" cy="16" r="11" fill="none" stroke="#c6f135" stroke-width="7" stroke-dasharray="47 22" transform="rotate(-90 16 16)" stroke-linecap="round"/></svg>M</div>
+          <div class="slogan">늦지 않게, 서두르지 않게.</div>
+          <div class="desc">다음 일정까지, 언제부터 준비하면 되는지 알려드려요.</div>
+        </div>
+
+        <div class="spacer"></div>
+
+        <div class="authbtns" id="loginBtns">
+          <button class="sbtn mail" onclick="openMailForm()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5" width="19" height="14" rx="3"/><path d="M3 7.5l9 6 9-6"/></svg>
+            이메일로 계속하기
+          </button>
+          <button class="sbtn google">
+            <svg viewBox="0 0 24 24"><path fill="#4285F4" d="M23 12.25c0-.82-.07-1.6-.21-2.36H12v4.47h6.17a5.28 5.28 0 0 1-2.29 3.46v2.87h3.7C21.74 18.7 23 15.75 23 12.25z"/><path fill="#34A853" d="M12 23.5c3.1 0 5.7-1.03 7.6-2.8l-3.72-2.88c-1.03.69-2.35 1.1-3.88 1.1-2.98 0-5.5-2.01-6.4-4.72H1.75v2.96A11.49 11.49 0 0 0 12 23.5z"/><path fill="#FBBC05" d="M5.6 14.2a6.9 6.9 0 0 1 0-4.4V6.84H1.75a11.5 11.5 0 0 0 0 10.32L5.6 14.2z"/><path fill="#EA4335" d="M12 5.08c1.68 0 3.19.58 4.38 1.71l3.28-3.28C17.7 1.62 15.1.5 12 .5A11.49 11.49 0 0 0 1.75 6.84L5.6 9.8c.9-2.71 3.42-4.72 6.4-4.72z"/></svg>
+            Google로 계속하기
+          </button>
+        </div>
+
+        <div class="mailform" id="mailForm" style="display:none;">
+          <div class="field"><input type="email" id="lgEmail" placeholder="이메일 주소" oninput="syncMailForm()"></div>
+          <div class="field"><input type="password" id="lgPw" placeholder="비밀번호" oninput="syncMailForm()"></div>
+          <button class="pbtn primary" id="lgSubmit" disabled>계속하기</button>
+          <button class="back" onclick="closeMailForm()">← 다른 방법으로 로그인</button>
+        </div>
+
+        <div class="footlinks">
+          <span role="button" onclick="show(4)">개인정보 처리방침</span><span class="dot">·</span><span role="button" onclick="show(5)">고객지원</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════ 화면 2 · 로그인 오류 ══════════ -->
+    <div class="view" id="v1">
+      <div class="auth">
+        <div class="brand">
+          <div class="word">ENS<svg class="wm-o" viewBox="0 0 32 32"><circle cx="16" cy="16" r="11" fill="none" stroke="#4e6810" stroke-width="7"/><circle cx="16" cy="16" r="11" fill="none" stroke="#c6f135" stroke-width="7" stroke-dasharray="47 22" transform="rotate(-90 16 16)" stroke-linecap="round"/></svg>M</div>
+          <div class="slogan">늦지 않게, 서두르지 않게.</div>
+          <div class="desc">다음 일정까지, 언제부터 준비하면 되는지 알려드려요.</div>
+        </div>
+
+        <div class="spacer"></div>
+
+        <div class="seg errseg">
+          <div class="sitem on" onclick="errState(0,this)">취소</div>
+          <div class="sitem" onclick="errState(1,this)">네트워크</div>
+          <div class="sitem" onclick="errState(2,this)">제공자 오류</div>
+        </div>
+
+        <div id="errCancel">
+          <div class="quiet-note">로그인이 취소됐어요. 다시 시도해 주세요.</div>
+        </div>
+
+        <div id="errNet" style="display:none;">
+          <div class="overlay-tag">화면 유지 · 로그인 화면 위에 얹힌 배너</div>
+          <div class="banner">
+            <div class="bar neu"></div>
+            <div class="bt">
+              <div class="t">연결을 확인해 주세요</div>
+              <div class="s">네트워크가 불안정한 것 같아요</div>
+            </div>
+            <button class="retry">다시 시도</button>
+          </div>
+        </div>
+
+        <div id="errProv" style="display:none;">
+          <div class="banner caution">
+            <div class="bar"></div>
+            <div class="bt">
+              <div class="t">Google 로그인에 문제가 생겼어요</div>
+              <div class="s">잠시 후 다시 시도하거나 다른 방법으로 로그인해 주세요</div>
+            </div>
+            <button class="retry">다시 시도</button>
+          </div>
+        </div>
+
+        <div class="authbtns">
+          <button class="sbtn mail">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5" width="19" height="14" rx="3"/><path d="M3 7.5l9 6 9-6"/></svg>
+            이메일로 계속하기
+          </button>
+          <button class="sbtn google">
+            <svg viewBox="0 0 24 24"><path fill="#4285F4" d="M23 12.25c0-.82-.07-1.6-.21-2.36H12v4.47h6.17a5.28 5.28 0 0 1-2.29 3.46v2.87h3.7C21.74 18.7 23 15.75 23 12.25z"/><path fill="#34A853" d="M12 23.5c3.1 0 5.7-1.03 7.6-2.8l-3.72-2.88c-1.03.69-2.35 1.1-3.88 1.1-2.98 0-5.5-2.01-6.4-4.72H1.75v2.96A11.49 11.49 0 0 0 12 23.5z"/><path fill="#FBBC05" d="M5.6 14.2a6.9 6.9 0 0 1 0-4.4V6.84H1.75a11.5 11.5 0 0 0 0 10.32L5.6 14.2z"/><path fill="#EA4335" d="M12 5.08c1.68 0 3.19.58 4.38 1.71l3.28-3.28C17.7 1.62 15.1.5 12 .5A11.49 11.49 0 0 0 1.75 6.84L5.6 9.8c.9-2.71 3.42-4.72 6.4-4.72z"/></svg>
+            Google로 계속하기
+          </button>
+        </div>
+
+        <div class="footlinks">
+          <span role="button" onclick="show(4)">개인정보 처리방침</span><span class="dot">·</span><span role="button" onclick="show(5)">고객지원</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════ 화면 3 · 약관 동의 ══════════ -->
+    <div class="view" id="v2">
+      <div class="topbar">
+        <div class="backbtn" onclick="show(0)"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></div>
+      </div>
+      <div class="scroll">
+        <div class="headline">서비스 이용을 위해<br>약관에 동의해 주세요</div>
+
+        <div class="agree-all" onclick="toggleAll()">
+          <div class="cbx" id="cbAll"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div>
+          <div>
+            <div class="lab">전체 동의</div>
+            <div class="cap">선택 항목 동의를 포함합니다</div>
+          </div>
+        </div>
+
+        <div class="div"></div>
+
+        <div class="trow">
+          <div class="hit" onclick="toggleItem('t1')">
+            <div class="cbx" id="t1"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div>
+            <span class="pill neu">필수</span>
+            <span class="nm">이용약관</span>
+          </div>
+          <div class="view-link" onclick="show(3)"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></div>
+        </div>
+
+        <div class="trow">
+          <div class="hit" onclick="toggleItem('t2')">
+            <div class="cbx" id="t2"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div>
+            <span class="pill neu">필수</span>
+            <span class="nm">개인정보 수집 및 이용 동의</span>
+          </div>
+          <div class="view-link" onclick="show(3)"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></div>
+        </div>
+
+        <div class="trow">
+          <div class="hit" onclick="toggleItem('t3')">
+            <div class="cbx" id="t3"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div>
+            <span class="pill neu">필수</span>
+            <span class="nm">위치기반 서비스 이용약관</span>
+          </div>
+          <div class="view-link" onclick="show(3)"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></div>
+        </div>
+
+        <div class="trow">
+          <div class="hit" onclick="toggleItem('t4')">
+            <div class="cbx" id="t4"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div>
+            <span class="pill neu">선택</span>
+            <span class="nm">마케팅 정보 수신 동의</span>
+          </div>
+          <div class="view-link" onclick="show(3)"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></div>
+        </div>
+
+        <div class="caption" style="margin-top:14px;">필수 항목에 동의하셔야 서비스를 시작할 수 있어요. 선택 항목은 나중에 설정에서 바꿀 수 있습니다.</div>
+      </div>
+      <div class="bottombar">
+        <button class="pbtn primary" id="agreeBtn" disabled>동의하고 시작하기</button>
+      </div>
+    </div>
+
+    <!-- ══════════ 화면 4 · 약관 본문 ══════════ -->
+    <div class="view" id="v3">
+      <div class="topbar">
+        <div class="backbtn" onclick="show(2)"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></div>
+        <div class="toptitle">이용약관</div>
+      </div>
+      <div class="scroll">
+        <div class="doc-date">시행일 2026년 3월 1일</div>
+
+        <div class="art">
+          <h3>제1조 (목적)</h3>
+          <p>이 약관은 Ensom(이하 "회사")이 제공하는 일정 준비 안내 서비스(이하 "서비스")의 이용 조건과 절차, 회사와 회원 간의 권리·의무 및 책임 사항을 정하는 것을 목적으로 합니다.</p>
+        </div>
+
+        <div class="art">
+          <h3>제2조 (정의)</h3>
+          <p>"서비스"란 회원이 등록하거나 연동한 일정을 기준으로 준비 시작 시각과 출발 시각을 계산하여 안내하는 일체의 기능을 말합니다.</p>
+          <p>"회원"이란 이 약관에 동의하고 계정을 생성하여 서비스를 이용하는 자를 말합니다.</p>
+          <p>"준비 항목"이란 회원이 일정 전에 수행하거나 챙기기 위해 서비스에 등록한 개별 항목을 말합니다.</p>
+        </div>
+
+        <div class="art">
+          <h3>제3조 (회원가입)</h3>
+          <p>회원가입은 이용자가 이 약관의 내용에 동의하고, 회사가 정한 절차에 따라 이메일 또는 Google 계정으로 가입을 신청한 뒤 회사가 이를 승낙함으로써 성립합니다.</p>
+          <p>회사는 실명이 아니거나 타인의 정보를 이용한 신청, 이전에 이용 제한 조치를 받은 이용자의 신청에 대해 승낙을 유보하거나 거절할 수 있습니다.</p>
+        </div>
+
+        <div class="art">
+          <h3>제4조 (서비스의 제공)</h3>
+          <p>회사는 일정별 준비 시간 계산, 출발 시각 안내, 준비 항목 관리, 외부 캘린더 연동, 알림 발송 기능을 제공합니다.</p>
+          <p>서비스가 안내하는 시각은 회원이 입력한 정보와 이동·준비 기록을 바탕으로 산출한 추정값이며, 실제 교통 상황이나 개인의 상태에 따라 달라질 수 있습니다.</p>
+          <p>회사는 서비스의 품질 향상을 위해 기능의 일부를 변경하거나 중단할 수 있으며, 중요한 변경은 사전에 공지합니다.</p>
+        </div>
+
+        <div class="art">
+          <h3>제5조 (회원의 의무)</h3>
+          <p>회원은 계정 정보를 정확하게 유지하여야 하며, 계정을 타인에게 양도하거나 공유해서는 안 됩니다.</p>
+          <p>회원은 서비스를 통해 제공되는 안내를 참고 자료로 이용하여야 하며, 안전 운행 및 법령 준수의 책임은 회원 본인에게 있습니다.</p>
+          <p>회원은 서비스의 정상적인 운영을 방해하는 행위, 다른 회원의 정보를 무단으로 수집하는 행위를 하여서는 안 됩니다.</p>
+        </div>
+
+        <div class="art">
+          <h3>제6조 (계약 해지)</h3>
+          <p>회원은 언제든지 설정 화면을 통해 이용계약의 해지, 즉 회원 탈퇴를 신청할 수 있으며, 회사는 관련 법령이 정한 경우를 제외하고 지체 없이 이를 처리합니다.</p>
+          <p>탈퇴가 완료되면 캘린더 연결, 알림 토큰, 주요 장소, 준비 기록은 삭제되며 재가입하더라도 복구되지 않습니다.</p>
+          <p>회원이 이 약관을 반복적으로 위반하는 경우 회사는 사전 통지 후 이용계약을 해지할 수 있습니다.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════ 화면 5 · 개인정보 처리방침 ══════════ -->
+    <div class="view" id="v4">
+      <div class="topbar">
+        <div class="backbtn" onclick="show(0)"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></div>
+        <div class="toptitle">개인정보 처리방침</div>
+      </div>
+      <div class="scroll">
+        <div class="doc-date">시행일 2026년 3월 1일</div>
+
+        <div class="art">
+          <h3>1. 수집하는 정보</h3>
+          <p>Ensom은 서비스 제공에 필요한 최소한의 정보를 수집합니다. 계정 정보(이메일 주소), 일정 정보(시간과 장소), 위치 정보, 사용자가 직접 등록한 준비 항목, 그리고 알림 확인과 준비 완료 여부 같은 앱 사용 기록이 이에 해당합니다.</p>
+        </div>
+
+        <div class="art">
+          <h3>2. 캘린더 정보 처리</h3>
+          <p>외부 캘린더는 읽기 전용으로 연동되며, 일정의 시간과 장소만 사용합니다. 참석자와 본문 내용은 수집하지 않습니다. 일정 제목은 장소 필요 여부 분류에만 일시적으로 사용하고 즉시 폐기합니다.</p>
+        </div>
+
+        <div class="art">
+          <h3>3. 위치 정보 처리</h3>
+          <p>위치 정보는 일정과 관련된 출발지 이탈과 목적지 도착 확인에만 사용하며, 하루 전체 이동 경로를 저장하지 않습니다. 좌표는 암호화하여 보관합니다.</p>
+        </div>
+
+        <div class="art">
+          <h3>4. 민감 정보에 대한 원칙</h3>
+          <p>복용약 등 사용자가 민감 항목으로 등록한 준비 항목은 잠금화면에 일반화된 이름으로 표시하며, 건강 상태나 효능을 판단하는 데 사용하지 않습니다.</p>
+        </div>
+
+        <div class="art">
+          <h3>5. 보유 및 파기</h3>
+          <p>회원 탈퇴 시 캘린더 연결, 푸시 토큰, 주요 장소, 준비·웰니스 데이터를 삭제합니다. 동의 이력은 법정 보존 기간 동안 보관합니다. 재가입 시 이전 데이터는 복구되지 않습니다.</p>
+        </div>
+
+        <div class="art">
+          <h3>6. 이용자의 권리</h3>
+          <p>이용자는 언제든지 자신의 개인정보에 대한 열람, 정정, 삭제를 요구할 수 있습니다.</p>
+          <p>설정 화면에서 학습된 개인화 값을 초기화하거나, 준비·이동에 관한 행동 기록을 삭제할 수 있습니다. 초기화 이후에는 기본 추정값으로 안내가 다시 시작됩니다.</p>
+          <p>권리 행사는 고객지원을 통해서도 요청할 수 있으며, 회사는 지체 없이 처리합니다.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════ 화면 6 · 고객지원 ══════════ -->
+    <div class="view" id="v5">
+      <div class="topbar">
+        <div class="backbtn" onclick="show(0)"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></div>
+        <div class="toptitle">고객지원</div>
+      </div>
+      <div class="scroll">
+        <div class="sec-label" style="margin-top:4px;">자주 묻는 질문</div>
+
+        <div class="faq" onclick="toggleFaq(this)">
+          <div class="q">
+            <div class="qt">로그인이 안 돼요</div>
+            <div class="chev"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></div>
+          </div>
+          <div class="a">네트워크 연결을 먼저 확인해 주세요. 연결에 문제가 없는데도 로그인이 되지 않으면 아래 문의하기로 알려주세요.</div>
+        </div>
+
+        <div class="faq" onclick="toggleFaq(this)">
+          <div class="q">
+            <div class="qt">캘린더 일정이 안 보여요</div>
+            <div class="chev"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></div>
+          </div>
+          <div class="a">설정 &gt; 권한에서 캘린더 연동 상태를 확인해 주세요. 연동된 계정에서 개별 캘린더가 꺼져 있을 수도 있어요.</div>
+        </div>
+
+        <div class="faq" onclick="toggleFaq(this)">
+          <div class="q">
+            <div class="qt">준비 시간이 실제와 안 맞아요</div>
+            <div class="chev"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></div>
+          </div>
+          <div class="a">Ensom은 실제 준비·이동 기록을 바탕으로 준비 시간을 계속 조정해요. 설정 &gt; 개인화에서 학습된 값을 확인하고 되돌릴 수 있어요.</div>
+        </div>
+
+        <div class="faq" onclick="toggleFaq(this)">
+          <div class="q">
+            <div class="qt">알림이 오지 않아요</div>
+            <div class="chev"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></div>
+          </div>
+          <div class="a">설정 &gt; 권한에서 알림 허용 상태를, 설정 &gt; 알림에서 알림 민감도와 일정별 알림을 확인해 주세요.</div>
+        </div>
+
+        <div class="div" style="margin:18px 0 4px;"></div>
+
+        <div class="sec-label">문의하기</div>
+        <div class="contact">
+          <div class="ic"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5" width="19" height="14" rx="3"/><path d="M3 7.5l9 6 9-6"/></svg></div>
+          <div class="ct">
+            <div class="t">support@ensom.app</div>
+            <div class="s">보통 1~2 영업일 안에 답변드려요</div>
+          </div>
+        </div>
+        <div class="caption" style="margin-bottom:16px;">앱 버전 1.0.0 (100)</div>
+
+        <button class="pbtn secondary">문의 메일 보내기</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="legend">
+    <p>상단 칩으로 6개 화면을 오갑니다. <b>로그인</b>에서 “이메일로 계속하기”를 누르면 별도 화면 전환 없이 폼이 인라인으로 펼쳐지고, 두 필드가 모두 채워져야 “계속하기”가 활성화됩니다.</p>
+    <p style="margin-top:10px;"><b>로그인 오류</b>는 세그먼트로 취소 · 네트워크 · 제공자 오류 3종을 비교합니다. 네트워크 오류는 재시도 가능(retryable)이므로 화면을 갈아엎지 않고 로그인 화면 위 배너로만 얹힙니다.</p>
+    <p style="margin-top:10px;"><b>약관 동의</b>는 전체 동의 ↔ 개별 4개가 양방향으로 연동되고, 필수 3개가 모두 체크될 때만 하단 버튼이 열립니다.</p>
+    <p style="margin-top:10px;"><b>개인정보 처리방침</b>은 캘린더 읽기 전용 처리, 경로 미저장, 민감 항목 일반화 표기 같은 Ensom의 실제 데이터 원칙을 그대로 담았습니다.</p>
+    <div class="hint">라임은 워드마크에만 · 오류에도 빨강 없음</div>
+  </div>
+</div>
+
+<script>
+  function show(i, btn){
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('on'));
+    document.getElementById('v'+i).classList.add('on');
+    document.querySelectorAll('.selrow button').forEach(b=>b.classList.remove('on'));
+    if(btn) btn.classList.add('on');
+    else document.querySelectorAll('.selrow button')[i].classList.add('on');
+  }
+
+  /* ── 화면 1 · 이메일 폼 ── */
+  function openMailForm(){
+    document.getElementById('loginBtns').style.display='none';
+    document.getElementById('mailForm').style.display='flex';
+    syncMailForm();
+  }
+  function closeMailForm(){
+    document.getElementById('mailForm').style.display='none';
+    document.getElementById('loginBtns').style.display='flex';
+  }
+  function syncMailForm(){
+    var e = document.getElementById('lgEmail').value.trim();
+    var p = document.getElementById('lgPw').value.trim();
+    document.getElementById('lgSubmit').disabled = !(e.length>0 && p.length>0);
+  }
+
+  /* ── 화면 2 · 오류 상태 ── */
+  function errState(i, el){
+    el.parentNode.querySelectorAll('.sitem').forEach(s=>s.classList.remove('on'));
+    el.classList.add('on');
+    document.getElementById('errCancel').style.display = (i===0)?'block':'none';
+    document.getElementById('errNet').style.display    = (i===1)?'block':'none';
+    document.getElementById('errProv').style.display   = (i===2)?'block':'none';
+  }
+
+  /* ── 화면 3 · 약관 체크박스 ── */
+  var REQ = ['t1','t2','t3'];
+  var ALL = ['t1','t2','t3','t4'];
+  function isOn(id){ return document.getElementById(id).classList.contains('on'); }
+  function setOn(id, v){ document.getElementById(id).classList.toggle('on', v); }
+  function toggleItem(id){
+    setOn(id, !isOn(id));
+    syncAgree();
+  }
+  function toggleAll(){
+    var next = !document.getElementById('cbAll').classList.contains('on');
+    ALL.forEach(function(id){ setOn(id, next); });
+    syncAgree();
+  }
+  function syncAgree(){
+    var every = ALL.every(isOn);
+    document.getElementById('cbAll').classList.toggle('on', every);
+    document.getElementById('agreeBtn').disabled = !REQ.every(isOn);
+  }
+
+  /* ── 화면 6 · FAQ 아코디언 ── */
+  function toggleFaq(el){ el.classList.toggle('open'); }
+
+  syncAgree();
+</script>
+
+<script>(function(){ if(window.self!==window.top){ document.body.classList.add('embed'); } })();</script>
+
+</body>
+</html>

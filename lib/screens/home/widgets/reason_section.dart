@@ -1,5 +1,6 @@
 import "package:flutter/material.dart";
 import "../../../models/plan.dart";
+import "../../../theme/ensom_colors.dart";
 
 /// PLAN-03. API v5.0 §9.1 reasons 배열. 분 단위 값은 여기 없다(원본은
 /// breakdown에 있고, 이건 그 값의 근거 문장만 담는다) -- 지난 라운드의
@@ -29,15 +30,17 @@ class _ReasonSectionState extends State<ReasonSection> {
             padding: const EdgeInsets.symmetric(vertical: 8),
             child: Row(
               children: [
-                const Text("계산 근거", style: TextStyle(fontWeight: FontWeight.w600)),
+                const Text(
+                  "계산 근거",
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
                 const Spacer(),
                 Icon(_expanded ? Icons.expand_less : Icons.expand_more),
               ],
             ),
           ),
         ),
-        if (_expanded)
-          ...widget.reasons.map((item) => _ReasonRow(item: item)),
+        if (_expanded) ...widget.reasons.map((item) => _ReasonRow(item: item)),
       ],
     );
   }
@@ -58,7 +61,7 @@ class _ReasonRow extends StatelessWidget {
           Icon(
             item.adjusted ? Icons.trending_up : Icons.circle_outlined,
             size: 14,
-            color: item.adjusted ? Colors.orange[800] : Colors.grey,
+            color: item.adjusted ? EnsomColors.caution : EnsomColors.inkMuted,
           ),
           const SizedBox(width: 8),
           Expanded(
@@ -68,13 +71,18 @@ class _ReasonRow extends StatelessWidget {
                 Text(
                   item.text,
                   style: TextStyle(
-                    fontWeight: item.adjusted ? FontWeight.w600 : FontWeight.normal,
+                    fontWeight: item.adjusted
+                        ? FontWeight.w600
+                        : FontWeight.normal,
                   ),
                 ),
                 if (item.sampleCount != null)
                   Text(
                     "최근 ${item.sampleCount}회 기록 기준",
-                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: EnsomColors.inkMuted,
+                    ),
                   ),
               ],
             ),

@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ensom — 일정 생성·수정 + 분류 확인 프로토타입</title>
+<style>
+  :root{
+    --lime:#c6f135;--lime-soft:#e4fb9b;--lime-ink:#4e6810;
+    --ink:#14150f;--ink-muted:#63655e;--ink-faint:#6f7269;
+    --surface-1:#fff;--surface-2:#eef0ea;--surface-neutral:#e9e9e6;
+    --hairline:#e3e5e0;--cta:#1f231a;--panel:#15170f;--caution:#e3a13b;
+    --font:'Pretendard','Apple SD Gothic Neo','Malgun Gothic',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:var(--font);background:#d9dcd3;color:var(--ink);padding:32px 20px 60px;-webkit-font-smoothing:antialiased;}
+  .page-head{max-width:1180px;margin:0 auto 22px;}
+  .page-head h1{font-size:22px;font-weight:700;letter-spacing:-.4px;}
+  .page-head p{font-size:13px;color:#55584f;margin-top:6px;line-height:1.55;}
+  .stage{max-width:1180px;margin:0 auto;display:flex;gap:36px;flex-wrap:wrap;align-items:flex-start;}
+  .phone{width:344px;height:730px;flex:0 0 auto;background:var(--surface-1);border-radius:46px;border:9px solid #16170f;position:relative;overflow:hidden;box-shadow:0 20px 50px rgba(20,21,15,.26);display:flex;flex-direction:column;}
+  .notch{position:absolute;top:0;left:50%;transform:translateX(-50%);width:112px;height:26px;background:#16170f;border-radius:0 0 16px 16px;z-index:60;}
+
+  .clickable{cursor:pointer;transition:transform .12s;}
+  .clickable:active{transform:scale(.985);}
+
+  /* ═ demo / QA control row (mode switch + prefill trigger) ═ */
+  .selrow{flex:0 0 auto;display:flex;gap:5px;margin-top:34px;padding:0 18px;flex-wrap:wrap;align-items:center;position:relative;z-index:65;}
+  .selrow button{font-family:var(--font);font-size:10px;font-weight:700;border:0;border-radius:999px;padding:6px 10px;background:var(--surface-2);color:var(--ink-muted);cursor:pointer;}
+  .selrow button.on{background:var(--cta);color:#fff;}
+  .selrow .demobtn{margin-left:auto;background:var(--surface-neutral);color:var(--ink-muted);}
+
+  /* ═ top app bar ═ */
+  .topbar{flex:0 0 auto;margin:10px 2px 0;height:40px;background:transparent;color:var(--ink);display:flex;align-items:center;gap:10px;padding:0 2px;}
+  .closebtn{width:32px;height:32px;border-radius:999px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;cursor:pointer;flex:0 0 auto;}
+  .closebtn svg{width:14px;height:14px;stroke:var(--ink);fill:none;stroke-width:2.1;}
+  .toptitle{flex:1 1 auto;font-size:16px;font-weight:700;letter-spacing:-.2px;}
+  .topsave{font-family:var(--font);border:0;background:transparent;color:var(--cta);font-size:14px;font-weight:700;padding:8px 6px;cursor:pointer;border-radius:10px;flex:0 0 auto;}
+  .topsave:disabled{color:var(--ink-faint);opacity:.5;pointer-events:none;}
+
+  .scroll{flex:1 1 auto;overflow-y:auto;padding:10px 18px 26px;}
+
+  /* ═ title field (primary) ═ */
+  .field-title{border-bottom:1px solid var(--hairline);margin-bottom:8px;}
+  .field-title input{width:100%;border:0;outline:0;font-family:var(--font);font-size:21px;font-weight:700;letter-spacing:-.3px;color:var(--ink);padding:14px 2px 12px;background:transparent;}
+  .field-title input::placeholder{color:var(--ink-faint);font-weight:700;}
+
+  /* ═ 시작 시각 value-display row + inline expand ═ */
+  .time-group{border-bottom:1px solid var(--hairline);padding-bottom:6px;margin-bottom:6px;}
+  .lrow{display:flex;align-items:center;gap:10px;padding:12px 2px;cursor:pointer;}
+  .lrow .li{width:28px;height:28px;border-radius:999px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;flex:0 0 auto;}
+  .lrow .li svg{width:13px;height:13px;stroke:var(--ink-muted);fill:none;stroke-width:1.8;}
+  .lrow .lt{flex:1 1 auto;font-size:13px;font-weight:600;color:var(--ink);}
+  .lrow .lv{flex:0 0 auto;font-size:13px;color:var(--ink-muted);font-weight:600;white-space:nowrap;}
+  .chev{width:12px;height:12px;stroke:var(--ink-faint);fill:none;stroke-width:2;transition:transform .15s;flex:0 0 auto;}
+
+  .time-expand{display:none;padding:2px 2px 8px;}
+  .sec-label{font-size:10.5px;font-weight:700;color:var(--ink-faint);letter-spacing:.4px;margin:14px 0 8px;text-transform:uppercase;}
+  .time-expand .sec-label:first-child{margin-top:2px;}
+  .chiprow{display:flex;flex-wrap:wrap;gap:7px;}
+  .chip{background:var(--surface-2);color:var(--ink);font-size:12px;font-weight:600;padding:9px 13px;border-radius:13px;cursor:pointer;}
+  .chip.on{background:var(--cta);color:#fff;}
+
+  /* ═ 장소 필요 여부 세그먼트 ═ */
+  .seg{display:flex;background:var(--surface-2);border-radius:13px;padding:3px;gap:3px;}
+  .seg .sitem{flex:1 1 0;text-align:center;font-size:11.5px;font-weight:600;padding:10px 3px;border-radius:10px;cursor:pointer;color:var(--ink-muted);line-height:1.3;}
+  .seg .sitem.on{background:var(--cta);color:#fff;}
+
+  .noneed-note{font-size:11.5px;color:var(--ink-muted);padding:0 2px;margin-top:9px;line-height:1.5;}
+  .unsure-caption{font-size:11.5px;color:var(--ink-faint);padding:0 2px;margin-top:9px;}
+
+  /* ═ 목적지 검색 필드 ═ */
+  #destBlock{margin-top:12px;}
+  .sbox{display:flex;align-items:center;gap:8px;background:var(--surface-2);border:1.6px solid transparent;border-radius:13px;padding:10px 13px;}
+  .sbox:focus-within{border-color:var(--cta);background:#fff;}
+  .sbox svg{width:15px;height:15px;stroke:var(--ink-muted);fill:none;stroke-width:2;flex:0 0 auto;}
+  .sbox input{border:0;outline:0;background:transparent;font-family:var(--font);font-size:13.5px;flex:1 1 auto;color:var(--ink);}
+  .sbox input::placeholder{color:var(--ink-faint);}
+  .dest-results{margin-top:2px;}
+  .dest-row{display:flex;align-items:center;gap:10px;padding:10px 4px;cursor:pointer;border-radius:10px;}
+  .dest-row:active{background:var(--surface-2);}
+  .dest-row svg{width:14px;height:14px;stroke:var(--ink-faint);fill:none;stroke-width:1.8;flex:0 0 auto;}
+  .dest-row span{font-size:13px;font-weight:600;color:var(--ink);}
+  .dest-filled-row{display:flex;align-items:center;gap:10px;background:var(--surface-2);border-radius:14px;padding:12px 13px;}
+  .dest-filled-row svg{width:15px;height:15px;stroke:var(--ink);fill:none;stroke-width:1.9;flex:0 0 auto;}
+  .dfr-text{flex:1 1 auto;font-size:13.5px;font-weight:700;color:var(--ink);}
+  .dfr-edit{font-size:12px;font-weight:700;color:var(--ink-muted);text-decoration:underline;text-underline-offset:2px;cursor:pointer;flex:0 0 auto;}
+
+  /* ═ 저장할 캘린더 라디오 리스트 ═ */
+  .radiolist{display:flex;flex-direction:column;gap:0;}
+  .radiorow{display:flex;align-items:center;gap:10px;padding:11px 2px;cursor:pointer;}
+  .radio{width:18px;height:18px;border-radius:999px;border:2px solid var(--hairline);flex:0 0 auto;position:relative;}
+  .radio.on{border-color:var(--cta);}
+  .radio.on::after{content:'';position:absolute;inset:3px;border-radius:999px;background:var(--cta);}
+  .coldot{width:9px;height:9px;border-radius:999px;flex:0 0 auto;}
+  .radiorow .sn{flex:1 1 auto;font-size:13px;font-weight:600;color:var(--ink);}
+
+  /* ═ 준비 알림 제외 토글 행 ═ */
+  .exclude-block{margin-top:22px;padding-top:16px;padding-bottom:4px;border-top:1px solid var(--hairline);}
+  .togrow{display:flex;justify-content:space-between;align-items:center;gap:12px;}
+  .togrow label{font-size:13px;font-weight:600;color:var(--ink);}
+  .toggle{width:42px;height:25px;border-radius:999px;background:var(--surface-neutral);position:relative;cursor:pointer;flex:0 0 auto;transition:background .15s;}
+  .toggle .knob{position:absolute;top:2.5px;left:2.5px;width:20px;height:20px;border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);transition:left .15s, background .15s;}
+  .toggle.on{background:var(--cta);}
+  .toggle.on .knob{left:19.5px;background:var(--lime);}
+
+  /* ═ 하단 고정 CTA ═ */
+  .bottom-cta{flex:0 0 auto;padding:12px 18px calc(16px + env(safe-area-inset-bottom,0));background:var(--surface-1);border-top:1px solid var(--hairline);}
+  .pbtn{font-family:var(--font);border:0;border-radius:999px;padding:15px 16px;font-size:14.5px;font-weight:700;cursor:pointer;width:100%;background:var(--cta);color:#fff;}
+  .pbtn:disabled{opacity:.4;pointer-events:none;}
+
+  /* ═ S-11 분류 확인 시트 ═ */
+  .sheetwrap{position:absolute;inset:0;z-index:70;display:flex;align-items:flex-end;pointer-events:none;}
+  .scrim{position:absolute;inset:0;background:rgba(20,21,15,0);transition:background .2s;}
+  .sheetwrap.on{pointer-events:auto;}
+  .sheetwrap.on .scrim{background:rgba(20,21,15,.45);}
+  .sheet{position:relative;width:100%;max-height:86%;overflow-y:auto;background:#fff;border-radius:26px 26px 0 0;padding:10px 20px calc(22px + env(safe-area-inset-bottom,0));transform:translateY(100%);transition:transform .24s cubic-bezier(.32,.72,0,1);z-index:2;}
+  .sheetwrap.on .sheet{transform:translateY(0);}
+  .handle{width:36px;height:4px;background:var(--surface-neutral);border-radius:99px;margin:4px auto 14px;}
+  .sheet-title{font-size:16px;font-weight:700;letter-spacing:-.2px;margin-bottom:6px;}
+  .sheet-sub{font-size:12px;color:var(--ink-muted);line-height:1.5;margin-bottom:18px;}
+  .s11-opt{display:block;width:100%;text-align:left;border:0;border-radius:16px;padding:15px 16px;font-family:var(--font);font-size:13.5px;font-weight:700;cursor:pointer;margin-top:10px;}
+  .s11-opt.pri{background:var(--cta);color:#fff;}
+  .s11-opt.sec{background:var(--surface-2);color:var(--ink);}
+  .s11-opt.ter{background:transparent;color:var(--ink-muted);border:1.4px solid var(--hairline);font-weight:600;}
+
+  /* ═ toast ═ */
+  .toast{position:absolute;left:16px;right:16px;bottom:92px;background:var(--cta);color:#fff;font-size:12.5px;font-weight:600;padding:13px 16px;border-radius:16px;z-index:95;text-align:center;transform:translateY(16px);opacity:0;pointer-events:none;transition:all .2s;}
+  .toast.on{transform:translateY(0);opacity:1;}
+
+  .hint{display:inline-block;background:#15170f;color:#c6f135;font-size:11.5px;font-weight:600;padding:6px 12px;border-radius:999px;margin-top:10px;}
+  .legend{max-width:340px;font-size:12px;color:#55584f;line-height:1.7;}
+  .legend b{color:var(--ink);}
+
+  /* ═ embed mode (used when loaded inside the shell) ═ */
+  body.embed{background:transparent;padding:0;overflow:hidden;}
+  body.embed .page-head,body.embed .legend,body.embed .hint{display:none!important;}
+  body.embed .stage{margin:0;padding:0;gap:0;}
+  body.embed{height:100vh;}
+  body.embed .stage{height:100%;align-items:stretch;}
+  body.embed .phone{width:100%!important;height:100%!important;max-width:100%;border:0!important;border-radius:0!important;box-shadow:none!important;}
+  body.embed .notch{display:none!important;}
+</style>
+</head>
+<body>
+
+<div class="page-head">
+  <h1>Ensom — 일정 생성·수정 + 분류 확인 프로토타입</h1>
+  <p>캘린더 탭의 "+" FAB와 지도 화면의 "캘린더에 추가" 버튼이 도착하는 화면. 장소 필요 여부를 "미지정"으로 둔 채 저장하면 분류 확인 시트(S-11)가 한 번만 뜨는 흐름이 핵심이야.</p>
+</div>
+
+<div class="stage">
+  <div class="phone">
+    <div class="notch"></div>
+
+    <div class="selrow">
+      <button class="on" onclick="setMode('create', this)">만들기 모드</button>
+      <button onclick="setMode('edit', this)">수정 모드</button>
+      <button class="demobtn" onclick="demoPrefill()">지도 프리필 데모</button>
+    </div>
+
+    <div class="topbar">
+      <div class="closebtn clickable" onclick="closeScreen()"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></div>
+      <div class="toptitle" id="screenTitle">일정 만들기</div>
+      <button class="topsave" id="topSaveBtn" disabled onclick="attemptSave()">저장</button>
+    </div>
+
+    <div class="scroll">
+
+      <div class="field-title">
+        <input type="text" id="titleInput" placeholder="일정 제목" oninput="onTitleInput()">
+      </div>
+
+      <div class="time-group">
+        <div class="lrow clickable" onclick="toggleTimeExpand()">
+          <div class="li"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 6v6l4 2"/></svg></div>
+          <div class="lt">시작 시각</div>
+          <div class="lv" id="startTimeVal">8월 20일 목 · 오후 2:00</div>
+          <svg class="chev" id="timeChev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
+        </div>
+        <div class="time-expand" id="timeExpand">
+          <div class="sec-label">날짜</div>
+          <div class="chiprow" id="dateChips">
+            <div class="chip" data-days="0" onclick="setDateOffset(0)">오늘 · 8/19</div>
+            <div class="chip on" data-days="1" onclick="setDateOffset(1)">내일 · 8/20</div>
+            <div class="chip" data-days="2" onclick="setDateOffset(2)">모레 · 8/21</div>
+          </div>
+          <div class="sec-label">시각 빠르게 조정</div>
+          <div class="chiprow">
+            <div class="chip" onclick="adjustTime(30)">+30분</div>
+            <div class="chip" onclick="adjustTime(60)">+1시간</div>
+            <div class="chip" onclick="setSpecificTime(9,0)">오전 9:00</div>
+            <div class="chip" onclick="setSpecificTime(12,0)">오후 12:00</div>
+            <div class="chip" onclick="setSpecificTime(18,0)">오후 6:00</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sec-label" style="margin-top:16px;">장소 필요 여부</div>
+      <div class="seg" id="placeSeg">
+        <div class="sitem" data-v="need" onclick="pickPlace('need')">장소 필요</div>
+        <div class="sitem" data-v="noneed" onclick="pickPlace('noneed')">장소 불필요</div>
+        <div class="sitem on" data-v="unspecified" onclick="pickPlace('unspecified')">미지정</div>
+      </div>
+      <div class="noneed-note" id="noneedNote" style="display:none;">이동 계획 없이 일정 알림만 설정돼요</div>
+      <div class="unsure-caption" id="unsureCaption" style="display:none;">나중에 다시 확인할게요</div>
+
+      <div id="destBlock" style="display:none;">
+        <div id="destSearchState">
+          <div class="sbox">
+            <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+            <input type="text" id="destInput" placeholder="목적지를 입력하세요" onkeydown="if(event.key==='Enter'){confirmDestInput();}">
+          </div>
+          <div class="dest-results">
+            <div class="dest-row clickable" onclick="selectDest('강남역 3번 출구')"><svg viewBox="0 0 24 24"><path d="M12 2C7.6 2 4 5.6 4 10c0 6 8 12 8 12s8-6 8-12c0-4.4-3.6-8-8-8z"/><circle cx="12" cy="10" r="2.4"/></svg><span>강남역 3번 출구</span></div>
+            <div class="dest-row clickable" onclick="selectDest('서울대병원')"><svg viewBox="0 0 24 24"><path d="M12 2C7.6 2 4 5.6 4 10c0 6 8 12 8 12s8-6 8-12c0-4.4-3.6-8-8-8z"/><circle cx="12" cy="10" r="2.4"/></svg><span>서울대병원</span></div>
+            <div class="dest-row clickable" onclick="selectDest('홍대입구역 9번 출구')"><svg viewBox="0 0 24 24"><path d="M12 2C7.6 2 4 5.6 4 10c0 6 8 12 8 12s8-6 8-12c0-4.4-3.6-8-8-8z"/><circle cx="12" cy="10" r="2.4"/></svg><span>홍대입구역 9번 출구</span></div>
+          </div>
+        </div>
+        <div id="destFilledState" style="display:none;">
+          <div class="dest-filled-row">
+            <svg viewBox="0 0 24 24"><path d="M12 2C7.6 2 4 5.6 4 10c0 6 8 12 8 12s8-6 8-12c0-4.4-3.6-8-8-8z"/><circle cx="12" cy="10" r="2.4"/></svg>
+            <div class="dfr-text" id="destFilledText"></div>
+            <div class="dfr-edit clickable" onclick="editDest()">변경</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sec-label" style="margin-top:20px;">저장할 캘린더</div>
+      <div class="radiolist" id="calList">
+        <div class="radiorow" data-cal="개인" onclick="pickCal(this)"><div class="radio on"></div><div class="coldot" style="background:#4f8ef7;"></div><div class="sn">개인</div></div>
+        <div class="radiorow" data-cal="업무" onclick="pickCal(this)"><div class="radio"></div><div class="coldot" style="background:#e3a13b;"></div><div class="sn">업무</div></div>
+        <div class="radiorow" data-cal="가족" onclick="pickCal(this)"><div class="radio"></div><div class="coldot" style="background:#9b6fd6;"></div><div class="sn">가족</div></div>
+      </div>
+
+      <div class="exclude-block">
+        <div class="togrow">
+          <label>이 일정은 준비 알림에서 제외</label>
+          <div class="toggle clickable" id="excludeToggle" onclick="tg(this)"><div class="knob"></div></div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="bottom-cta">
+      <button class="pbtn" id="bottomSaveBtn" disabled onclick="attemptSave()">저장</button>
+    </div>
+
+    <!-- ═══ S-11 분류 확인 시트 ═══ -->
+    <div class="sheetwrap" id="s11">
+      <!-- 의도적으로 scrim에 onclick 없음: 3가지 선택지 중 하나로만 닫히게 해서 "미지정" 상태를 사용자가 답 없이 방치하지 않도록 함 -->
+      <div class="scrim"></div>
+      <div class="sheet">
+        <div class="handle"></div>
+        <div class="sheet-title">이 일정은 이동이 필요한 일정인가요?</div>
+        <div class="sheet-sub">제목이나 장소만으로는 확실히 알기 어려워서 한 번만 확인할게요.</div>
+        <button class="s11-opt pri" onclick="s11Choose('need')">네, 장소가 있어요</button>
+        <button class="s11-opt sec" onclick="s11Choose('noneed')">아니요, 온라인·재택이에요</button>
+        <button class="s11-opt ter" onclick="s11Choose('unsure')">잘 모르겠어요</button>
+      </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+  </div>
+
+  <div class="legend">
+    <p><b>제목 · 저장 버튼</b> — 제목을 입력하기 전에는 상단·하단 저장 버튼이 진짜 disabled 상태(포인터 이벤트 자체가 막힘)야. 타이핑하면 실시간으로 활성화돼.</p>
+    <p style="margin-top:8px;"><b>장소 필요 여부</b> — 3단 세그먼트. "장소 필요"를 고르면 목적지 검색 필드가 나타나고, 예시 결과를 탭하면 채워진 행(변경 가능)으로 바뀌어. "장소 불필요"는 이동 계획이 없다는 안내만 남겨. "미지정"인 채로 저장을 누르면 분류 확인 시트가 열려.</p>
+    <p style="margin-top:8px;"><b>분류 확인 시트(S-11)</b> — "잘 모르겠어요"를 고르면 강제로 답을 정하지 않고 필드 옆에 "나중에 다시 확인할게요" 캡션만 남긴 채 저장이 진행돼(1회 응답 후 재질문 없음). 시트 바깥을 눌러도 닫히지 않아 — 세 선택지로만 닫혀.</p>
+    <p style="margin-top:8px;"><b>시작 시각</b> — 값 표시 행을 탭하면 날짜 칩 + 시각 빠른 조정(+30분/+1시간/특정 시각) 패널이 펼쳐지고, 표시값이 실제로 바뀌어.</p>
+    <p style="margin-top:8px;"><b>만들기·수정 모드</b> — 폰 상단 칩으로 전환. 수정 모드는 기존 일정(강남역 미팅) 샘플 데이터를 불러와.</p>
+    <p style="margin-top:8px;"><b>지도 프리필 데모</b> — 같은 줄 오른쪽 버튼이 지도 화면이 postMessage로 보낼 법한 프리필(목적지·날짜·시각)을 그대로 재현해 — 실제 발신 화면 없이도 프리필 상태를 볼 수 있어.</p>
+    <div class="hint">모든 필드 실제 동작 · selrow의 "지도 프리필 데모"로 프리필 상태 재현</div>
+  </div>
+</div>
+
+<script>
+  /* ═══ state ═══ */
+  const titleInput = document.getElementById('titleInput');
+  const TODAY_ANCHOR = new Date(2026,7,19); // 2026-08-19 (수) — 이 프로토타입의 "오늘"
+
+  let mode = 'create';
+  let placeStatus = 'unspecified';
+  let destValue = '';
+  let calSelected = '개인';
+  let excludeFromPrep = false;
+  let s11Answered = false;
+  let deferredUnsure = false;
+  let eventDateObj = new Date(2026,7,20);
+  let eventHour = 14;
+  let eventMinute = 0;
+
+  /* ═══ 시작 시각 ═══ */
+  function formatDateVal(d){
+    const dow = ['일','월','화','수','목','금','토'][d.getDay()];
+    return `${d.getMonth()+1}월 ${d.getDate()}일 ${dow}`;
+  }
+  function formatTimeVal(h,m){
+    const ampm = h<12 ? '오전' : '오후';
+    let h12 = h%12; if(h12===0) h12=12;
+    const mm = String(m).padStart(2,'0');
+    return `${ampm} ${h12}:${mm}`;
+  }
+  function updateTimeDisplay(){
+    document.getElementById('startTimeVal').textContent = formatDateVal(eventDateObj) + ' · ' + formatTimeVal(eventHour, eventMinute);
+  }
+  function syncDateChips(){
+    const diffDays = Math.round((eventDateObj - TODAY_ANCHOR) / 86400000);
+    document.querySelectorAll('#dateChips .chip').forEach(c=>{
+      c.classList.toggle('on', parseInt(c.dataset.days,10)===diffDays);
+    });
+  }
+  function setDateOffset(days){
+    eventDateObj = new Date(TODAY_ANCHOR.getFullYear(), TODAY_ANCHOR.getMonth(), TODAY_ANCHOR.getDate()+days);
+    syncDateChips();
+    updateTimeDisplay();
+  }
+  function adjustTime(deltaMin){
+    let total = eventHour*60 + eventMinute + deltaMin;
+    const dayShift = Math.floor(total/1440);
+    total = ((total%1440)+1440)%1440;
+    eventHour = Math.floor(total/60);
+    eventMinute = total%60;
+    if(dayShift!==0){
+      eventDateObj = new Date(eventDateObj.getFullYear(), eventDateObj.getMonth(), eventDateObj.getDate()+dayShift);
+      syncDateChips();
+    }
+    updateTimeDisplay();
+  }
+  function setSpecificTime(h,m){
+    eventHour = h; eventMinute = m;
+    updateTimeDisplay();
+  }
+  function toggleTimeExpand(){
+    const el = document.getElementById('timeExpand');
+    const willOpen = el.style.display !== 'block';
+    el.style.display = willOpen ? 'block' : 'none';
+    document.getElementById('timeChev').style.transform = willOpen ? 'rotate(90deg)' : '';
+  }
+
+  /* ═══ 장소 필요 여부 ═══ */
+  function setPlaceStatus(val){
+    placeStatus = val;
+    document.querySelectorAll('#placeSeg .sitem').forEach(s=>{
+      s.classList.toggle('on', s.dataset.v===val);
+    });
+    document.getElementById('destBlock').style.display = (val==='need') ? 'block' : 'none';
+    document.getElementById('noneedNote').style.display = (val==='noneed') ? 'block' : 'none';
+  }
+  function pickPlace(val){
+    setPlaceStatus(val);
+    // 사용자가 직접 세그먼트를 다시 만졌으니 이전 S-11 응답 기록은 초기화 — "미지정"으로 다시 저장하면 재확인 대상이 됨
+    s11Answered = false;
+    deferredUnsure = false;
+    renderUnsureCaption();
+  }
+  function renderUnsureCaption(){
+    document.getElementById('unsureCaption').style.display = (placeStatus==='unspecified' && deferredUnsure) ? 'block' : 'none';
+  }
+
+  /* ═══ 목적지 검색 ═══ */
+  function selectDest(name){
+    destValue = name;
+    renderDestState();
+  }
+  function editDest(){
+    destValue = '';
+    renderDestState();
+    const inp = document.getElementById('destInput');
+    if(inp) setTimeout(()=>inp.focus(), 0);
+  }
+  function confirmDestInput(){
+    const inp = document.getElementById('destInput');
+    if(inp && inp.value.trim()) selectDest(inp.value.trim());
+  }
+  function renderDestState(){
+    const searchEl = document.getElementById('destSearchState');
+    const filledEl = document.getElementById('destFilledState');
+    if(destValue){
+      searchEl.style.display = 'none';
+      filledEl.style.display = 'block';
+      document.getElementById('destFilledText').textContent = destValue;
+    }else{
+      searchEl.style.display = 'block';
+      filledEl.style.display = 'none';
+      const inp = document.getElementById('destInput');
+      if(inp) inp.value = '';
+    }
+  }
+
+  /* ═══ 저장할 캘린더 ═══ */
+  function pickCal(el){
+    calSelected = el.dataset.cal;
+    document.querySelectorAll('#calList .radio').forEach(r=>r.classList.remove('on'));
+    el.querySelector('.radio').classList.add('on');
+  }
+  function pickCalByName(name){
+    const row = document.querySelector('#calList .radiorow[data-cal="'+name+'"]');
+    if(row) pickCal(row);
+  }
+
+  /* ═══ 토글 (범용) ═══ */
+  function tg(el){
+    el.classList.toggle('on');
+    if(el.id==='excludeToggle') excludeFromPrep = el.classList.contains('on');
+  }
+
+  /* ═══ 제목 → 저장 버튼 real enable/disable ═══ */
+  function onTitleInput(){
+    const has = titleInput.value.trim().length>0;
+    document.getElementById('topSaveBtn').disabled = !has;
+    document.getElementById('bottomSaveBtn').disabled = !has;
+  }
+
+  /* ═══ 저장 흐름 (+ S-11 게이트) ═══ */
+  function attemptSave(){
+    if(titleInput.value.trim()==='') return;
+    if(placeStatus==='unspecified' && !s11Answered){
+      openS11();
+      return;
+    }
+    doSave();
+  }
+  function doSave(){
+    const successMsg = (mode==='edit') ? '일정을 수정했어요' : '일정을 만들었어요';
+    showToast(successMsg);
+    const top = document.getElementById('topSaveBtn');
+    const bottom = document.getElementById('bottomSaveBtn');
+    top.textContent = '완료'; bottom.textContent = '완료';
+    top.disabled = true; bottom.disabled = true;
+    setTimeout(()=>{
+      top.textContent = '저장'; bottom.textContent = '저장';
+      if(mode==='create'){
+        resetForm();
+      }else{
+        onTitleInput();
+      }
+    }, 1000);
+  }
+
+  /* ═══ S-11 분류 확인 시트 ═══ */
+  function openS11(){ document.getElementById('s11').classList.add('on'); }
+  function closeS11(){ document.getElementById('s11').classList.remove('on'); }
+  function s11Choose(choice){
+    if(choice==='need'){
+      destValue = ''; // "이제 빈 상태로 목적지 입력을 받을 준비" — 강제 저장 아님, 필드만 갱신
+      setPlaceStatus('need');
+      s11Answered = true;
+      deferredUnsure = false;
+    }else if(choice==='noneed'){
+      setPlaceStatus('noneed');
+      s11Answered = true;
+      deferredUnsure = false;
+    }else{
+      // 잘 모르겠어요 — 장소 필요 여부는 "미지정"으로 그대로 둔다. 강제로 답을 만들지 않음.
+      s11Answered = true;
+      deferredUnsure = true;
+    }
+    renderDestState();
+    renderUnsureCaption();
+    closeS11();
+  }
+
+  /* ═══ 토스트 ═══ */
+  function showToast(msg){
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('on');
+    clearTimeout(window._toastT);
+    window._toastT = setTimeout(()=>t.classList.remove('on'), 2200);
+  }
+
+  /* ═══ X 닫기 (변경사항 취소 = 현재 모드의 기본 상태로 되돌림) ═══ */
+  function closeScreen(){
+    if(mode==='edit') loadEditSample(); else resetForm();
+    showToast('변경사항을 취소했어요');
+  }
+
+  /* ═══ 만들기 / 수정 모드 전환 ═══ */
+  function setMode(m, btn){
+    mode = m;
+    document.querySelectorAll('.selrow button').forEach(b=>{ if(b!==document.querySelector('.demobtn')) b.classList.remove('on'); });
+    btn.classList.add('on');
+    document.getElementById('screenTitle').textContent = (m==='edit') ? '일정 수정' : '일정 만들기';
+    if(m==='edit') loadEditSample(); else resetForm();
+  }
+
+  function resetForm(){
+    titleInput.value = '';
+    setDateOffset(1); // 내일 · 8/20
+    eventHour = 14; eventMinute = 0;
+    updateTimeDisplay();
+    document.getElementById('timeExpand').style.display = 'none';
+    document.getElementById('timeChev').style.transform = '';
+    setPlaceStatus('unspecified');
+    s11Answered = false; deferredUnsure = false;
+    destValue = ''; renderDestState();
+    renderUnsureCaption();
+    pickCalByName('개인');
+    const ex = document.getElementById('excludeToggle');
+    ex.classList.remove('on'); excludeFromPrep = false;
+    onTitleInput();
+  }
+
+  function loadEditSample(){
+    titleInput.value = '강남역 미팅';
+    setDateOffset(0); // 오늘 · 8/19 — 캘린더 화면의 샘플 일정과 동일
+    eventHour = 14; eventMinute = 0;
+    updateTimeDisplay();
+    document.getElementById('timeExpand').style.display = 'none';
+    document.getElementById('timeChev').style.transform = '';
+    setPlaceStatus('need');
+    s11Answered = true; deferredUnsure = false;
+    destValue = '강남역 3번 출구';
+    renderDestState();
+    renderUnsureCaption();
+    pickCalByName('업무');
+    const ex = document.getElementById('excludeToggle');
+    ex.classList.remove('on'); excludeFromPrep = false;
+    onTitleInput();
+  }
+
+  /* ═══ 지도 프리필 수신 (postMessage) ═══ */
+  function parseDateLoose(str){
+    const d = new Date(str);
+    if(!isNaN(d.getTime())) return d;
+    const m = String(str).match(/(\d{1,2})월\s*(\d{1,2})일/);
+    if(m) return new Date(2026, parseInt(m[1],10)-1, parseInt(m[2],10));
+    return null;
+  }
+  function parseTimeLoose(str){
+    const m = String(str).match(/(오전|오후)?\s*(\d{1,2})[:시]\s*(\d{1,2})?/);
+    if(!m) return null;
+    let h = parseInt(m[2],10);
+    const mm = m[3] ? parseInt(m[3],10) : 0;
+    if(m[1]==='오후' && h<12) h += 12;
+    if(m[1]==='오전' && h===12) h = 0;
+    return {h, m:mm};
+  }
+  function applyPrefill(payload){
+    payload = payload || {};
+    setPlaceStatus('need');
+    deferredUnsure = false;
+    renderUnsureCaption();
+    destValue = payload.dest || '';
+    renderDestState();
+    if(payload.date){
+      const d = parseDateLoose(payload.date);
+      if(d) eventDateObj = d;
+    }
+    if(payload.time){
+      const t = parseTimeLoose(payload.time);
+      if(t){ eventHour = t.h; eventMinute = t.m; }
+    }
+    syncDateChips();
+    updateTimeDisplay();
+    showToast('지도에서 목적지 정보를 가져왔어요');
+  }
+  function demoPrefill(){
+    applyPrefill({dest:'강남역 3번 출구', date:'8월 21일', time:'오후 3:30'});
+  }
+  // 지도/다른 화면이 iframe postMessage로 "이 경로를 일정으로 만들어줘"를 보낼 때 받는 리시버
+  window.addEventListener('message', function(e){
+    if(e.data && e.data.ensom && e.data.action === 'prefillEvent'){
+      applyPrefill(e.data.payload);
+    }
+  });
+
+  /* ═══ init ═══ */
+  resetForm();
+</script>
+
+<script>(function(){ if(window.self!==window.top){ document.body.classList.add('embed'); } })();</script>
+
+</body>
+</html>

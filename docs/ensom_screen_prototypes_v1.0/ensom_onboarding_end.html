@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ensom — 온보딩 완료 + 코치마크 프로토타입</title>
+<style>
+  :root{
+    --lime:#c6f135;--lime-soft:#e4fb9b;--lime-ink:#4e6810;
+    --canvas:#ffffff;--surface-1:#ffffff;--surface-2:#eef0ea;--surface-neutral:#e9e9e6;
+    --hairline:#e3e5e0;--ink:#14150f;--ink-muted:#63655e;--ink-faint:#6f7269;
+    --cta:#1f231a;
+    --font:'Pretendard','Apple SD Gothic Neo','Malgun Gothic',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:var(--font);background:#d9dcd3;color:var(--ink);padding:32px 20px 60px;-webkit-font-smoothing:antialiased;}
+  .page-head{max-width:1180px;margin:0 auto 22px;}
+  .page-head h1{font-size:22px;font-weight:700;letter-spacing:-.4px;}
+  .page-head p{font-size:13px;color:#55584f;margin-top:6px;line-height:1.55;}
+  .stage{max-width:1180px;margin:0 auto;display:flex;gap:36px;flex-wrap:wrap;align-items:flex-start;}
+  .phone{width:344px;height:730px;flex:0 0 auto;background:var(--canvas);border-radius:46px;border:9px solid #16170f;position:relative;overflow:hidden;box-shadow:0 20px 50px rgba(20,21,15,.26);}
+  .notch{position:absolute;top:0;left:50%;transform:translateX(-50%);width:112px;height:26px;background:#16170f;border-radius:0 0 16px 16px;z-index:60;}
+
+  .view{position:absolute;inset:0;display:none;flex-direction:column;}
+  .view.on{display:flex;}
+  .clickable{cursor:pointer;transition:transform .12s;}
+  .clickable:active{transform:scale(.985);}
+
+  /* ═ complete screen ═ */
+  .complete{flex:1 1 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 30px;text-align:center;}
+  .ok-circle{width:74px;height:74px;border-radius:999px;background:var(--lime-soft);display:flex;align-items:center;justify-content:center;margin-bottom:22px;}
+  .ok-circle svg{width:32px;height:32px;stroke:var(--lime-ink);fill:none;stroke-width:2.4;}
+  .complete h2{font-size:23px;font-weight:700;letter-spacing:-.4px;margin-bottom:10px;}
+  .complete p{font-size:13px;color:var(--ink-muted);line-height:1.6;word-break:keep-all;}
+  .pbtn{font-family:var(--font);border:0;border-radius:999px;padding:13px 20px;font-size:14px;font-weight:700;cursor:pointer;background:var(--cta);color:#fff;position:absolute;left:20px;right:20px;bottom:38px;}
+
+  /* ═ home shell ═ */
+  .homepad{flex:1 1 auto;padding:46px 18px 0;position:relative;}
+  .word{font-size:13px;font-weight:700;letter-spacing:1.6px;display:inline-flex;align-items:center;}
+  .wm-o{width:.78em;height:.78em;margin:0 1px;flex:0 0 auto;}
+  .hdr{display:flex;align-items:center;justify-content:space-between;}
+  .greet{margin-top:18px;}
+  .greet h3{font-size:20px;font-weight:700;letter-spacing:-.4px;}
+
+  .empty-card{margin-top:16px;background:var(--surface-1);border:1px solid var(--hairline);border-radius:28px;padding:24px 18px;text-align:center;}
+  .empty-card p{font-size:13px;font-weight:600;color:var(--ink);margin-bottom:14px;}
+  .empty-actions{display:flex;gap:8px;}
+  .ebtn{flex:1 1 0;font-family:var(--font);border:0;border-radius:999px;padding:11px 8px;font-size:12px;font-weight:700;cursor:pointer;}
+  .ebtn.primary{background:var(--cta);color:#fff;}
+  .ebtn.secondary{background:var(--surface-2);color:var(--ink);}
+
+  .hero{margin-top:16px;background:var(--lime);border-radius:28px;padding:17px 17px 19px;display:flex;flex-direction:column;gap:11px;}
+  .hbadge{background:rgba(255,255,255,.62);color:var(--ink);font-size:11px;font-weight:700;padding:5px 11px;border-radius:999px;align-self:flex-start;}
+  .hero-msg{font-size:22px;font-weight:700;letter-spacing:-.6px;line-height:1.28;word-break:keep-all;}
+  .hero-sub{font-size:12px;color:rgba(20,21,15,.7);line-height:1.5;word-break:keep-all;}
+
+  /* tab bar */
+  .tabbar{position:absolute;left:16px;right:16px;bottom:20px;background:var(--surface-1);border-radius:999px;padding:9px 10px;display:flex;justify-content:space-around;box-shadow:0 8px 24px rgba(20,21,15,.14);z-index:2;}
+  .tabitem{display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--ink-faint);position:relative;}
+  .tabitem.active{color:var(--ink);}
+  .tabitem svg{width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:1.9;}
+  .tabitem span{font-size:9px;font-weight:600;}
+
+  /* coachmark */
+  .scrim{position:absolute;inset:0;background:rgba(20,21,15,.45);z-index:30;display:none;}
+  .scrim.on{display:block;}
+  .spot{position:absolute;z-index:31;border-radius:999px;box-shadow:0 0 0 9999px rgba(20,21,15,.45);}
+  .bubble{position:absolute;z-index:32;background:#fff;border-radius:16px;padding:13px 15px;width:210px;box-shadow:0 10px 26px rgba(21,23,15,.22);}
+  .bubble p{font-size:12.5px;font-weight:600;line-height:1.5;color:var(--ink);}
+  .bubble .dismiss{margin-top:9px;font-size:11.5px;font-weight:700;color:var(--lime-ink);cursor:pointer;text-align:right;}
+  .bubble::after{content:'';position:absolute;bottom:-7px;left:50%;transform:translateX(-50%);width:14px;height:14px;background:#fff;rotate:45deg;}
+
+  /* toast */
+  .toast{position:absolute;left:16px;right:16px;bottom:88px;background:#1f231a;color:#fff;font-size:12.5px;font-weight:600;padding:13px 16px;border-radius:16px;z-index:40;transform:translateY(16px);opacity:0;transition:all .2s;text-align:center;}
+  .toast.on{transform:translateY(0);opacity:1;}
+
+  .hint{display:inline-block;background:#15170f;color:#c6f135;font-size:11.5px;font-weight:600;padding:6px 12px;border-radius:999px;margin-top:10px;}
+  .legend{max-width:340px;font-size:12px;color:#55584f;line-height:1.7;}
+  .legend b{color:var(--ink);}
+
+  /* ═ embed mode (used when loaded inside ensom_master_flow.html) ═ */
+  body.embed{background:transparent;padding:0;overflow:hidden;}
+  body.embed .page-head,body.embed .legend,body.embed .hint{display:none!important;}
+  body.embed .stage{margin:0;padding:0;gap:0;}
+  body.embed{height:100vh;}
+  body.embed .stage{height:100%;align-items:stretch;}
+  body.embed .phone{width:100%!important;height:100%!important;max-width:100%;border:0!important;border-radius:0!important;box-shadow:none!important;}
+  body.embed .notch{display:none!important;}
+</style>
+</head>
+<body>
+
+<div class="page-head">
+  <h1>Ensom — 온보딩 완료 + 첫 홈 코치마크 프로토타입</h1>
+  <p>온보딩 마지막 화면 → 빈 홈 + 코치마크 → 첫 일정 추가 직후 홈, 3단계 흐름.</p>
+</div>
+
+<div class="stage">
+  <div class="phone">
+    <div class="notch"></div>
+
+    <!-- ═══ 1. 온보딩 완료 ═══ -->
+    <div class="view on" id="v-complete">
+      <div class="complete">
+        <div class="ok-circle"><svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></div>
+        <h2>준비됐어요</h2>
+        <p>이제 일정을 추가하면 언제부터<br>준비해야 할지 알려드릴게요.</p>
+      </div>
+      <button class="pbtn" onclick="go('v-emptyhome')">시작하기</button>
+    </div>
+
+    <!-- ═══ 2. 빈 홈 + 코치마크 ═══ -->
+    <div class="view" id="v-emptyhome">
+      <div class="homepad">
+        <div class="hdr"><span class="word">ENS<svg class="wm-o" viewBox="0 0 32 32"><circle cx="16" cy="16" r="11" fill="none" stroke="#4e6810" stroke-width="7"/><circle cx="16" cy="16" r="11" fill="none" stroke="#c6f135" stroke-width="7" stroke-dasharray="47 22" transform="rotate(-90 16 16)" stroke-linecap="round"/></svg>M</span></div>
+        <div class="greet"><h3>안녕하세요, 도현님</h3></div>
+        <div class="empty-card">
+          <p>아직 등록된 일정이 없어요</p>
+          <div class="empty-actions">
+            <button class="ebtn primary" onclick="addEvent()">일정 만들기</button>
+            <button class="ebtn secondary">캘린더 연동하기</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="tabbar">
+        <div class="tabitem active"><svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg><span>홈</span></div>
+        <div class="tabitem" id="tab-cal"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg><span>캘린더</span></div>
+        <div class="tabitem"><svg viewBox="0 0 24 24"><path d="M9 20l-6-3V4l6 3 6-3 6 3v13l-6-3-6 3z"/></svg><span>지도</span></div>
+        <div class="tabitem"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.5-7 8-7s8 3 8 7"/></svg><span>프로필</span></div>
+      </div>
+
+      <div class="scrim on" id="coachscrim"></div>
+      <div class="spot" id="coachspot" style="width:52px;height:52px;bottom:12px;left:97px;"></div>
+      <div class="bubble" id="coachbubble" style="bottom:92px;left:60px;">
+        <p>여기서 일정을 추가할 수 있어요</p>
+        <div class="dismiss clickable" onclick="dismissCoach()">확인했어요</div>
+      </div>
+    </div>
+
+    <!-- ═══ 3. 첫 일정 추가 직후 홈 ═══ -->
+    <div class="view" id="v-firstevent">
+      <div class="homepad">
+        <div class="hdr"><span class="word">ENS<svg class="wm-o" viewBox="0 0 32 32"><circle cx="16" cy="16" r="11" fill="none" stroke="#4e6810" stroke-width="7"/><circle cx="16" cy="16" r="11" fill="none" stroke="#c6f135" stroke-width="7" stroke-dasharray="47 22" transform="rotate(-90 16 16)" stroke-linecap="round"/></svg>M</span></div>
+        <div class="greet"><h3>안녕하세요, 도현님</h3></div>
+        <div class="hero">
+          <div class="hbadge">일정 등록됨</div>
+          <div class="hero-msg">내일 오후 2시 일정이<br>등록됐어요</div>
+          <div class="hero-sub">준비 시작은 오후 12시 40분이에요</div>
+        </div>
+      </div>
+      <div class="tabbar">
+        <div class="tabitem active"><svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg><span>홈</span></div>
+        <div class="tabitem"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg><span>캘린더</span></div>
+        <div class="tabitem"><svg viewBox="0 0 24 24"><path d="M9 20l-6-3V4l6 3 6-3 6 3v13l-6-3-6 3z"/></svg><span>지도</span></div>
+        <div class="tabitem"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.5-7 8-7s8 3 8 7"/></svg><span>프로필</span></div>
+      </div>
+      <div class="toast" id="addToast">일정을 추가했어요</div>
+    </div>
+
+  </div>
+
+  <div class="legend">
+    <p><b>보는 법</b> — "시작하기" 누르면 빈 홈 + 코치마크(캘린더 탭 가리킴)로 이동. "확인했어요" 누르면 코치마크가 사라져.</p>
+    <p style="margin-top:8px;"><b>일정 만들기</b> 버튼을 누르면 첫 일정이 등록된 홈으로 넘어가면서 하단에 토스트가 잠깐 떠.</p>
+    <div class="hint">뒤 카드 없는 hero-card-stack 1장 상태 확인용</div>
+  </div>
+</div>
+
+<script>
+  function go(id){
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('on'));
+    document.getElementById(id).classList.add('on');
+  }
+  function dismissCoach(){
+    document.getElementById('coachscrim').classList.remove('on');
+    document.getElementById('coachspot').style.display='none';
+    document.getElementById('coachbubble').style.display='none';
+  }
+  function addEvent(){
+    go('v-firstevent');
+    setTimeout(()=>{
+      const t = document.getElementById('addToast');
+      t.classList.add('on');
+      setTimeout(()=>t.classList.remove('on'), 2200);
+    }, 200);
+  }
+</script>
+
+<script>(function(){ if(window.self!==window.top){ document.body.classList.add('embed'); } })();</script>
+
+</body>
+</html>

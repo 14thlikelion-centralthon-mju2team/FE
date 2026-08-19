@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ensom — 계정 관리 프로토타입</title>
+<style>
+  :root{
+    --lime:#c6f135;--lime-soft:#e4fb9b;--lime-ink:#4e6810;
+    --canvas:#ffffff;--surface-1:#ffffff;--surface-2:#eef0ea;--surface-neutral:#e9e9e6;
+    --hairline:#e3e5e0;--ink:#14150f;--ink-muted:#63655e;--ink-faint:#6f7269;
+    --panel:#15170f;--cta:#1f231a;--caution:#e3a13b;
+    --font:'Pretendard','Apple SD Gothic Neo','Malgun Gothic',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:var(--font);background:#d9dcd3;color:var(--ink);padding:32px 20px 60px;-webkit-font-smoothing:antialiased;}
+  .page-head{max-width:1180px;margin:0 auto 22px;}
+  .page-head h1{font-size:22px;font-weight:700;letter-spacing:-.4px;}
+  .page-head p{font-size:13px;color:#55584f;margin-top:6px;line-height:1.55;}
+  .stage{max-width:1180px;margin:0 auto;display:flex;gap:36px;flex-wrap:wrap;align-items:flex-start;}
+  .phone{width:344px;height:730px;flex:0 0 auto;background:var(--canvas);border-radius:46px;border:9px solid #16170f;position:relative;overflow:hidden;box-shadow:0 20px 50px rgba(20,21,15,.26);}
+  .notch{position:absolute;top:0;left:50%;transform:translateX(-50%);width:112px;height:26px;background:#16170f;border-radius:0 0 16px 16px;z-index:60;}
+  .selrow{position:absolute;top:8px;left:0;right:0;display:flex;flex-wrap:wrap;gap:4px;justify-content:center;padding:0 12px;z-index:99;}
+  .selrow button{font-family:var(--font);font-size:9.5px;font-weight:700;border:0;border-radius:999px;padding:5px 8px;background:var(--surface-2);color:var(--ink-muted);cursor:pointer;}
+  .selrow button.on{background:var(--cta);color:#fff;}
+  .view{position:absolute;inset:0;display:none;flex-direction:column;}
+  .view.on{display:flex;}
+  .scroll{flex:1 1 auto;overflow-y:auto;padding:8px 18px 24px;}
+  .scroll::-webkit-scrollbar{display:none;}
+
+  /* top bar */
+  .topbar{flex:0 0 auto;margin:68px 2px 0;height:40px;background:transparent;color:var(--ink);display:flex;align-items:center;gap:10px;padding:0 16px;}
+  .backbtn{width:32px;height:32px;border-radius:999px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;cursor:pointer;flex:0 0 auto;}
+  .backbtn svg{width:14px;height:14px;stroke:var(--ink);fill:none;stroke-width:2.1;}
+  .toptitle{color:var(--ink);font-size:16px;font-weight:700;letter-spacing:-.2px;}
+
+  /* list rows */
+  .lrow{display:flex;align-items:center;gap:12px;padding:13px 2px;}
+  .lrow .li{width:34px;height:34px;border-radius:999px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;flex:0 0 auto;}
+  .lrow .li svg{width:15px;height:15px;stroke:var(--ink-muted);fill:none;stroke-width:1.8;}
+  .lrow .ltext{flex:1 1 auto;min-width:0;}
+  .lrow .ltitle{font-size:14px;font-weight:600;}
+  .lrow .lsub{font-size:11px;color:var(--ink-faint);margin-top:2px;}
+  .lrow .lval{font-size:12px;color:var(--ink-muted);white-space:nowrap;}
+  .lrow .chev{width:14px;height:14px;stroke:var(--ink-faint);fill:none;stroke-width:2;flex:0 0 auto;}
+  .lrow .rowend{display:flex;align-items:center;gap:6px;}
+  .radiorow .ltext,.histrow .ltext{flex:1 1 auto;min-width:0;}
+  .radiorow .ltitle,.histrow .ltitle{font-size:14px;font-weight:600;}
+  .radiorow .lsub,.histrow .lsub{font-size:11px;color:var(--ink-faint);margin-top:2px;}
+  .radiorow .rowend,.histrow .rowend{display:flex;align-items:center;gap:6px;flex:0 0 auto;}
+  .clickable{cursor:pointer;transition:transform .12s;}
+  .clickable:active{transform:scale(.985);}
+  .div{height:1px;background:var(--hairline);margin:6px 0 10px;}
+  .sec-label{font-size:10.5px;font-weight:700;color:var(--ink-faint);letter-spacing:.4px;margin:18px 0 4px;text-transform:uppercase;}
+
+  /* card */
+  .card{background:var(--surface-1);border:1px solid var(--hairline);border-radius:18px;padding:14px;margin-top:16px;}
+  .card.soft{background:var(--surface-2);border:none;}
+  .card p{font-size:12px;color:var(--ink-muted);line-height:1.55;}
+  .card .k{font-size:10.5px;font-weight:700;color:var(--ink-faint);letter-spacing:.3px;text-transform:uppercase;}
+
+  /* toggle */
+  .toggle{width:42px;height:25px;border-radius:999px;background:var(--surface-neutral);position:relative;cursor:pointer;flex:0 0 auto;transition:background .15s;}
+  .toggle .knob{position:absolute;top:2.5px;left:2.5px;width:20px;height:20px;border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);transition:left .15s, background .15s;}
+  .toggle.on{background:var(--cta);}
+  .toggle.on .knob{left:19.5px;background:var(--lime);}
+
+  /* pill */
+  .pill{font-size:10.5px;font-weight:700;padding:4px 9px;border-radius:999px;white-space:nowrap;}
+  .pill.pos{background:var(--lime-soft);color:var(--lime-ink);}
+  .pill.neu{background:var(--surface-2);color:var(--ink-muted);}
+  .pill.cau{background:var(--caution);color:var(--ink);}
+
+  /* buttons */
+  .pbtn{font-family:var(--font);border:0;border-radius:999px;padding:11px 16px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;}
+  .pbtn.primary{background:var(--cta);color:#fff;}
+  .pbtn.secondary{background:var(--surface-2);color:var(--ink);}
+  .pbtn.text{background:transparent;color:var(--ink-muted);text-decoration:underline;text-underline-offset:2px;padding:11px 4px;font-size:12px;}
+  .pbtn.full{width:100%;}
+  .pbtn:disabled{opacity:.4;cursor:not-allowed;}
+  .caption{font-size:10.5px;color:var(--ink-faint);margin-top:8px;line-height:1.5;}
+
+  /* fields */
+  .field{margin-top:14px;}
+  .field label{font-size:11px;font-weight:600;color:var(--ink-muted);display:block;margin-bottom:6px;}
+  .field input{width:100%;border:1.4px solid var(--hairline);border-radius:12px;padding:11px 13px;font-size:13px;font-family:var(--font);background:var(--surface-1);}
+  .field input:focus{outline:none;border-color:var(--cta);}
+
+  /* dialog / toast */
+  .scrim{position:absolute;inset:0;background:rgba(20,21,15,.45);z-index:80;display:none;align-items:center;justify-content:center;}
+  .scrim.on{display:flex;}
+  .dialog{background:#fff;border-radius:22px;padding:22px 18px;margin:0 18px;}
+  .dialog h3{font-size:16px;font-weight:700;margin-bottom:8px;letter-spacing:-.2px;}
+  .dialog p{font-size:12.5px;color:var(--ink-muted);line-height:1.55;}
+  .btnrow{display:flex;gap:8px;margin-top:14px;}
+  .btnrow .pbtn{flex:1 1 0;}
+  .toast{position:absolute;left:16px;right:16px;bottom:60px;background:var(--cta);color:#fff;font-size:12.5px;font-weight:600;padding:13px 16px;border-radius:16px;z-index:90;transform:translateY(20px);opacity:0;pointer-events:none;transition:all .2s;}
+  .toast.on{transform:translateY(0);opacity:1;}
+  .actions{flex:0 0 auto;padding:12px 18px calc(18px + env(safe-area-inset-bottom,0px));background:#fff;border-top:1px solid var(--hairline);}
+
+  /* ── 화면 1: 계정 요약 ── */
+  .acct-head{display:flex;align-items:center;gap:12px;}
+  .acct-avatar{width:52px;height:52px;border-radius:999px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:var(--ink-muted);flex:0 0 auto;}
+  .acct-name{font-size:15px;font-weight:700;letter-spacing:-.2px;}
+  .acct-email{font-size:11.5px;color:var(--ink-muted);margin-top:3px;}
+  .acct-since{font-size:10.5px;color:var(--ink-faint);margin-top:4px;}
+  #v0 .lrow .ltitle{white-space:nowrap;}
+  #v0 .lrow{gap:10px;}
+  #v0 .lrow .lval{font-size:11px;overflow:hidden;text-overflow:ellipsis;min-width:0;padding-left:6px;}
+  .danger-zone{margin-top:30px;padding-top:16px;border-top:1px solid var(--hairline);}
+  .danger-zone .lrow .ltitle{color:var(--ink-muted);font-weight:600;}
+
+  /* ── 화면 2: 조건 체크리스트 ── */
+  .checklist{margin-top:14px;display:flex;flex-direction:column;gap:8px;}
+  .chk{display:flex;align-items:center;gap:8px;}
+  .chk .dot{width:18px;height:18px;border-radius:999px;border:1.7px solid var(--hairline);background:transparent;display:flex;align-items:center;justify-content:center;flex:0 0 auto;transition:background .15s,border-color .15s;}
+  .chk .dot svg{width:10px;height:10px;stroke:#fff;fill:none;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round;opacity:0;transition:opacity .15s;}
+  .chk .ctext{font-size:12px;color:var(--ink-faint);}
+  .chk.ok .dot{background:var(--cta);border-color:var(--cta);}
+  .chk.ok .dot svg{opacity:1;}
+  .chk.ok .ctext{color:var(--ink);}
+  .fieldmsg{font-size:11px;margin-top:6px;line-height:1.5;color:#8a6516;}
+  .fieldmsg.ok{color:var(--ink-muted);}
+
+  /* ── 화면 3: 발송 완료 ── */
+  .sent-wrap{display:flex;flex-direction:column;align-items:center;text-align:center;padding-top:34px;}
+  .sent-ic{width:64px;height:64px;border-radius:999px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;}
+  .sent-ic svg{width:26px;height:26px;stroke:var(--ink-muted);fill:none;stroke-width:1.7;}
+  .sent-title{font-size:17px;font-weight:700;letter-spacing:-.3px;margin-top:16px;}
+  .sent-desc{font-size:12.5px;color:var(--ink-muted);line-height:1.6;margin-top:9px;}
+  .sent-desc b{color:var(--ink);font-weight:700;}
+
+  /* ── 화면 4: 로그인 수단 ── */
+  .brandic{width:34px;height:34px;border-radius:999px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;flex:0 0 auto;font-size:13px;font-weight:700;color:var(--ink-muted);}
+  .brandic svg{width:16px;height:16px;}
+  .linkbtn{background:transparent;border:0;font-family:var(--font);font-size:11.5px;font-weight:700;color:var(--ink-muted);text-decoration:underline;text-underline-offset:2px;cursor:pointer;padding:4px 2px;white-space:nowrap;}
+  .linkbtn:disabled{opacity:.4;cursor:not-allowed;}
+  #v3 .rowend{min-width:112px;justify-content:flex-end;}
+
+  /* ── 화면 5: 2단계 인증 ── */
+  .radiorow{display:flex;align-items:center;gap:12px;padding:13px 2px;cursor:pointer;}
+  .radio{width:19px;height:19px;border-radius:999px;border:1.7px solid var(--hairline);flex:0 0 auto;display:flex;align-items:center;justify-content:center;transition:border-color .15s;}
+  .radio i{width:9px;height:9px;border-radius:999px;background:transparent;display:block;transition:background .15s;}
+  .radiorow.on .radio{border-color:var(--cta);}
+  .radiorow.on .radio i{background:var(--cta);}
+  .codegrid{display:grid;grid-template-columns:1fr 1fr;gap:9px 10px;}
+  .codegrid span{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;letter-spacing:.6px;color:var(--ink);text-align:center;background:var(--surface-2);border-radius:9px;padding:7px 0;}
+
+  /* ── 화면 6: 로그인 기록 ── */
+  .histrow{display:flex;align-items:center;gap:12px;padding:13px 2px;border-bottom:1px solid var(--hairline);}
+  .histrow:last-of-type{border-bottom:none;}
+
+  .hint{display:inline-block;background:#15170f;color:#c6f135;font-size:11.5px;font-weight:600;padding:6px 12px;border-radius:999px;margin-top:10px;}
+  .legend{max-width:340px;font-size:12px;color:#55584f;line-height:1.7;}
+  .legend b{color:var(--ink);}
+
+  body.embed{background:transparent;padding:0;overflow:hidden;}
+  body.embed .page-head,body.embed .legend,body.embed .hint{display:none!important;}
+  body.embed .stage{margin:0;padding:0;gap:0;}
+  body.embed{height:100vh;}
+  body.embed .stage{height:100%;align-items:stretch;}
+  body.embed .phone{width:100%!important;height:100%!important;max-width:100%;border:0!important;border-radius:0!important;box-shadow:none!important;}
+  body.embed .notch{display:none!important;}
+</style>
+</head>
+<body>
+
+<div class="page-head">
+  <h1>Ensom — 계정 관리 프로토타입</h1>
+  <p>계정 · 비밀번호 변경 · 이메일 변경 · 로그인 수단 · 2단계 인증 · 로그인 기록 6개 화면. 비밀번호 조건 체크, 인증 메일 발송 상태, 연결 해제 보호, 2단계 인증 조건부 영역, 기기 로그아웃까지 실제로 눌러볼 수 있어.</p>
+</div>
+
+<div class="stage">
+  <div class="phone">
+    <div class="notch"></div>
+    <div class="selrow">
+      <button class="on" onclick="show(0,this)">계정</button>
+      <button onclick="show(1,this)">비밀번호 변경</button>
+      <button onclick="show(2,this)">이메일 변경</button>
+      <button onclick="show(3,this)">로그인 수단</button>
+      <button onclick="show(4,this)">2단계 인증</button>
+      <button onclick="show(5,this)">로그인 기록</button>
+    </div>
+
+    <!-- ═══ v0 계정 ═══ -->
+    <div class="view on" id="v0">
+      <div class="topbar">
+        <div class="backbtn clickable"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></div>
+        <div class="toptitle">계정</div>
+      </div>
+      <div class="scroll">
+        <div class="card">
+          <div class="acct-head">
+            <div class="acct-avatar">도</div>
+            <div>
+              <div class="acct-name">김도현님</div>
+              <div class="acct-email">dohyun@ensom.app</div>
+              <div class="acct-since">2025년 3월 가입</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="sec-label">로그인 정보</div>
+        <div class="lrow clickable" onclick="show(2)">
+          <div class="li"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg></div>
+          <div class="ltext"><div class="ltitle">아이디(이메일)</div></div>
+          <div class="rowend"><span class="lval">dohyun@ensom.app</span><svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>
+        </div>
+        <div class="lrow clickable" onclick="show(1)">
+          <div class="li"><svg viewBox="0 0 24 24"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 018 0v3"/></svg></div>
+          <div class="ltext"><div class="ltitle">비밀번호</div></div>
+          <div class="rowend"><span class="lval">마지막 변경 3개월 전</span><svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>
+        </div>
+        <div class="lrow clickable" onclick="show(3)">
+          <div class="li"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 007 0l3-3a5 5 0 00-7-7l-1 1"/><path d="M14 11a5 5 0 00-7 0l-3 3a5 5 0 007 7l1-1"/></svg></div>
+          <div class="ltext"><div class="ltitle">연결된 로그인 수단</div></div>
+          <div class="rowend"><span class="pill pos" id="v0-link-pill">2개 연결됨</span><svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>
+        </div>
+
+        <div class="sec-label">보안</div>
+        <div class="lrow clickable" onclick="show(4)">
+          <div class="li"><svg viewBox="0 0 24 24"><path d="M12 2l8 4v6c0 5-3.5 8-8 10-4.5-2-8-5-8-10V6l8-4z"/><path d="M9 12l2 2 4-4"/></svg></div>
+          <div class="ltext"><div class="ltitle">2단계 인증</div></div>
+          <div class="rowend"><span class="pill neu" id="v0-2fa-pill">사용 안 함</span><svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>
+        </div>
+        <div class="lrow clickable" onclick="show(5)">
+          <div class="li"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
+          <div class="ltext"><div class="ltitle">로그인 기록</div></div>
+          <svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
+        </div>
+
+        <div class="div" style="margin-top:20px;"></div>
+        <div class="lrow clickable" onclick="openDialog('d-logout')">
+          <div class="ltext"><div class="ltitle">로그아웃</div></div>
+        </div>
+
+        <div class="danger-zone">
+          <div class="lrow clickable" onclick="toast('탈퇴 흐름은 프로필 화면에 있어요')">
+            <div class="ltext"><div class="ltitle">회원 탈퇴</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ v1 비밀번호 변경 ═══ -->
+    <div class="view" id="v1">
+      <div class="topbar">
+        <div class="backbtn clickable" onclick="show(0)"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></div>
+        <div class="toptitle">비밀번호 변경</div>
+      </div>
+      <div class="scroll">
+        <div class="field">
+          <label for="pw-cur">현재 비밀번호</label>
+          <input type="password" id="pw-cur" placeholder="현재 비밀번호" oninput="pwCheck()">
+        </div>
+        <div class="div" style="margin-top:18px;"></div>
+        <div class="field">
+          <label for="pw-new">새 비밀번호</label>
+          <input type="password" id="pw-new" placeholder="8자 이상" oninput="pwCheck()">
+        </div>
+        <div class="field">
+          <label for="pw-new2">새 비밀번호 확인</label>
+          <input type="password" id="pw-new2" placeholder="새 비밀번호 다시 입력" oninput="pwCheck()">
+          <div class="fieldmsg" id="pw-msg" style="display:none;"></div>
+        </div>
+
+        <div class="checklist">
+          <div class="chk" id="ck1"><div class="dot"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7"/></svg></div><div class="ctext">8자 이상</div></div>
+          <div class="chk" id="ck2"><div class="dot"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7"/></svg></div><div class="ctext">영문 포함</div></div>
+          <div class="chk" id="ck3"><div class="dot"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7"/></svg></div><div class="ctext">숫자 포함</div></div>
+          <div class="chk" id="ck4"><div class="dot"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7"/></svg></div><div class="ctext">현재 비밀번호와 다름</div></div>
+        </div>
+
+        <p class="caption" style="margin-top:16px;">비밀번호를 변경하면 다른 기기에서는 다시 로그인해야 해요</p>
+      </div>
+      <div class="actions">
+        <button class="pbtn primary full" id="pw-submit" disabled onclick="pwSubmit()">변경하기</button>
+      </div>
+    </div>
+
+    <!-- ═══ v2 이메일 변경 ═══ -->
+    <div class="view" id="v2">
+      <div class="topbar">
+        <div class="backbtn clickable" onclick="emailBack()"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></div>
+        <div class="toptitle">이메일 변경</div>
+      </div>
+      <div class="scroll">
+        <div id="em-form">
+          <div class="card soft">
+            <div class="k">현재 이메일</div>
+            <div style="font-size:14px;font-weight:600;margin-top:6px;">dohyun@ensom.app</div>
+          </div>
+          <div class="field">
+            <label for="em-new">새 이메일</label>
+            <input type="email" id="em-new" placeholder="새로 사용할 이메일" oninput="emCheck()">
+          </div>
+          <div class="field">
+            <label for="em-pw">비밀번호 확인</label>
+            <input type="password" id="em-pw" placeholder="본인 확인을 위해 비밀번호를 입력해 주세요" oninput="emCheck()">
+          </div>
+          <div class="card soft">
+            <p>새 이메일로 인증 메일을 보내드려요. 인증을 완료해야 변경이 적용돼요.</p>
+          </div>
+        </div>
+
+        <div id="em-sent" style="display:none;">
+          <div class="sent-wrap">
+            <div class="sent-ic"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg></div>
+            <div class="sent-title">인증 메일을 보냈어요</div>
+            <div class="sent-desc"><b id="em-sent-addr">—</b> 로<br>보낸 메일에서 인증을 완료해 주세요.</div>
+            <p class="caption">인증 전까지는 기존 이메일로 로그인해요</p>
+            <button class="pbtn text" style="margin-top:10px;" onclick="toast('인증 메일을 다시 보냈어요')">다시 보내기</button>
+            <button class="pbtn secondary full" style="margin-top:8px;" onclick="emailBackToForm()">돌아가기</button>
+          </div>
+        </div>
+      </div>
+      <div class="actions" id="em-actions">
+        <button class="pbtn primary full" id="em-submit" disabled onclick="emSubmit()">인증 메일 보내기</button>
+      </div>
+    </div>
+
+    <!-- ═══ v3 로그인 수단 ═══ -->
+    <div class="view" id="v3">
+      <div class="topbar">
+        <div class="backbtn clickable" onclick="show(0)"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></div>
+        <div class="toptitle">로그인 수단</div>
+      </div>
+      <div class="scroll">
+        <p class="caption" style="margin-top:4px;">계정에 연결된 로그인 방법이에요. 최소 한 개는 남겨두어야 해요.</p>
+
+        <div class="lrow" id="row-email">
+          <div class="brandic"><svg viewBox="0 0 24 24" fill="none" stroke="#63655e" stroke-width="1.8"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg></div>
+          <div class="ltext"><div class="ltitle">이메일</div><div class="lsub" id="sub-email">dohyun@ensom.app</div></div>
+          <div class="rowend"><span class="pill pos" id="pill-email">연결됨</span><button class="linkbtn" id="btn-email" style="display:none;" disabled>연결 해제</button></div>
+        </div>
+        <p class="caption" id="cap-email" style="display:none;margin-top:0;">마지막 로그인 수단은 해제할 수 없어요</p>
+
+        <div class="lrow" id="row-google">
+          <div class="brandic">G</div>
+          <div class="ltext"><div class="ltitle">Google</div><div class="lsub" id="sub-google">dohyun@gmail.com</div></div>
+          <div class="rowend"><span class="pill pos" id="pill-google">연결됨</span><button class="linkbtn" id="btn-google" onclick="linkAction('google')">연결 해제</button></div>
+        </div>
+        <p class="caption" id="cap-google" style="display:none;margin-top:0;">마지막 로그인 수단은 해제할 수 없어요</p>
+
+        <div class="lrow" id="row-apple">
+          <div class="brandic">A</div>
+          <div class="ltext"><div class="ltitle">Apple</div><div class="lsub" id="sub-apple">연결되지 않음</div></div>
+          <div class="rowend"><span class="pill neu" id="pill-apple">미연결</span><button class="linkbtn" id="btn-apple" onclick="linkAction('apple')">연결</button></div>
+        </div>
+        <p class="caption" id="cap-apple" style="display:none;margin-top:0;">마지막 로그인 수단은 해제할 수 없어요</p>
+      </div>
+    </div>
+
+    <!-- ═══ v4 2단계 인증 ═══ -->
+    <div class="view" id="v4">
+      <div class="topbar">
+        <div class="backbtn clickable" onclick="show(0)"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></div>
+        <div class="toptitle">2단계 인증</div>
+      </div>
+      <div class="scroll">
+        <div class="lrow">
+          <div class="ltext"><div class="ltitle">2단계 인증 사용</div></div>
+          <div class="toggle clickable" id="tg-2fa" onclick="toggle2fa(this)"><div class="knob"></div></div>
+        </div>
+        <p class="caption" style="margin-top:0;">로그인할 때 비밀번호에 더해 인증 코드를 한 번 더 확인해요.</p>
+
+        <div class="card soft" id="tfa-off">
+          <p>2단계 인증을 켜면 다른 사람이 비밀번호를 알아도 로그인할 수 없어요.</p>
+        </div>
+
+        <div id="tfa-on" style="display:none;">
+          <div class="sec-label">인증 방법</div>
+          <div class="radiorow on" data-m="sms" onclick="pickMethod(this)">
+            <div class="radio"><i></i></div>
+            <div class="ltext"><div class="ltitle">문자 메시지</div><div class="lsub">010-****-5678</div></div>
+          </div>
+          <div class="radiorow" data-m="app" onclick="pickMethod(this)">
+            <div class="radio"><i></i></div>
+            <div class="ltext"><div class="ltitle">인증 앱</div><div class="lsub">Google Authenticator 등</div></div>
+          </div>
+
+          <div class="sec-label">백업 코드</div>
+          <div class="card" style="margin-top:6px;">
+            <div class="codegrid" id="codegrid">
+              <span>4F2K-9XB1</span><span>7QM3-2LD8</span>
+              <span>1ZP6-8VC4</span><span>9TR5-3HN7</span>
+              <span>6BW2-5KJ9</span><span>3XD8-7SF1</span>
+              <span>8NG4-1PY6</span><span>2VH7-4RM3</span>
+            </div>
+          </div>
+          <div class="btnrow" style="align-items:center;">
+            <button class="pbtn secondary" onclick="regenCodes()">코드 다시 만들기</button>
+            <button class="pbtn text" onclick="toast('백업 코드를 복사했어요')">복사</button>
+          </div>
+          <p class="caption">백업 코드는 기기를 잃어버렸을 때 로그인하는 데 써요. 안전한 곳에 보관해 주세요.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ v5 로그인 기록 ═══ -->
+    <div class="view" id="v5">
+      <div class="topbar">
+        <div class="backbtn clickable" onclick="show(0)"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></div>
+        <div class="toptitle">로그인 기록</div>
+      </div>
+      <div class="scroll">
+        <p class="caption" style="margin-top:4px;">최근 30일간의 로그인 기록이에요. 모르는 기록이 있으면 비밀번호를 바꿔주세요.</p>
+
+        <div id="histlist">
+          <div class="histrow" data-cur="1">
+            <div class="li" style="width:34px;height:34px;border-radius:999px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;flex:0 0 auto;"><svg viewBox="0 0 24 24" style="width:15px;height:15px;stroke:var(--ink-muted);fill:none;stroke-width:1.8;"><rect x="7" y="2" width="10" height="20" rx="2.5"/><path d="M11 18.5h2"/></svg></div>
+            <div class="ltext"><div class="ltitle">iPhone 15 Pro</div><div class="lsub">서울 · 방금 전</div></div>
+            <div class="rowend"><span class="pill pos">현재 기기</span></div>
+          </div>
+          <div class="histrow">
+            <div class="li" style="width:34px;height:34px;border-radius:999px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;flex:0 0 auto;"><svg viewBox="0 0 24 24" style="width:15px;height:15px;stroke:var(--ink-muted);fill:none;stroke-width:1.8;"><rect x="3" y="5" width="18" height="12" rx="2"/><path d="M2 20h20"/></svg></div>
+            <div class="ltext"><div class="ltitle">MacBook Pro</div><div class="lsub">서울 · 어제 오후 3:20</div></div>
+            <div class="rowend"><button class="linkbtn" onclick="signOutRow(this)">로그아웃</button></div>
+          </div>
+          <div class="histrow">
+            <div class="li" style="width:34px;height:34px;border-radius:999px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;flex:0 0 auto;"><svg viewBox="0 0 24 24" style="width:15px;height:15px;stroke:var(--ink-muted);fill:none;stroke-width:1.8;"><rect x="7" y="2" width="10" height="20" rx="2.5"/><path d="M11 18.5h2"/></svg></div>
+            <div class="ltext"><div class="ltitle">iPhone 15 Pro</div><div class="lsub">서울 · 8월 17일</div></div>
+            <div class="rowend"><button class="linkbtn" onclick="signOutRow(this)">로그아웃</button></div>
+          </div>
+          <div class="histrow">
+            <div class="li" style="width:34px;height:34px;border-radius:999px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;flex:0 0 auto;"><svg viewBox="0 0 24 24" style="width:15px;height:15px;stroke:var(--ink-muted);fill:none;stroke-width:1.8;"><circle cx="12" cy="12" r="9"/><path d="M3.5 9h17M12 3a15 15 0 000 18M12 3a15 15 0 010 18"/></svg></div>
+            <div class="ltext"><div class="ltitle">Chrome (Windows)</div><div class="lsub">부산 · 8월 14일</div></div>
+            <div class="rowend"><span class="pill cau">새 기기</span><button class="linkbtn" onclick="signOutRow(this)">로그아웃</button></div>
+          </div>
+          <div class="histrow">
+            <div class="li" style="width:34px;height:34px;border-radius:999px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;flex:0 0 auto;"><svg viewBox="0 0 24 24" style="width:15px;height:15px;stroke:var(--ink-muted);fill:none;stroke-width:1.8;"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M10 18.5h4"/></svg></div>
+            <div class="ltext"><div class="ltitle">iPad Air</div><div class="lsub">서울 · 8월 11일</div></div>
+            <div class="rowend"><button class="linkbtn" onclick="signOutRow(this)">로그아웃</button></div>
+          </div>
+        </div>
+
+        <button class="pbtn secondary full" style="margin-top:22px;" onclick="openDialog('d-signoutall')">현재 기기 외 모두 로그아웃</button>
+      </div>
+    </div>
+
+    <!-- ═══ dialogs ═══ -->
+    <div class="scrim" id="scrim">
+      <div class="dialog" id="d-logout">
+        <h3>로그아웃 하시겠어요?</h3>
+        <p>다시 로그인하면 이전 정보가 그대로 유지돼요.</p>
+        <div class="btnrow">
+          <button class="pbtn secondary" onclick="closeDialog()">취소</button>
+          <button class="pbtn primary" onclick="closeDialog();toast('로그아웃했어요')">로그아웃</button>
+        </div>
+      </div>
+      <div class="dialog" id="d-unlink" style="display:none;">
+        <h3>Google 연결을 해제할까요?</h3>
+        <p>해제해도 이메일로는 계속 로그인할 수 있어요.</p>
+        <div class="btnrow">
+          <button class="pbtn secondary" onclick="closeDialog()">취소</button>
+          <button class="pbtn primary" onclick="confirmUnlink()">해제</button>
+        </div>
+      </div>
+      <div class="dialog" id="d-signoutall" style="display:none;">
+        <h3>다른 기기에서 모두 로그아웃할까요?</h3>
+        <p>현재 기기를 제외한 모든 기기의 로그인이 해제돼요.</p>
+        <div class="btnrow">
+          <button class="pbtn secondary" onclick="closeDialog()">취소</button>
+          <button class="pbtn primary" onclick="confirmSignOutAll()">로그아웃</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+  </div>
+
+  <div class="legend">
+    <p><b>보는 법</b> — 상단 칩 6개로 화면을 바꾸거나, 첫 화면(계정)의 각 행을 눌러 해당 화면으로 들어가.</p>
+    <p style="margin-top:8px;"><b>클릭해볼 것</b> — 비밀번호 변경의 조건 체크리스트 4줄 · 이메일 변경의 인증 메일 발송 상태 · 로그인 수단의 마지막 하나 보호 · 2단계 인증 토글로 나타나는 백업 코드 · 로그인 기록의 기기별 로그아웃.</p>
+    <div class="hint">6개 화면 · 조건부 활성화 · 다이얼로그 3종 전부 동작</div>
+  </div>
+</div>
+
+<script>
+  /* ── view switching ── */
+  function show(i, btn){
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('on'));
+    document.getElementById('v'+i).classList.add('on');
+    document.querySelectorAll('.selrow button').forEach(b=>b.classList.remove('on'));
+    if(btn) btn.classList.add('on'); else document.querySelectorAll('.selrow button')[i].classList.add('on');
+  }
+
+  /* ── dialogs ── */
+  function openDialog(id){
+    document.querySelectorAll('.dialog').forEach(d=>d.style.display='none');
+    document.getElementById(id).style.display='block';
+    document.getElementById('scrim').classList.add('on');
+  }
+  function closeDialog(){ document.getElementById('scrim').classList.remove('on'); }
+
+  /* ── toast ── */
+  var toastTimer=null;
+  function toast(msg){
+    var t=document.getElementById('toast');
+    t.textContent=msg;
+    t.classList.add('on');
+    if(toastTimer) clearTimeout(toastTimer);
+    toastTimer=setTimeout(function(){ t.classList.remove('on'); toastTimer=null; },2200);
+  }
+
+  /* ── v1 비밀번호 ── */
+  function setChk(id, ok){ document.getElementById(id).classList.toggle('ok', !!ok); }
+  function pwCheck(){
+    var cur=document.getElementById('pw-cur').value;
+    var np=document.getElementById('pw-new').value;
+    var np2=document.getElementById('pw-new2').value;
+    var c1=np.length>=8;
+    var c2=/[A-Za-z]/.test(np);
+    var c3=/[0-9]/.test(np);
+    var c4=np.length>0 && cur.length>0 && np!==cur;
+    setChk('ck1',c1); setChk('ck2',c2); setChk('ck3',c3); setChk('ck4',c4);
+
+    var msg=document.getElementById('pw-msg');
+    var match = np2.length>0 && np===np2;
+    if(np2.length===0){ msg.style.display='none'; }
+    else{
+      msg.style.display='block';
+      msg.textContent = match ? '비밀번호가 일치해요' : '비밀번호가 일치하지 않아요';
+      msg.classList.toggle('ok', match);
+    }
+    document.getElementById('pw-submit').disabled = !(cur.length>0 && c1 && c2 && c3 && c4 && match);
+  }
+  function pwSubmit(){
+    document.getElementById('pw-cur').value='';
+    document.getElementById('pw-new').value='';
+    document.getElementById('pw-new2').value='';
+    pwCheck();
+    toast('비밀번호가 변경됐어요');
+  }
+
+  /* ── v2 이메일 ── */
+  function emCheck(){
+    var e=document.getElementById('em-new').value.trim();
+    var p=document.getElementById('em-pw').value;
+    document.getElementById('em-submit').disabled = !(e.length>0 && p.length>0);
+  }
+  function emSubmit(){
+    var e=document.getElementById('em-new').value.trim();
+    document.getElementById('em-sent-addr').textContent=e;
+    document.getElementById('em-form').style.display='none';
+    document.getElementById('em-sent').style.display='block';
+    document.getElementById('em-actions').style.display='none';
+  }
+  function emailBackToForm(){
+    document.getElementById('em-sent').style.display='none';
+    document.getElementById('em-form').style.display='block';
+    document.getElementById('em-actions').style.display='block';
+  }
+  function emailBack(){
+    if(document.getElementById('em-sent').style.display!=='none'){ emailBackToForm(); return; }
+    show(0);
+  }
+
+  /* ── v3 로그인 수단 ── */
+  var links={ email:{on:true, primary:true, sub:'dohyun@ensom.app'},
+              google:{on:true, primary:false, sub:'dohyun@gmail.com'},
+              apple:{on:false, primary:false, sub:'dohyun@icloud.com'} };
+  var pendingUnlink=null;
+  var LABEL={email:'이메일',google:'Google',apple:'Apple'};
+
+  function renderLinks(){
+    var count=0; for(var k in links){ if(links[k].on) count++; }
+    for(var k in links){
+      var s=links[k];
+      document.getElementById('pill-'+k).textContent = s.on ? '연결됨' : '미연결';
+      document.getElementById('pill-'+k).className = 'pill ' + (s.on ? 'pos' : 'neu');
+      document.getElementById('sub-'+k).textContent = s.on ? s.sub : '연결되지 않음';
+      var btn=document.getElementById('btn-'+k);
+      var cap=document.getElementById('cap-'+k);
+      var last = s.on && count===1;
+      if(!s.on){
+        btn.style.display=''; btn.disabled=false; btn.textContent='연결'; cap.style.display='none';
+      } else if(last){
+        btn.style.display=''; btn.disabled=true; btn.textContent='연결 해제'; cap.style.display='block';
+      } else if(s.primary){
+        btn.style.display='none'; btn.disabled=true; cap.style.display='none';
+      } else {
+        btn.style.display=''; btn.disabled=false; btn.textContent='연결 해제'; cap.style.display='none';
+      }
+    }
+    var pill=document.getElementById('v0-link-pill');
+    if(pill) pill.textContent = count + '개 연결됨';
+  }
+  function linkAction(key){
+    if(links[key].on){
+      pendingUnlink=key;
+      var d=document.getElementById('d-unlink');
+      d.querySelector('h3').textContent = LABEL[key]+' 연결을 해제할까요?';
+      d.querySelector('p').textContent = '해제해도 이메일로는 계속 로그인할 수 있어요.';
+      openDialog('d-unlink');
+    } else {
+      links[key].on=true; renderLinks(); toast(LABEL[key]+' 계정을 연결했어요');
+    }
+  }
+  function confirmUnlink(){
+    if(pendingUnlink){
+      links[pendingUnlink].on=false;
+      var name=LABEL[pendingUnlink];
+      pendingUnlink=null; renderLinks(); closeDialog(); toast(name+' 연결을 해제했어요');
+    } else { closeDialog(); }
+  }
+
+  /* ── v4 2단계 인증 ── */
+  function toggle2fa(el){
+    el.classList.toggle('on');
+    var on=el.classList.contains('on');
+    document.getElementById('tfa-on').style.display = on ? 'block' : 'none';
+    document.getElementById('tfa-off').style.display = on ? 'none' : 'block';
+    var pill=document.getElementById('v0-2fa-pill');
+    pill.textContent = on ? '사용 중' : '사용 안 함';
+    pill.className = on ? 'pill pos' : 'pill neu';
+  }
+  function pickMethod(el){
+    el.parentNode.querySelectorAll('.radiorow').forEach(function(r){ r.classList.remove('on'); });
+    el.classList.add('on');
+  }
+  function regenCodes(){
+    var chars='ABCDEFGHJKLMNPQRSTUVWXYZ0123456789';
+    function blk(n){ var s=''; for(var i=0;i<n;i++) s+=chars[Math.floor(Math.random()*chars.length)]; return s; }
+    var out='';
+    for(var i=0;i<8;i++) out += '<span>'+blk(4)+'-'+blk(4)+'</span>';
+    document.getElementById('codegrid').innerHTML=out;
+    toast('백업 코드를 새로 만들었어요');
+  }
+
+  /* ── v5 로그인 기록 ── */
+  function signOutRow(btn){
+    var row=btn.closest('.histrow');
+    if(row) row.remove();
+    toast('해당 기기에서 로그아웃했어요');
+  }
+  function confirmSignOutAll(){
+    document.querySelectorAll('#histlist .histrow').forEach(function(r){
+      if(r.getAttribute('data-cur')!=='1') r.remove();
+    });
+    closeDialog();
+    toast('다른 기기에서 모두 로그아웃했어요');
+  }
+
+  renderLinks();
+</script>
+
+<script>(function(){ if(window.self!==window.top){ document.body.classList.add('embed'); } })();</script>
+
+</body>
+</html>

@@ -28,9 +28,11 @@ final authServiceProvider = Provider<AuthService>((ref) {
 /// 라우터 리다이렉트의 판단 기준.
 enum AuthStatus {
   unknown, // 초기 상태 (세션 확인 중)
+  sessionCheckFailed, // 기존 세션 검증 중 네트워크 오류
   unauthenticated, // 세션 없음
   emailVerificationRequired, // 로그인됨 but 이메일 미인증
   consentRequired, // 로그인됨 but 약관 미동의
+  onboarding, // 신규 사용자 온보딩 진행 중
   authenticated, // 정상 로그인 완료
 }
 
@@ -40,12 +42,18 @@ class AuthState {
     this.userId,
     this.email,
     this.consentRequired = const [],
+    this.onboardingRequired = false,
+    this.onboardingStep,
+    this.errorMessage,
   });
 
   final AuthStatus status;
   final String? userId;
   final String? email;
   final List<String> consentRequired;
+  final bool onboardingRequired;
+  final String? onboardingStep;
+  final String? errorMessage;
 
   static const initial = AuthState(status: AuthStatus.unknown);
 }
@@ -63,19 +71,54 @@ class AuthNotifier extends StateNotifier<AuthState> {
   final SecureStorageService secureStorage;
   final ApiClient apiClient;
 
-  /// 앱 시작 시 기존 세션 확인
+  /// 앱 시작 시 기존 세션을 서버에서 검증한다.
   Future<void> _checkExistingSession() async {
+    state = const AuthState(status: AuthStatus.unknown);
     final hasToken = await secureStorage.hasSession;
-    if (hasToken) {
-      // 토큰은 있지만 유효한지는 bootstrap에서 확인됨.
-      // 여기서는 일단 authenticated로 세팅하고 bootstrap이 403을 주면
-      // 라우터가 적절히 처리한다.
+    if (!hasToken) {
+      state = const AuthState(status: AuthStatus.unauthenticated);
+      return;
+    }
+
+    try {
+      // refresh가 필요하면 ApiClient가 처리한다. 세션 검사 네트워크 실패와
+      // 인증 실패를 구분하기 위해 실제 인증 필요 API를 호출한다.
+      await apiClient.get<Map<String, dynamic>>("/me/bootstrap");
+      final isOnboardingDone = await secureStorage.onboardingCompleted;
+      if (!isOnboardingDone) {
+        final step = await secureStorage.onboardingStep;
+        state = AuthState(
+          status: AuthStatus.onboarding,
+          onboardingRequired: true,
+          onboardingStep: step,
+        );
+        _syncFcm();
+        return;
+      }
       state = const AuthState(status: AuthStatus.authenticated);
       _syncFcm();
-    } else {
+    } on ApiException catch (e) {
+      if (e.isNetworkError || e.retryable) {
+        state = const AuthState(
+          status: AuthStatus.sessionCheckFailed,
+          errorMessage: "네트워크에 연결할 수 없어요. 연결을 확인하고 다시 시도해주세요.",
+        );
+        return;
+      }
+      if (e.code == "EMAIL_VERIFICATION_REQUIRED") {
+        state = const AuthState(status: AuthStatus.emailVerificationRequired);
+        return;
+      }
       state = const AuthState(status: AuthStatus.unauthenticated);
+    } catch (_) {
+      state = const AuthState(
+        status: AuthStatus.sessionCheckFailed,
+        errorMessage: "세션을 확인하지 못했어요. 잠시 후 다시 시도해주세요.",
+      );
     }
   }
+
+  Future<void> retrySessionCheck() => _checkExistingSession();
 
   /// main.dart가 Firebase.initializeApp() + 백그라운드 핸들러 등록까지는
   /// 이미 해 뒀다. 로그인 이후 단계(권한 요청, 토큰 획득, POST
@@ -133,10 +176,22 @@ class AuthNotifier extends StateNotifier<AuthState> {
     _handleLoginResult(result);
   }
 
-  /// 약관 동의 완료 후 상태 전이
+  /// 약관 동의 완료 후 신규 사용자는 온보딩을 이어가고, 약관 개정에
+  /// 동의한 기존 사용자는 정상 로그인 상태로 돌아간다.
   void onConsentCompleted() {
-    state = AuthState(status: AuthStatus.authenticated, userId: state.userId);
+    state = AuthState(
+      status: state.onboardingRequired
+          ? AuthStatus.onboarding
+          : AuthStatus.authenticated,
+      userId: state.userId,
+      onboardingRequired: state.onboardingRequired,
+    );
     _syncFcm();
+  }
+
+  void onOnboardingCompleted() {
+    secureStorage.setOnboardingCompleted(true);
+    state = AuthState(status: AuthStatus.authenticated, userId: state.userId);
   }
 
   /// 이메일 인증 확인 완료 후 상태 전이
@@ -173,7 +228,15 @@ class AuthNotifier extends StateNotifier<AuthState> {
         status: AuthStatus.consentRequired,
         userId: result.userId,
         consentRequired: result.consentRequired,
+        onboardingRequired: result.isNew,
       );
+    } else if (result.isNew) {
+      state = AuthState(
+        status: AuthStatus.onboarding,
+        userId: result.userId,
+        onboardingRequired: true,
+      );
+      _syncFcm();
     } else {
       state = AuthState(
         status: AuthStatus.authenticated,

@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ensom — 프로필 하위 설정 프로토타입</title>
+<style>
+  :root{
+    --lime:#c6f135;--lime-soft:#e4fb9b;--lime-ink:#4e6810;
+    --canvas:#ffffff;--surface-1:#ffffff;--surface-2:#eef0ea;--surface-neutral:#e9e9e6;
+    --hairline:#e3e5e0;--ink:#14150f;--ink-muted:#63655e;--ink-faint:#6f7269;
+    --panel:#15170f;--cta:#1f231a;--caution:#e3a13b;
+    --font:'Pretendard','Apple SD Gothic Neo','Malgun Gothic',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:var(--font);background:#d9dcd3;color:var(--ink);padding:32px 20px 60px;-webkit-font-smoothing:antialiased;}
+  .page-head{max-width:1180px;margin:0 auto 22px;}
+  .page-head h1{font-size:22px;font-weight:700;letter-spacing:-.4px;}
+  .page-head p{font-size:13px;color:#55584f;margin-top:6px;line-height:1.55;}
+  .stage{max-width:1180px;margin:0 auto;display:flex;gap:36px;flex-wrap:wrap;align-items:flex-start;}
+  .phone{width:344px;height:730px;flex:0 0 auto;background:var(--canvas);border-radius:46px;border:9px solid #16170f;position:relative;overflow:hidden;box-shadow:0 20px 50px rgba(20,21,15,.26);}
+  .notch{position:absolute;top:0;left:50%;transform:translateX(-50%);width:112px;height:26px;background:#16170f;border-radius:0 0 16px 16px;z-index:60;}
+
+  .view{position:absolute;inset:0;display:none;flex-direction:column;}
+  .view.on{display:flex;}
+  .scroll{flex:1 1 auto;overflow-y:auto;padding:14px 18px 24px;}
+  .scroll::-webkit-scrollbar{display:none;}
+
+  .clickable{cursor:pointer;transition:transform .12s;}
+  .clickable:active{transform:scale(.985);}
+
+  /* top bar */
+  .topbar{flex:0 0 auto;margin:46px 2px 0;height:40px;background:transparent;color:var(--ink);display:flex;align-items:center;gap:10px;padding:0;}
+  .backbtn{width:32px;height:32px;border-radius:999px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;cursor:pointer;flex:0 0 auto;}
+  .backbtn svg{width:14px;height:14px;stroke:var(--ink);fill:none;stroke-width:2.1;}
+  .toptitle{color:var(--ink);font-size:16px;font-weight:700;letter-spacing:-.2px;}
+  .word{color:var(--ink);font-size:13px;font-weight:700;letter-spacing:1.6px;display:inline-flex;align-items:center;}
+  .wm-o{width:.78em;height:.78em;margin:0 1px;flex:0 0 auto;}
+
+  /* list rows */
+  .lrow{display:flex;align-items:center;gap:12px;padding:13px 2px;cursor:pointer;}
+  .lrow .li{width:34px;height:34px;border-radius:999px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;flex:0 0 auto;}
+  .lrow .li svg{width:15px;height:15px;stroke:var(--ink-muted);fill:none;stroke-width:1.8;}
+  .lrow .ltext{flex:1 1 auto;min-width:0;}
+  .lrow .ltitle{font-size:14px;font-weight:600;}
+  .lrow .lsub{font-size:11px;color:var(--ink-faint);margin-top:2px;}
+  .lrow .lval{font-size:12px;color:var(--ink-muted);white-space:nowrap;}
+  .lrow .chev{width:14px;height:14px;stroke:var(--ink-faint);fill:none;stroke-width:2;flex:0 0 auto;}
+  .lrow .rowend{display:flex;align-items:center;gap:6px;}
+  .div{height:1px;background:var(--hairline);margin:6px 0 10px;}
+  .sec-label{font-size:10.5px;font-weight:700;color:var(--ink-faint);letter-spacing:.4px;margin:18px 0 4px;text-transform:uppercase;}
+
+  /* profile header on main list */
+  .pf-head{display:flex;align-items:center;gap:12px;padding:18px 2px 8px;}
+  .pf-avatar{width:52px;height:52px;border-radius:999px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:var(--ink-muted);flex:0 0 auto;}
+  .pf-name{font-size:16px;font-weight:700;}
+  .pf-email{font-size:11.5px;color:var(--ink-muted);margin-top:2px;}
+
+  /* card */
+  .card{background:var(--surface-1);border:1px solid var(--hairline);border-radius:18px;padding:14px;margin-top:16px;}
+  .card.soft{background:var(--surface-2);border:none;}
+  .card p{font-size:12px;color:var(--ink-muted);line-height:1.55;}
+  .card .k{font-size:10.5px;font-weight:700;color:var(--ink-faint);letter-spacing:.3px;text-transform:uppercase;}
+
+  /* toggle */
+  .toggle{width:42px;height:25px;border-radius:999px;background:var(--surface-neutral);position:relative;cursor:pointer;flex:0 0 auto;transition:background .15s;}
+  .toggle .knob{position:absolute;top:2.5px;left:2.5px;width:20px;height:20px;border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);transition:left .15s, background .15s;}
+  .toggle.on{background:var(--cta);}
+  .toggle.on .knob{left:19.5px;background:var(--lime);}
+
+  /* pill/badge */
+  .pill{font-size:10.5px;font-weight:700;padding:4px 9px;border-radius:999px;white-space:nowrap;}
+  .pill.pos{background:var(--lime-soft);color:var(--lime-ink);}
+  .pill.neu{background:var(--surface-2);color:var(--ink-muted);}
+  .pill.cau{background:var(--caution);color:var(--ink);}
+
+  /* number-display compare */
+  .cmp{display:flex;align-items:center;gap:10px;margin-top:6px;}
+  .cmp .box{flex:1 1 0;text-align:center;}
+  .cmp .box .lbl{font-size:10px;color:var(--ink-faint);margin-bottom:4px;}
+  .cmp .box .num{font-size:22px;font-weight:700;letter-spacing:-.4px;}
+  .cmp .arrow{width:16px;height:16px;stroke:var(--ink-faint);fill:none;stroke-width:2;flex:0 0 auto;}
+
+  /* history row */
+  .hrow{display:flex;justify-content:space-between;align-items:center;padding:11px 0;border-bottom:1px solid var(--hairline);}
+  .hrow:last-child{border-bottom:none;}
+  .hrow .hd{font-size:12px;}
+  .hrow .hd b{font-weight:700;}
+  .hrow .hdate{font-size:10px;color:var(--ink-faint);margin-top:2px;}
+  .hrow .undo{font-size:11.5px;font-weight:700;color:var(--ink-muted);cursor:pointer;text-decoration:underline;text-underline-offset:2px;}
+
+  /* segmented control */
+  .seg{display:flex;background:var(--surface-2);border-radius:13px;padding:3px;gap:3px;margin-top:8px;}
+  .seg .sitem{flex:1 1 0;text-align:center;font-size:12.5px;font-weight:600;padding:9px 0;border-radius:10px;cursor:pointer;color:var(--ink-muted);}
+  .seg .sitem.on{background:var(--cta);color:#fff;}
+
+  /* chips */
+  .chiprow{display:flex;gap:7px;margin-top:9px;flex-wrap:wrap;}
+  .chip{background:var(--surface-2);color:var(--ink);font-size:12px;font-weight:600;padding:8px 13px;border-radius:12px;cursor:pointer;}
+  .chip.on{background:var(--cta);color:#fff;}
+
+  /* buttons */
+  .btnrow{display:flex;gap:8px;margin-top:14px;}
+  .pbtn{font-family:var(--font);border:0;border-radius:999px;padding:11px 16px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;}
+  .pbtn.primary{background:var(--cta);color:#fff;flex:1 1 0;}
+  .pbtn.secondary{background:var(--surface-2);color:var(--ink);flex:1 1 0;}
+  .pbtn.text{background:transparent;color:var(--ink-muted);text-decoration:underline;text-underline-offset:2px;padding:11px 4px;}
+  .pbtn.danger-text{background:transparent;color:var(--ink-muted);padding:11px 4px;}
+  .pbtn.full{width:100%;}
+
+  .caption{font-size:10.5px;color:var(--ink-faint);margin-top:8px;line-height:1.5;}
+
+  .field{margin-top:14px;}
+  .field label{font-size:11px;font-weight:600;color:var(--ink-muted);display:block;margin-bottom:6px;}
+  .field input{width:100%;border:1.4px solid var(--hairline);border-radius:12px;padding:11px 13px;font-size:13px;font-family:var(--font);background:var(--surface-1);}
+
+  /* danger zone spacing */
+  .danger-zone{margin-top:30px;padding-top:16px;border-top:1px solid var(--hairline);}
+  .danger-zone .lrow .ltitle{color:var(--ink-muted);font-weight:600;}
+
+  /* dialog overlay */
+  .scrim{position:absolute;inset:0;background:rgba(20,21,15,.5);z-index:80;display:none;align-items:flex-end;justify-content:center;}
+  .scrim.on{display:flex;}
+  .dialog{background:#fff;border-radius:22px 22px 0 0;padding:22px 18px calc(22px + env(safe-area-inset-bottom,0px));width:100%;animation:slideup .18s ease-out;}
+  .dialog.centered{border-radius:22px;margin:0 18px 90px;animation:popup .15s ease-out;}
+  @keyframes slideup{from{transform:translateY(100%);}to{transform:translateY(0);}}
+  @keyframes popup{from{transform:scale(.92);opacity:0;}to{transform:scale(1);opacity:1;}}
+  .dialog h3{font-size:16px;font-weight:700;margin-bottom:8px;letter-spacing:-.2px;}
+  .dialog p{font-size:12.5px;color:var(--ink-muted);line-height:1.55;}
+  .dialog ul{margin:10px 0 0 16px;}
+  .dialog ul li{font-size:12px;color:var(--ink-muted);line-height:1.7;}
+
+  /* toast */
+  .toast{position:absolute;left:16px;right:16px;bottom:100px;background:var(--cta);color:#fff;font-size:12.5px;font-weight:600;padding:13px 16px;border-radius:16px;display:flex;align-items:center;justify-content:space-between;gap:10px;z-index:90;transform:translateY(20px);opacity:0;pointer-events:none;transition:all .2s;}
+  .toast.on{transform:translateY(0);opacity:1;}
+
+  .hint{display:inline-block;background:#15170f;color:#c6f135;font-size:11.5px;font-weight:600;padding:6px 12px;border-radius:999px;margin-top:10px;}
+  .legend{max-width:340px;font-size:12px;color:#55584f;line-height:1.7;}
+  .legend b{color:var(--ink);}
+
+  /* ═ embed mode (used when loaded inside ensom_master_flow.html) ═ */
+  body.embed{background:transparent;padding:0;overflow:hidden;}
+  body.embed .page-head,body.embed .legend,body.embed .hint{display:none!important;}
+  body.embed .stage{margin:0;padding:0;gap:0;}
+  body.embed{height:100vh;}
+  body.embed .stage{height:100%;align-items:stretch;}
+  body.embed .phone{width:100%!important;height:100%!important;max-width:100%;border:0!important;border-radius:0!important;box-shadow:none!important;}
+  body.embed .notch{display:none!important;}
+</style>
+</head>
+<body>
+
+<div class="page-head">
+  <h1>Ensom — 프로필 하위 설정 프로토타입</h1>
+  <p>프로필 리스트에서 계정 · 권한 · 준비 설정 · 알림 · 웰니스 · 개인화 · 데이터 7개 화면으로 들어가는 흐름. 다이얼로그, 토글, 세그먼트, 회원탈퇴 2단계까지 실제로 클릭해볼 수 있어.</p>
+</div>
+
+<div class="stage">
+  <div class="phone">
+    <div class="notch"></div>
+
+    <!-- ═══ 프로필 메인 리스트 ═══ -->
+    <div class="view on" id="v-list">
+      <div class="topbar">
+        <span class="word">ENS<svg class="wm-o" viewBox="0 0 32 32"><circle cx="16" cy="16" r="11" fill="none" stroke="#4e6810" stroke-width="7"/><circle cx="16" cy="16" r="11" fill="none" stroke="#c6f135" stroke-width="7" stroke-dasharray="47 22" transform="rotate(-90 16 16)" stroke-linecap="round"/></svg>M</span>
+      </div>
+      <div class="scroll">
+        <div class="pf-head">
+          <div class="pf-avatar">도</div>
+          <div>
+            <div class="pf-name">김도현님</div>
+            <div class="pf-email">dohyun@ensom.app</div>
+          </div>
+        </div>
+
+        <div class="sec-label">계정</div>
+        <div class="lrow clickable" onclick="go('v-account')">
+          <div class="li"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.5-7 8-7s8 3 8 7"/></svg></div>
+          <div class="ltext"><div class="ltitle">로그인 계정 정보</div></div>
+          <svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
+        </div>
+
+        <div class="sec-label">권한 · 설정</div>
+        <div class="lrow clickable" onclick="go('v-perm')">
+          <div class="li"><svg viewBox="0 0 24 24"><path d="M12 2l8 4v6c0 5-3.5 8-8 10-4.5-2-8-5-8-10V6l8-4z"/></svg></div>
+          <div class="ltext"><div class="ltitle">권한 관리</div></div>
+          <div class="rowend"><span class="pill pos">2건 허용</span><svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>
+        </div>
+        <div class="lrow clickable" onclick="go('v-prep')">
+          <div class="li"><svg viewBox="0 0 24 24"><path d="M12 6v6l4 2"/><circle cx="12" cy="12" r="9"/></svg></div>
+          <div class="ltext"><div class="ltitle">준비 설정</div></div>
+          <svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
+        </div>
+        <div class="lrow clickable" onclick="go('v-noti')">
+          <div class="li"><svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 01-3.4 0"/></svg></div>
+          <div class="ltext"><div class="ltitle">알림</div></div>
+          <svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
+        </div>
+        <div class="lrow clickable" onclick="go('v-well')">
+          <div class="li"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></div>
+          <div class="ltext"><div class="ltitle">웰니스</div></div>
+          <svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
+        </div>
+        <div class="lrow clickable" onclick="go('v-personal')">
+          <div class="li"><svg viewBox="0 0 24 24"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg></div>
+          <div class="ltext"><div class="ltitle">개인화</div></div>
+          <svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
+        </div>
+        <div class="lrow clickable" onclick="go('v-data')">
+          <div class="li"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg></div>
+          <div class="ltext"><div class="ltitle">데이터</div></div>
+          <svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ 1. 계정 정보 ═══ -->
+    <div class="view" id="v-account">
+      <div class="topbar">
+        <div class="backbtn clickable" onclick="go('v-list')"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></div>
+        <div class="toptitle">계정</div>
+      </div>
+      <div class="scroll">
+        <div class="card">
+          <div style="display:flex;align-items:center;gap:12px;">
+            <div class="pf-avatar">도</div>
+            <div>
+              <div class="pf-name" style="font-size:14px;">김도현님</div>
+              <div class="pf-email">dohyun@ensom.app</div>
+              <div class="pf-email" style="margin-top:4px;color:var(--ink-faint);">2025년 3월 가입</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="div" style="margin-top:20px;"></div>
+        <div class="lrow clickable" onclick="openDialog('d-logout')">
+          <div class="ltext"><div class="ltitle">로그아웃</div></div>
+        </div>
+
+        <div class="danger-zone">
+          <div class="lrow clickable" onclick="go('v-withdraw1')">
+            <div class="ltext"><div class="ltitle">회원 탈퇴</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ 회원탈퇴 1단계 ═══ -->
+    <div class="view" id="v-withdraw1">
+      <div class="topbar">
+        <div class="backbtn clickable" onclick="go('v-account')"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></div>
+        <div class="toptitle">회원 탈퇴</div>
+      </div>
+      <div class="scroll">
+        <h3 style="font-size:19px;font-weight:700;margin-top:14px;letter-spacing:-.3px;">정말 탈퇴하시겠어요?</h3>
+        <p style="font-size:12.5px;color:var(--ink-muted);margin-top:10px;line-height:1.6;">탈퇴하면 아래 데이터가 함께 삭제돼요.</p>
+        <div class="card soft">
+          <ul style="margin-left:16px;">
+            <li style="font-size:12.5px;color:var(--ink-muted);line-height:1.9;">일정 기록</li>
+            <li style="font-size:12.5px;color:var(--ink-muted);line-height:1.9;">준비 항목</li>
+            <li style="font-size:12.5px;color:var(--ink-muted);line-height:1.9;">개인화 학습 데이터</li>
+          </ul>
+        </div>
+        <p class="caption">동의 이력은 법정 보존 기간 동안 유지돼요.</p>
+        <div class="btnrow" style="margin-top:24px;">
+          <button class="pbtn secondary" onclick="go('v-account')">취소</button>
+        </div>
+        <button class="pbtn danger-text full" style="text-align:center;margin-top:6px;" onclick="go('v-withdraw2')">탈퇴할게요</button>
+      </div>
+    </div>
+
+    <!-- ═══ 회원탈퇴 2단계 ═══ -->
+    <div class="view" id="v-withdraw2">
+      <div class="topbar">
+        <div class="backbtn clickable" onclick="go('v-withdraw1')"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></div>
+        <div class="toptitle">최종 확인</div>
+      </div>
+      <div class="scroll">
+        <h3 style="font-size:19px;font-weight:700;margin-top:14px;letter-spacing:-.3px;">재가입해도 이전 데이터는<br>복구되지 않아요</h3>
+        <div class="field">
+          <label>계속하려면 비밀번호를 입력하세요</label>
+          <input type="password" placeholder="비밀번호">
+        </div>
+        <button class="pbtn full" style="margin-top:24px;background:var(--cta);color:#fff;" onclick="openDialog('d-withdrawn')">탈퇴하기</button>
+      </div>
+    </div>
+
+    <!-- ═══ 2. 권한 관리 ═══ -->
+    <div class="view" id="v-perm">
+      <div class="topbar">
+        <div class="backbtn clickable" onclick="go('v-list')"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></div>
+        <div class="toptitle">권한</div>
+      </div>
+      <div class="scroll">
+        <div class="card" style="margin-top:16px;">
+          <div class="lrow" style="padding:2px;">
+            <div class="ltext"><div class="ltitle">캘린더 연동</div></div>
+            <span class="pill pos">연동됨</span>
+            <svg class="chev" style="margin-left:6px;" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
+          </div>
+        </div>
+        <div class="card" style="margin-top:10px;">
+          <div class="lrow" style="padding:2px;">
+            <div class="ltext"><div class="ltitle">위치</div></div>
+            <span class="pill pos">사용 중일 때</span>
+            <svg class="chev" style="margin-left:6px;" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
+          </div>
+        </div>
+        <div class="card" style="margin-top:10px;">
+          <div class="lrow" style="padding:2px;">
+            <div class="ltext"><div class="ltitle">알림</div></div>
+            <span class="pill neu">허용 안 함</span>
+            <svg class="chev" style="margin-left:6px;" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
+          </div>
+        </div>
+
+        <div class="div" style="margin-top:16px;"></div>
+        <div class="sec-label" style="margin-top:6px;">자동 출발 · 도착 확인</div>
+        <div class="card soft">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
+            <div>
+              <div class="ltitle" style="font-size:13px;">항상 위치 허용</div>
+              <p style="margin-top:4px;">앱을 쓰지 않을 때도 출발·도착을 자동으로 확인해요.</p>
+            </div>
+            <div class="toggle clickable" id="tg-always" onclick="toggleAlwaysLoc(this)"><div class="knob"></div></div>
+          </div>
+        </div>
+        <div class="card soft" id="always-info" style="display:none;">
+          <p><b style="color:var(--ink);">위치 정보는 준비·이동 시간 계산에만 사용되고 암호화되어 저장돼요.</b> 언제든 이 화면에서 다시 끌 수 있어요.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ 3. 준비 설정 ═══ -->
+    <div class="view" id="v-prep">
+      <div class="topbar">
+        <div class="backbtn clickable" onclick="go('v-list')"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></div>
+        <div class="toptitle">준비 설정</div>
+      </div>
+      <div class="scroll">
+        <div class="sec-label" style="margin-top:16px;">초기 준비 시간</div>
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-size:22px;font-weight:700;">30분</span>
+            <button class="pbtn secondary" style="flex:0 0 auto;padding:8px 14px;">변경</button>
+          </div>
+        </div>
+
+        <div class="sec-label">도착 여유 시간</div>
+        <div class="card">
+          <div class="chiprow" style="margin-top:0;">
+            <div class="chip" onclick="pick(this)">5분</div>
+            <div class="chip on" onclick="pick(this)">10분</div>
+            <div class="chip" onclick="pick(this)">15분</div>
+          </div>
+        </div>
+
+        <div class="div"></div>
+        <div class="sec-label" style="margin-top:6px;">주요 장소</div>
+        <div class="lrow"><div class="li"><svg viewBox="0 0 24 24"><path d="M3 10l9-7 9 7v9a2 2 0 01-2 2h-4v-6H9v6H5a2 2 0 01-2-2z"/></svg></div>
+          <div class="ltext"><div class="ltitle">집</div><div class="lsub">서울 마포구 성산동 12-3</div></div>
+          <svg class="chev" viewBox="0 0 24 24"><path d="M4 21l16-16M9 4h9v9"/></svg>
+        </div>
+        <div class="lrow"><div class="li"><svg viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="1.5"/><path d="M9 21v-4h6v4"/></svg></div>
+          <div class="ltext"><div class="ltitle">직장</div><div class="lsub">서울 강남구 테헤란로 152</div></div>
+          <svg class="chev" viewBox="0 0 24 24"><path d="M4 21l16-16M9 4h9v9"/></svg>
+        </div>
+        <button class="pbtn text" style="margin-top:4px;" onclick="window.parent.postMessage({ensom:true, action:'openPlaceSetup', payload:null}, '*')">+ 장소 추가</button>
+
+        <div class="div"></div>
+        <div class="sec-label" style="margin-top:6px;">개인 준비 항목 관리</div>
+        <div class="lrow"><div class="ltext"><div class="ltitle">우산 챙기기</div><div class="lsub">5분</div></div><span class="pill neu">챙기기</span><div class="toggle on"><div class="knob"></div></div></div>
+        <div class="lrow"><div class="ltext"><div class="ltitle">영양제 먹기</div><div class="lsub">3분</div></div><span class="pill neu">사용·섭취하기</span><div class="toggle on"><div class="knob"></div></div></div>
+        <button class="pbtn text" style="margin-top:4px;">+ 항목 추가</button>
+      </div>
+    </div>
+
+    <!-- ═══ 4. 알림 ═══ -->
+    <div class="view" id="v-noti">
+      <div class="topbar">
+        <div class="backbtn clickable" onclick="go('v-list')"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></div>
+        <div class="toptitle">알림</div>
+      </div>
+      <div class="scroll">
+        <div class="sec-label" style="margin-top:16px;">알림 민감도</div>
+        <div class="seg">
+          <div class="sitem" onclick="segPick(this)">적게</div>
+          <div class="sitem on" onclick="segPick(this)">보통</div>
+          <div class="sitem" onclick="segPick(this)">자주</div>
+        </div>
+
+        <div class="div" style="margin-top:22px;"></div>
+        <div class="sec-label" style="margin-top:0;">일정별 알림</div>
+        <div class="lrow"><div class="ltext"><div class="ltitle">시간 알림</div></div><div class="toggle on clickable" onclick="tg(this)"><div class="knob"></div></div></div>
+        <div class="lrow"><div class="ltext"><div class="ltitle">교통 지연 알림</div></div><div class="toggle on clickable" onclick="tg(this)"><div class="knob"></div></div></div>
+        <div class="lrow"><div class="ltext"><div class="ltitle">웰니스 알림</div></div><div class="toggle clickable" onclick="tg(this)"><div class="knob"></div></div></div>
+
+        <div class="div"></div>
+        <div class="sec-label" style="margin-top:0;">잠금화면 표시</div>
+        <div class="lrow">
+          <div class="ltext"><div class="ltitle">잠금화면에서 민감한 정보 숨기기</div><div class="lsub">복용약 등 민감 항목은 잠금화면에서 일반화되어 표시돼요</div></div>
+          <div class="toggle on clickable" onclick="tg(this)"><div class="knob"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ 5. 웰니스 ═══ -->
+    <div class="view" id="v-well">
+      <div class="topbar">
+        <div class="backbtn clickable" onclick="go('v-list')"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></div>
+        <div class="toptitle">웰니스</div>
+      </div>
+      <div class="scroll">
+        <div class="sec-label" style="margin-top:16px;">관심 환경 항목</div>
+        <div class="lrow"><div class="ltext"><div class="ltitle">자외선</div></div><div class="toggle on clickable" onclick="tg(this)"><div class="knob"></div></div></div>
+        <div class="lrow"><div class="ltext"><div class="ltitle">미세먼지</div></div><div class="toggle on clickable" onclick="tg(this)"><div class="knob"></div></div></div>
+        <div class="lrow"><div class="ltext"><div class="ltitle">기온</div></div><div class="toggle on clickable" onclick="tg(this)"><div class="knob"></div></div></div>
+        <div class="lrow"><div class="ltext"><div class="ltitle">강수</div></div><div class="toggle on clickable" onclick="tg(this)"><div class="knob"></div></div></div>
+        <div class="lrow"><div class="ltext"><div class="ltitle">수분</div></div><div class="toggle clickable" onclick="tg(this)"><div class="knob"></div></div></div>
+        <p class="caption">입력하지 않아도 핵심 기능은 그대로 동작해요. 관심 있는 항목만 켜 두면 관련 알림·제안에 반영돼요.</p>
+
+        <div class="div" style="margin-top:18px;"></div>
+        <div class="sec-label" style="margin-top:0;">선크림 재도포 리마인드</div>
+        <div class="lrow">
+          <div class="ltext"><div class="ltitle">재도포 리마인드</div><div class="lsub">설정한 주기마다 다시 알려드려요</div></div>
+          <div class="toggle on clickable" onclick="toggleReapply(this)"><div class="knob"></div></div>
+        </div>
+        <div class="card soft" id="reapply-cycle">
+          <div class="k">재도포 주기</div>
+          <div class="chiprow" style="margin-top:8px;">
+            <div class="chip on" onclick="pickCycle(this)">2시간</div>
+            <div class="chip" onclick="pickCycle(this)">3시간</div>
+            <div class="chip" onclick="pickCycle(this)">직접 입력</div>
+          </div>
+          <input type="text" id="reapply-custom" placeholder="예: 90분" style="display:none;width:100%;border:1.4px solid var(--hairline);border-radius:12px;padding:11px 13px;font-size:13px;font-family:var(--font);background:var(--surface-1);margin-top:9px;">
+        </div>
+        <p class="caption">재도포 주기는 사용자가 직접 설정해요 — SPF, 피부 타입, 제품 성능에 따라 달라질 수 있어 앱이 대신 판단하지 않아요.</p>
+
+        <div class="div" style="margin-top:18px;"></div>
+        <div class="sec-label" style="margin-top:0;">일정 중 알림</div>
+        <div class="lrow">
+          <div class="ltext"><div class="ltitle">일정 진행 중 이벤트 알림</div><div class="lsub">기본 시간 알림과 별개로, 일정 도중 날씨 변화 등을 즉시 알려드려요</div></div>
+          <div class="toggle clickable" onclick="tg(this)"><div class="knob"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ 6. 개인화 ═══ -->
+    <div class="view" id="v-personal">
+      <div class="topbar">
+        <div class="backbtn clickable" onclick="go('v-list')"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></div>
+        <div class="toptitle">개인화</div>
+      </div>
+      <div class="scroll">
+        <div class="card" style="margin-top:16px;">
+          <div class="cmp">
+            <div class="box"><div class="lbl">처음 입력한 준비 시간</div><div class="num">30분</div></div>
+            <svg class="arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            <div class="box"><div class="lbl">최근 학습된 준비 시간</div><div class="num">42분</div></div>
+          </div>
+        </div>
+
+        <div class="sec-label">최근 보정 이력</div>
+        <div class="card">
+          <div class="hrow">
+            <div><div class="hd">최근 8회 기록 기준 <b>+5분</b></div><div class="hdate">8월 12일</div></div>
+            <div class="undo" onclick="openDialog('d-undo')">되돌리기</div>
+          </div>
+          <div class="hrow">
+            <div><div class="hd">최근 6회 기록 기준 <b>+7분</b></div><div class="hdate">7월 28일</div></div>
+            <div class="undo" onclick="openDialog('d-undo')">되돌리기</div>
+          </div>
+        </div>
+
+        <button class="pbtn secondary full" style="margin-top:22px;" onclick="openDialog('d-reset')">개인화 초기화</button>
+      </div>
+    </div>
+
+    <!-- ═══ 7. 데이터 ═══ -->
+    <div class="view" id="v-data">
+      <div class="topbar">
+        <div class="backbtn clickable" onclick="go('v-list')"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></div>
+        <div class="toptitle">데이터</div>
+      </div>
+      <div class="scroll">
+        <div class="lrow" style="align-items:flex-start;margin-top:16px;">
+          <div class="ltext">
+            <div class="ltitle">행동 기록 삭제</div>
+            <p style="margin-top:4px;font-size:12px;color:var(--ink-muted);line-height:1.55;">준비·이동 기록을 삭제해요. 개인화 학습에 사용된 데이터가 초기화돼요.</p>
+          </div>
+        </div>
+        <button class="pbtn danger-text" onclick="openDialog('d-del1')">삭제</button>
+
+        <div class="div" style="margin-top:18px;"></div>
+        <div class="lrow clickable" onclick="go('v-withdraw1')">
+          <div class="ltext"><div class="ltitle">계정 삭제</div></div>
+          <svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ dialogs ═══ -->
+    <div class="scrim" id="scrim">
+      <div class="dialog centered" id="d-logout">
+        <h3>로그아웃 하시겠어요?</h3>
+        <p>다시 로그인하면 이전 정보가 그대로 유지돼요.</p>
+        <div class="btnrow">
+          <button class="pbtn secondary" onclick="closeDialog()">취소</button>
+          <button class="pbtn primary" onclick="closeDialog()">로그아웃</button>
+        </div>
+      </div>
+      <div class="dialog centered" id="d-withdrawn" style="display:none;">
+        <h3>탈퇴가 완료됐어요</h3>
+        <p>그동안 Ensom을 이용해 주셔서 감사했어요.</p>
+        <button class="pbtn full" style="margin-top:14px;background:var(--cta);color:#fff;" onclick="closeDialog()">확인</button>
+      </div>
+      <div class="dialog centered" id="d-undo" style="display:none;">
+        <h3>이 기록을 되돌릴까요?</h3>
+        <p>되돌리면 이 기록은 이후 학습에서 제외돼요.</p>
+        <div class="btnrow">
+          <button class="pbtn secondary" onclick="closeDialog()">취소</button>
+          <button class="pbtn primary" onclick="closeDialog()">되돌리기</button>
+        </div>
+      </div>
+      <div class="dialog centered" id="d-reset" style="display:none;">
+        <h3>개인화를 초기화할까요?</h3>
+        <p>학습된 준비 시간이 초기값으로 돌아가요.</p>
+        <p class="caption" style="margin-top:6px;">행동 기록은 유지돼요.</p>
+        <div class="btnrow">
+          <button class="pbtn secondary" onclick="closeDialog()">취소</button>
+          <button class="pbtn primary" onclick="closeDialog()">초기화</button>
+        </div>
+      </div>
+      <div class="dialog centered" id="d-del1" style="display:none;">
+        <h3>삭제하면 되돌릴 수 없어요</h3>
+        <p>행동 기록과 개인화 학습 데이터가 모두 삭제돼요.</p>
+        <div class="btnrow">
+          <button class="pbtn secondary" onclick="closeDialog()">취소</button>
+          <button class="pbtn primary" onclick="closeDialog()">삭제</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="toast" id="toast">설정이 저장됐어요</div>
+  </div>
+
+  <div class="legend">
+    <p><b>보는 법</b> — 첫 화면이 프로필 메인 리스트. 각 행 탭하면 해당 설정 화면으로 들어가고, 좌상단 뒤로가기로 복귀해.</p>
+    <p style="margin-top:8px;"><b>클릭해볼 것</b> — 계정 → 회원 탈퇴 (2단계 확인 흐름) · 권한 → "항상 위치 허용" 토글 (안내 카드 등장) · 개인화 → 되돌리기/초기화 다이얼로그 · 데이터 → 삭제 다이얼로그 · 알림 → 세그먼트·토글 전환.</p>
+    <div class="hint">7개 화면 + 다이얼로그 5종 + 토글/세그먼트/칩 인터랙션 전부 동작</div>
+  </div>
+</div>
+
+<script>
+  function go(id){
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('on'));
+    document.getElementById(id).classList.add('on');
+  }
+  function openDialog(id){
+    document.querySelectorAll('.dialog').forEach(d=>d.style.display='none');
+    document.getElementById(id).style.display='block';
+    document.getElementById('scrim').classList.add('on');
+  }
+  function closeDialog(){
+    document.getElementById('scrim').classList.remove('on');
+  }
+  function tg(el){ el.classList.toggle('on'); }
+  function toggleAlwaysLoc(el){
+    el.classList.toggle('on');
+    document.getElementById('always-info').style.display = el.classList.contains('on') ? 'block' : 'none';
+  }
+  function segPick(el){
+    el.parentNode.querySelectorAll('.sitem').forEach(s=>s.classList.remove('on'));
+    el.classList.add('on');
+  }
+  function pick(el){
+    el.parentNode.querySelectorAll('.chip').forEach(s=>s.classList.remove('on'));
+    el.classList.add('on');
+  }
+  function toggleReapply(el){
+    el.classList.toggle('on');
+    document.getElementById('reapply-cycle').style.display = el.classList.contains('on') ? 'block' : 'none';
+  }
+  function pickCycle(el){
+    el.parentNode.querySelectorAll('.chip').forEach(s=>s.classList.remove('on'));
+    el.classList.add('on');
+    document.getElementById('reapply-custom').style.display = (el.textContent.trim()==='직접 입력') ? 'block' : 'none';
+  }
+</script>
+
+<script>(function(){ if(window.self!==window.top){ document.body.classList.add('embed'); } })();</script>
+
+</body>
+</html>

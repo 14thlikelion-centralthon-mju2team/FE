@@ -6,9 +6,11 @@ import "package:hive_ce_flutter/hive_ce_flutter.dart";
 import "package:uuid/uuid.dart";
 import "../../local/place_cache_entry.dart";
 import "../../models/place.dart";
+import "../../providers/auth_providers.dart";
 import "../../repository/providers.dart";
 import "../../widgets/vium_button.dart";
 import "../../widgets/vium_card.dart";
+import "../../theme/ensom_colors.dart";
 
 const _labelOptions = ["집", "학교", "회사", "직접 입력"];
 
@@ -16,7 +18,7 @@ class PlaceRegistrationScreen extends ConsumerStatefulWidget {
   const PlaceRegistrationScreen({super.key, this.isOnboarding = false});
 
   /// 온보딩 흐름에서 호출되면 true — "완료/나중에" 버튼이 표시되고
-  /// 완료 시 /home으로 이동한다.
+  /// 완료 시 캘린더 연동 프라이밍으로 이동한다.
   final bool isOnboarding;
 
   @override
@@ -45,8 +47,9 @@ class _PlaceRegistrationScreenState
 
   void _showError(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _useCurrentLocation() async {
@@ -140,7 +143,10 @@ class _PlaceRegistrationScreenState
         actions: [
           if (widget.isOnboarding)
             TextButton(
-              onPressed: () => context.go("/onboarding/wellness"),
+              onPressed: () {
+                ref.read(secureStorageProvider).setOnboardingStep("calendar");
+                context.go("/onboarding/priming/calendar");
+              },
               child: const Text("완료"),
             ),
         ],
@@ -183,7 +189,10 @@ class _PlaceRegistrationScreenState
                 if (lat != null && lng != null)
                   Text(
                     "선택된 위치: ${lat!.toStringAsFixed(4)}, ${lng!.toStringAsFixed(4)}",
-                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: EnsomColors.inkMuted,
+                    ),
                   ),
                 ViumButton(
                   label: locating ? "위치 확인 중..." : "현재 위치 사용",
@@ -208,19 +217,21 @@ class _PlaceRegistrationScreenState
               if (entries.isEmpty) {
                 return const Text(
                   "아직 등록된 장소가 없어요.",
-                  style: TextStyle(color: Colors.grey),
+                  style: TextStyle(color: EnsomColors.inkMuted),
                 );
               }
               return Column(
                 children: entries
-                    .map((e) => ListTile(
-                          title: Text(e.label),
-                          subtitle: Text("반경 ${e.radiusM}m"),
-                          trailing: IconButton(
-                            icon: const Icon(Icons.delete_outline),
-                            onPressed: () => _remove(e),
-                          ),
-                        ))
+                    .map(
+                      (e) => ListTile(
+                        title: Text(e.label),
+                        subtitle: Text("반경 ${e.radiusM}m"),
+                        trailing: IconButton(
+                          icon: const Icon(Icons.delete_outline),
+                          onPressed: () => _remove(e),
+                        ),
+                      ),
+                    )
                     .toList(),
               );
             },

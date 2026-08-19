@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ensom — 준비 시간 + 나만의 준비 항목 (온보딩)</title>
+<style>
+  :root{
+    --lime:#c6f135;--lime-soft:#e4fb9b;--lime-ink:#4e6810;
+    --ink:#14150f;--ink-muted:#63655e;--ink-faint:#6f7269;
+    --surface-1:#fff;--surface-2:#eef0ea;--surface-neutral:#e9e9e6;
+    --hairline:#e3e5e0;--cta:#1f231a;--panel:#15170f;--caution:#e3a13b;
+    --font:'Pretendard','Apple SD Gothic Neo','Malgun Gothic',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:var(--font);background:#d9dcd3;color:var(--ink);padding:32px 20px 60px;-webkit-font-smoothing:antialiased;}
+  .page-head{max-width:1180px;margin:0 auto 22px;}
+  .page-head h1{font-size:22px;font-weight:700;letter-spacing:-.4px;}
+  .page-head p{font-size:13px;color:#55584f;margin-top:6px;line-height:1.55;}
+  .stage{max-width:1180px;margin:0 auto;display:flex;gap:36px;flex-wrap:wrap;align-items:flex-start;}
+  .phone{width:344px;height:730px;flex:0 0 auto;background:#fff;border-radius:46px;border:9px solid #16170f;position:relative;overflow:hidden;box-shadow:0 20px 50px rgba(20,21,15,.26);display:flex;flex-direction:column;}
+  .notch{position:absolute;top:0;left:50%;transform:translateX(-50%);width:112px;height:26px;background:#16170f;border-radius:0 0 16px 16px;z-index:60;}
+
+  .clickable{cursor:pointer;transition:transform .12s;}
+  .clickable:active{transform:scale(.985);}
+
+  /* ═ top bar (white/transparent — not dark, per this prototype's explicit convention) ═ */
+  .topbar{flex:0 0 auto;background:#fff;color:var(--ink);display:flex;align-items:center;padding:46px 18px 8px;}
+  .backbtn{width:32px;height:32px;border-radius:999px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;flex:0 0 auto;}
+  .backbtn svg{width:14px;height:14px;stroke:var(--ink);fill:none;stroke-width:2.1;}
+
+  /* ═ scroll content ═ */
+  .scroll{flex:1 1 auto;overflow-y:auto;padding:10px 20px 26px;}
+  .q-title{font-size:17px;font-weight:700;letter-spacing:-.3px;line-height:1.4;word-break:keep-all;}
+  .q-sub{font-size:12px;color:var(--ink-muted);line-height:1.55;margin-top:6px;word-break:keep-all;}
+
+  .chiprow{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px;}
+  .chip{font-family:var(--font);font-size:12.5px;font-weight:600;padding:10px 15px;border-radius:999px;background:var(--surface-2);color:var(--ink-muted);white-space:nowrap;user-select:none;transition:background .15s,color .15s;}
+  .chip.on{background:var(--cta);color:#fff;}
+  .qchip.on::before{content:'✓ ';color:var(--lime);font-weight:800;}
+
+  .seedNote{font-size:11px;color:var(--ink-faint);line-height:1.5;margin-top:10px;display:none;}
+
+  .divider{height:1px;background:var(--hairline);margin:28px 0 22px;}
+
+  .addrow{display:none;gap:8px;margin-top:10px;}
+  .addrow input{flex:1 1 auto;border:1.4px solid var(--hairline);border-radius:12px;padding:10px 13px;font-size:12.5px;font-family:var(--font);background:var(--surface-1);color:var(--ink);}
+  .addconfirm{font-family:var(--font);border:0;border-radius:12px;padding:10px 16px;font-size:12.5px;font-weight:700;background:var(--cta);color:#fff;cursor:pointer;flex:0 0 auto;}
+
+  /* ═ bottom fixed action bar ═ */
+  .bottombar{flex:0 0 auto;background:#fff;border-top:1px solid var(--hairline);padding:14px 20px calc(16px + env(safe-area-inset-bottom,0));}
+  .pbtn-save{font-family:var(--font);border:0;border-radius:999px;padding:15px 16px;font-size:14.5px;font-weight:700;cursor:pointer;width:100%;background:var(--cta);color:#fff;}
+  .textbtn{display:block;background:transparent;border:0;font-family:var(--font);font-size:12.5px;color:var(--ink-muted);text-decoration:underline;text-underline-offset:2px;cursor:pointer;text-align:center;margin-top:10px;width:100%;padding:4px;}
+
+  /* ═ item detail bottom sheet (class names match ensom_prepitem_calsync.html for visual consistency) ═ */
+  .sheetwrap{position:absolute;inset:0;z-index:70;display:flex;align-items:flex-end;pointer-events:none;}
+  .scrim{position:absolute;inset:0;background:rgba(20,21,15,0);transition:background .2s;}
+  .sheetwrap.on{pointer-events:auto;}
+  .sheetwrap.on .scrim{background:rgba(20,21,15,.45);}
+  .sheet{position:relative;width:100%;max-height:86%;overflow-y:auto;background:#fff;border-radius:26px 26px 0 0;padding:10px 20px calc(20px + env(safe-area-inset-bottom,0));transform:translateY(100%);transition:transform .24s cubic-bezier(.32,.72,0,1);z-index:2;}
+  .sheetwrap.on .sheet{transform:translateY(0);}
+  .handle{width:36px;height:4px;background:var(--surface-neutral);border-radius:99px;margin:4px auto 14px;}
+  .sheet-title{font-size:16px;font-weight:700;letter-spacing:-.2px;}
+  .sheet-sub{font-size:11.5px;color:var(--ink-muted);line-height:1.5;margin-top:5px;}
+
+  .field{margin-top:14px;}
+  .field label{font-size:11px;font-weight:600;color:var(--ink-muted);display:block;margin-bottom:7px;}
+  .field input{width:100%;border:1.4px solid var(--hairline);border-radius:12px;padding:11px 13px;font-size:13px;font-family:var(--font);background:var(--surface-1);}
+
+  .seg{display:flex;background:var(--surface-2);border-radius:13px;padding:3px;gap:3px;}
+  .seg .sitem{flex:1 1 0;text-align:center;font-size:11px;font-weight:600;padding:9px 3px;border-radius:10px;cursor:pointer;color:var(--ink-muted);line-height:1.3;}
+  .seg .sitem.on{background:var(--cta);color:#fff;}
+
+  .toggle{width:42px;height:25px;border-radius:999px;background:var(--surface-neutral);position:relative;flex:0 0 auto;transition:background .15s;}
+  .toggle .knob{position:absolute;top:2.5px;left:2.5px;width:20px;height:20px;border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);transition:left .15s, background .15s;}
+  .toggle.on{background:var(--cta);}
+  .toggle.on .knob{left:19.5px;background:var(--lime);}
+  .toggle.disabled{opacity:.55;cursor:default;}
+  .togrow{display:flex;justify-content:space-between;align-items:center;gap:12px;}
+  .lockhint{font-size:10.5px;color:var(--ink-faint);margin-top:6px;line-height:1.5;display:none;}
+
+  .pbtn{font-family:var(--font);border:0;border-radius:999px;padding:13px 16px;font-size:14px;font-weight:700;cursor:pointer;width:100%;background:var(--cta);color:#fff;margin-top:20px;}
+
+  /* ═ toast ═ */
+  .toast{position:absolute;left:16px;right:16px;bottom:96px;background:#1f231a;color:#fff;font-size:12.5px;font-weight:600;padding:13px 16px;border-radius:16px;z-index:90;transform:translateY(16px);opacity:0;transition:all .2s;text-align:center;pointer-events:none;}
+  .toast.on{transform:translateY(0);opacity:1;}
+
+  .hint{display:inline-block;background:#15170f;color:#c6f135;font-size:11.5px;font-weight:600;padding:6px 12px;border-radius:999px;margin-top:10px;}
+  .legend{max-width:340px;font-size:12px;color:#55584f;line-height:1.7;}
+  .legend b{color:var(--ink);}
+
+  /* ═ embed mode (used when loaded inside the shell) ═ */
+  body.embed{background:transparent;padding:0;overflow:hidden;}
+  body.embed .page-head,body.embed .legend,body.embed .hint{display:none!important;}
+  body.embed .stage{margin:0;padding:0;gap:0;}
+  body.embed{height:100vh;}
+  body.embed .stage{height:100%;align-items:stretch;}
+  body.embed .phone{width:100%!important;height:100%!important;max-width:100%;border:0!important;border-radius:0!important;box-shadow:none!important;}
+  body.embed .notch{display:none!important;}
+</style>
+</head>
+<body>
+
+<div class="page-head">
+  <h1>Ensom — 준비 시간 + 나만의 준비 항목 (온보딩)</h1>
+  <p>온보딩 중 준비 시간 시드값과 반복 준비 항목을 한 화면에서 입력받는 화면(S-03). 준비 시간 칩은 단일 선택, 빠른 추가 칩은 다중 선택이며 항목을 켜면 구분·소요 시간·잠금화면 표시 여부를 정하는 시트가 뜬다. "복용약"은 시트가 열리는 순간 잠금화면 숨기기가 강제로 고정된다.</p>
+</div>
+
+<div class="stage">
+  <div class="phone">
+    <div class="notch"></div>
+
+    <div class="topbar">
+      <div class="backbtn clickable"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></div>
+    </div>
+
+    <div class="scroll">
+      <h2 class="q-title">평소 외출 준비에 얼마나 걸리나요?</h2>
+      <p class="q-sub">정확하지 않아도 괜찮아요. 실제 준비와 이동 기록을 바탕으로 Ensom이 계속 조정할게요.</p>
+
+      <div class="chiprow" id="timeRow">
+        <div class="chip timechip clickable" data-val="10min" onclick="pickTime(this)">10분</div>
+        <div class="chip timechip clickable" data-val="20min" onclick="pickTime(this)">20분</div>
+        <div class="chip timechip clickable" data-val="30min" onclick="pickTime(this)">30분</div>
+        <div class="chip timechip clickable" data-val="45min" onclick="pickTime(this)">45분</div>
+        <div class="chip timechip clickable" data-val="60plus" onclick="pickTime(this)">1시간 이상</div>
+        <div class="chip timechip clickable" data-val="unknown" onclick="pickTime(this)">잘 모르겠어요</div>
+      </div>
+      <p class="seedNote" id="seedNote">우선 기본값 30분으로 시작할게요. 준비·이동 기록이 쌓이면 자동으로 조정돼요.</p>
+
+      <div class="divider"></div>
+
+      <h2 class="q-title">외출 전에 자주 챙기거나 하는 일이 있나요?</h2>
+      <p class="q-sub">선택한 항목은 다음 일정의 준비 체크리스트와 준비 시간에 자동 반영됩니다.</p>
+
+      <div class="chiprow" id="qchipRow">
+        <div class="chip qchip clickable" data-item="영양제" onclick="toggleChip(this)">영양제</div>
+        <div class="chip qchip clickable" data-item="복용약" onclick="toggleChip(this)">복용약</div>
+        <div class="chip qchip clickable" data-item="물/텀블러" onclick="toggleChip(this)">물/텀블러</div>
+        <div class="chip qchip clickable" data-item="선크림" onclick="toggleChip(this)">선크림</div>
+        <div class="chip qchip clickable" data-item="마스크" onclick="toggleChip(this)">마스크</div>
+        <div class="chip qchip clickable" data-item="우산" onclick="toggleChip(this)">우산</div>
+        <div class="chip qchip clickable" data-item="보조배터리" onclick="toggleChip(this)">보조배터리</div>
+        <div class="chip qchip clickable" data-item="커피/차/간식" onclick="toggleChip(this)">커피/차/간식</div>
+        <div class="chip addchip clickable" id="addChipBtn" onclick="toggleAddInput()">+ 직접 추가</div>
+      </div>
+
+      <div class="addrow" id="addRow">
+        <input type="text" id="addInput" placeholder="항목명을 입력하세요" maxlength="14" onkeydown="if(event.key==='Enter'){confirmAdd();}">
+        <button class="addconfirm" onclick="confirmAdd()">추가</button>
+      </div>
+    </div>
+
+    <div class="bottombar">
+      <button class="pbtn-save" onclick="saveAll()">저장</button>
+      <button class="textbtn" onclick="skipAll()">나중에 설정할게요</button>
+    </div>
+
+    <div class="toast" id="mainToast"></div>
+
+    <!-- ═══ 준비 항목 상세 시트 (칩 하나마다 재사용) ═══ -->
+    <div class="sheetwrap" id="itemSheet">
+      <div class="scrim" onclick="closeSheet()"></div>
+      <div class="sheet">
+        <div class="handle"></div>
+        <div class="sheet-title" id="sheetTitle">항목</div>
+        <p class="sheet-sub">구분을 선택하면 준비 체크리스트와 시간에 자동 반영돼요.</p>
+
+        <div class="field">
+          <label>구분</label>
+          <div class="seg" id="kindSeg">
+            <div class="sitem" data-kind="챙기기" onclick="pickKind(this)">챙기기</div>
+            <div class="sitem" data-kind="사용·섭취하기" onclick="pickKind(this)">사용·섭취하기</div>
+            <div class="sitem" data-kind="구매하기" onclick="pickKind(this)">구매하기</div>
+            <div class="sitem" data-kind="시간이 필요한 루틴" onclick="pickKind(this)">시간이 필요한 루틴</div>
+          </div>
+        </div>
+
+        <div class="field" id="durField" style="display:none;">
+          <label>추가 소요 시간 (분)</label>
+          <input type="number" id="durInput" placeholder="예: 15" oninput="onDurInput(this)">
+        </div>
+
+        <div class="field">
+          <div class="togrow">
+            <label style="margin:0;">잠금화면에서 항목명 숨기기</label>
+            <div class="toggle" id="lockToggle" onclick="toggleLock(this)"><div class="knob"></div></div>
+          </div>
+          <p class="lockhint" id="lockHint">복용약은 정책상 항상 잠금화면에서 이름을 숨겨요</p>
+        </div>
+
+        <button class="pbtn" onclick="closeSheet()">완료</button>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="legend">
+    <p><b>준비 시간 칩</b> — 단일 선택(라디오)이라 하나를 고르면 이전 선택은 자동으로 풀려. "잘 모르겠어요"를 고르면 기본값 30분으로 시작한다는 안내 문구가 아래 나타나.</p>
+    <p style="margin-top:8px;"><b>빠른 추가 칩</b> — 다중 선택(토글)이야. 켜면 바로 상세 시트가 뜨고, 구분에서 "시간이 필요한 루틴"을 고를 때만 소요 시간 입력 필드가 나타나. 칩을 다시 탭하면 꺼지면서 저장된 시트 데이터도 함께 지워져.</p>
+    <p style="margin-top:8px;"><b>복용약 특수 규칙</b> — 시트가 열리는 순간 "잠금화면에서 항목명 숨기기"가 강제로 켜지고 잠겨서(반투명 + 클릭 무시) 끌 수 없어. 정책상 항상 민감 항목으로 취급돼.</p>
+    <p style="margin-top:8px;"><b>직접 추가</b> — 탭하면 토글되지 않고 인라인 입력창이 열려. 이름을 입력해 추가하면 새 칩이 그 자리에 생기고 바로 그 칩의 시트가 열려 구성할 수 있어.</p>
+    <p style="margin-top:8px;"><b>하단 저장</b> — 아무 것도 선택하지 않아도 "저장"과 "나중에 설정할게요" 둘 다 항상 눌려. 이 단계는 건너뛰어도 온보딩이 막히지 않아.</p>
+    <div class="hint">칩 선택 · 시트 열기/닫기 · 직접 추가 · 복용약 잠금 전부 실제 동작</div>
+  </div>
+</div>
+
+<script>
+  let currentItemKey = null;
+  const items = {};
+
+  // ── 준비 시간 (단일 선택) ──
+  function pickTime(el){
+    document.querySelectorAll('.timechip').forEach(c=>c.classList.remove('on'));
+    el.classList.add('on');
+    document.getElementById('seedNote').style.display = (el.dataset.val === 'unknown') ? 'block' : 'none';
+  }
+
+  // ── 빠른 추가 칩 (다중 선택 토글) ──
+  function toggleChip(el){
+    const key = el.dataset.item;
+    if(el.classList.contains('on')){
+      // 다시 탭 → 끄기: 시트 데이터 제거, 하이라이트 해제
+      el.classList.remove('on');
+      delete items[key];
+      if(currentItemKey === key) closeSheet();
+    } else {
+      el.classList.add('on');
+      const isMed = (key === '복용약'); // 정책상 항상 민감 처리 (이름이 "복용약"이면 직접 추가로 생성됐어도 동일 적용)
+      items[key] = { kind:'챙기기', minutes:'', hideOnLock:isMed, locked:isMed };
+      openItemSheet(key);
+    }
+  }
+
+  function openItemSheet(key){
+    currentItemKey = key;
+    const it = items[key];
+
+    document.getElementById('sheetTitle').textContent = key;
+
+    document.querySelectorAll('#kindSeg .sitem').forEach(s=>{
+      s.classList.toggle('on', s.dataset.kind === it.kind);
+    });
+    document.getElementById('durField').style.display = (it.kind === '시간이 필요한 루틴') ? 'block' : 'none';
+    document.getElementById('durInput').value = it.minutes || '';
+
+    const tgl = document.getElementById('lockToggle');
+    tgl.classList.remove('on','disabled','clickable');
+    if(it.locked){
+      // SPECIAL RULE: 복용약은 시트가 열리는 순간 강제 ON + 비활성(클릭 무시)
+      tgl.classList.add('on','disabled');
+    } else {
+      tgl.classList.add('clickable');
+      if(it.hideOnLock) tgl.classList.add('on');
+    }
+    document.getElementById('lockHint').style.display = it.locked ? 'block' : 'none';
+
+    document.getElementById('itemSheet').classList.add('on');
+  }
+
+  function pickKind(el){
+    if(!currentItemKey) return;
+    document.querySelectorAll('#kindSeg .sitem').forEach(s=>s.classList.remove('on'));
+    el.classList.add('on');
+    const kind = el.dataset.kind;
+    items[currentItemKey].kind = kind;
+    document.getElementById('durField').style.display = (kind === '시간이 필요한 루틴') ? 'block' : 'none';
+  }
+
+  function onDurInput(el){
+    if(currentItemKey) items[currentItemKey].minutes = el.value;
+  }
+
+  function toggleLock(el){
+    if(!currentItemKey) return;
+    const it = items[currentItemKey];
+    if(it.locked) return; // 복용약: onclick이 발생해도 아무 동작 없음(no-op)
+    el.classList.toggle('on');
+    it.hideOnLock = el.classList.contains('on');
+  }
+
+  function closeSheet(){
+    document.getElementById('itemSheet').classList.remove('on');
+    currentItemKey = null;
+  }
+
+  // ── 직접 추가 (토글이 아니라 인라인 입력) ──
+  function toggleAddInput(){
+    const row = document.getElementById('addRow');
+    const btn = document.getElementById('addChipBtn');
+    const showing = row.style.display === 'flex';
+    row.style.display = showing ? 'none' : 'flex';
+    btn.classList.toggle('on', !showing);
+    if(!showing) document.getElementById('addInput').focus();
+  }
+
+  function confirmAdd(){
+    const input = document.getElementById('addInput');
+    const name = input.value.trim();
+    if(!name) return;
+    addCustomChip(name);
+    input.value = '';
+    document.getElementById('addRow').style.display = 'none';
+    document.getElementById('addChipBtn').classList.remove('on');
+  }
+
+  function addCustomChip(name){
+    const row = document.getElementById('qchipRow');
+    const addBtn = document.getElementById('addChipBtn');
+    const chip = document.createElement('div');
+    chip.className = 'chip qchip clickable';
+    chip.dataset.item = name;
+    chip.textContent = name;
+    chip.onclick = function(){ toggleChip(chip); };
+    row.insertBefore(chip, addBtn);
+    toggleChip(chip); // 추가 즉시 켜고 시트를 열어 바로 구성할 수 있게 함
+  }
+
+  // ── 하단 저장 / 나중에 (항상 눌림, 선택 여부와 무관) ──
+  function showToast(msg){
+    const t = document.getElementById('mainToast');
+    t.textContent = msg;
+    t.classList.add('on');
+    clearTimeout(window.__toastTimer);
+    window.__toastTimer = setTimeout(()=>t.classList.remove('on'), 2200);
+  }
+  function saveAll(){
+    showToast('저장했어요');
+  }
+  function skipAll(){
+    showToast('나중에 설정할 수 있어요');
+  }
+</script>
+
+<script>(function(){ if(window.self!==window.top){ document.body.classList.add('embed'); } })();</script>
+
+</body>
+</html>

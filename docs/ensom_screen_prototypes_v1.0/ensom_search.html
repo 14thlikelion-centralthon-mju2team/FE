@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ensom — 장소 검색 흐름 프로토타입</title>
+<style>
+  :root{
+    --lime:#c6f135;--lime-soft:#e4fb9b;--lime-ink:#4e6810;
+    --canvas:#ffffff;--surface-1:#ffffff;--surface-2:#eef0ea;--surface-neutral:#e9e9e6;
+    --hairline:#e3e5e0;--ink:#14150f;--ink-muted:#63655e;--ink-faint:#6f7269;
+    --cta:#1f231a;
+    --font:'Pretendard','Apple SD Gothic Neo','Malgun Gothic',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:var(--font);background:#d9dcd3;color:var(--ink);padding:32px 20px 60px;-webkit-font-smoothing:antialiased;}
+  .page-head{max-width:1180px;margin:0 auto 22px;}
+  .page-head h1{font-size:22px;font-weight:700;letter-spacing:-.4px;}
+  .page-head p{font-size:13px;color:#55584f;margin-top:6px;line-height:1.55;}
+  .stage{max-width:1180px;margin:0 auto;display:flex;gap:36px;flex-wrap:wrap;align-items:flex-start;}
+  .phone{width:344px;height:730px;flex:0 0 auto;background:var(--canvas);border-radius:46px;border:9px solid #16170f;position:relative;overflow:hidden;box-shadow:0 20px 50px rgba(20,21,15,.26);}
+  .notch{position:absolute;top:0;left:50%;transform:translateX(-50%);width:112px;height:26px;background:#16170f;border-radius:0 0 16px 16px;z-index:60;}
+
+  .view{position:absolute;inset:0;display:none;flex-direction:column;}
+  .view.on{display:flex;}
+
+  .clickable{cursor:pointer;transition:transform .12s;}
+  .clickable:active{transform:scale(.985);}
+
+  /* search header */
+  .shead{flex:0 0 auto;padding:50px 16px 12px;display:flex;align-items:center;gap:10px;}
+  .backbtn{width:30px;height:30px;border-radius:999px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;cursor:pointer;flex:0 0 auto;}
+  .backbtn svg{width:14px;height:14px;stroke:var(--ink);fill:none;stroke-width:2.1;}
+  .sbox{flex:1 1 auto;display:flex;align-items:center;gap:8px;background:var(--surface-2);border:1.6px solid transparent;border-radius:13px;padding:10px 13px;}
+  .sbox.focus{border-color:var(--cta);background:#fff;}
+  .sbox svg{width:15px;height:15px;stroke:var(--ink-muted);fill:none;stroke-width:2;flex:0 0 auto;}
+  .sbox input{border:0;outline:0;background:transparent;font-family:var(--font);font-size:14px;flex:1 1 auto;color:var(--ink);}
+  .sbox input::placeholder{color:var(--ink-faint);}
+  .clearx{width:16px;height:16px;border-radius:999px;background:var(--surface-neutral);display:none;align-items:center;justify-content:center;cursor:pointer;flex:0 0 auto;}
+  .clearx svg{width:8px;height:8px;stroke:var(--ink-muted);fill:none;stroke-width:2.4;}
+
+  .scroll{flex:1 1 auto;overflow-y:auto;padding:6px 16px 20px;}
+  .scroll::-webkit-scrollbar{display:none;}
+
+  .sec-label{font-size:10.5px;font-weight:700;color:var(--ink-faint);letter-spacing:.4px;margin:16px 0 6px;text-transform:uppercase;}
+  .row{display:flex;align-items:center;gap:12px;padding:11px 2px;cursor:pointer;}
+  .row .ic{width:32px;height:32px;border-radius:999px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;flex:0 0 auto;}
+  .row .ic svg{width:14px;height:14px;stroke:var(--ink-muted);fill:none;stroke-width:1.8;}
+  .row .rt{flex:1 1 auto;min-width:0;}
+  .row .rname{font-size:13.5px;font-weight:600;}
+  .row .rname b{color:var(--ink);font-weight:800;}
+  .row .raddr{font-size:11px;color:var(--ink-faint);margin-top:2px;}
+  .row .rdist{font-size:11px;color:var(--ink-muted);white-space:nowrap;flex:0 0 auto;}
+
+  .noresult{display:flex;flex-direction:column;align-items:center;justify-content:center;padding-top:90px;text-align:center;}
+  .noresult .nt{font-size:14.5px;font-weight:700;}
+  .noresult .ns{font-size:12px;color:var(--ink-muted);margin-top:6px;}
+
+  .mapselect-cta{margin:14px 2px 0;padding:12px 14px;background:var(--surface-2);border-radius:14px;display:flex;align-items:center;justify-content:center;gap:8px;font-size:13px;font-weight:700;cursor:pointer;}
+  .mapselect-cta svg{width:15px;height:15px;stroke:var(--ink);fill:none;stroke-width:1.9;}
+
+  /* map pin screen */
+  .mapview{position:relative;flex:1 1 auto;background:
+    linear-gradient(0deg, transparent 24%, rgba(200,204,190,.5) 25%, rgba(200,204,190,.5) 26%, transparent 27%, transparent 74%, rgba(200,204,190,.5) 75%, rgba(200,204,190,.5) 76%, transparent 77%),
+    linear-gradient(90deg, transparent 24%, rgba(200,204,190,.5) 25%, rgba(200,204,190,.5) 26%, transparent 27%, transparent 74%, rgba(200,204,190,.5) 75%, rgba(200,204,190,.5) 76%, transparent 77%),
+    #eef0e8;
+  background-size:64px 64px;}
+  .mappin{position:absolute;top:50%;left:50%;transform:translate(-50%,-100%);display:flex;flex-direction:column;align-items:center;}
+  .mappin svg{width:34px;height:34px;filter:drop-shadow(0 3px 5px rgba(20,21,15,.28));}
+  .attribution{position:absolute;left:10px;bottom:10px;font-size:9px;color:var(--ink-faint);background:rgba(255,255,255,.7);padding:2px 6px;border-radius:6px;}
+  .addrsheet{position:absolute;left:14px;right:14px;bottom:16px;background:#fff;border-radius:20px;padding:16px;box-shadow:0 10px 26px rgba(21,23,15,.18);}
+  .addrsheet .al{font-size:10px;color:var(--ink-faint);margin-bottom:4px;}
+  .addrsheet .av{font-size:14.5px;font-weight:700;margin-bottom:12px;}
+  .pbtn{font-family:var(--font);border:0;border-radius:999px;padding:12px 16px;font-size:13.5px;font-weight:700;cursor:pointer;width:100%;background:var(--cta);color:#fff;}
+  .mapback{position:absolute;top:50px;left:16px;z-index:5;}
+
+  .hint{display:inline-block;background:#15170f;color:#c6f135;font-size:11.5px;font-weight:600;padding:6px 12px;border-radius:999px;margin-top:10px;}
+  .legend{max-width:340px;font-size:12px;color:#55584f;line-height:1.7;}
+  .legend b{color:var(--ink);}
+
+  /* ═ embed mode (used when loaded inside ensom_master_flow.html) ═ */
+  body.embed{background:transparent;padding:0;overflow:hidden;}
+  body.embed .page-head,body.embed .legend,body.embed .hint{display:none!important;}
+  body.embed .stage{margin:0;padding:0;gap:0;}
+  body.embed{height:100vh;}
+  body.embed .stage{height:100%;align-items:stretch;}
+  body.embed .phone{width:100%!important;height:100%!important;max-width:100%;border:0!important;border-radius:0!important;box-shadow:none!important;}
+  body.embed .notch{display:none!important;}
+</style>
+</head>
+<body>
+
+<div class="page-head">
+  <h1>Ensom — 장소 검색 흐름 프로토타입</h1>
+  <p>일정 생성 · 주요 장소 · 지도 세 군데에서 공통으로 쓰는 검색 화면. 검색창에 실제로 타이핑해보면 결과가 실시간으로 좁혀져.</p>
+</div>
+
+<div class="stage">
+  <div class="phone">
+    <div class="notch"></div>
+
+    <!-- ═══ 검색 화면 (전체화면 모달) ═══ -->
+    <div class="view on" id="v-search">
+      <div class="shead">
+        <div class="backbtn clickable" onclick="closeSearch()"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></div>
+        <div class="sbox focus">
+          <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+          <input id="searchInput" type="text" placeholder="장소, 지하철역, 도로명으로 검색" oninput="onSearch(this.value)" autofocus>
+          <div class="clearx clickable" id="clearBtn" onclick="clearSearch()"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></div>
+        </div>
+      </div>
+
+      <div class="scroll" id="resultsArea">
+        <!-- filled by JS -->
+      </div>
+    </div>
+
+    <!-- ═══ 지도에서 직접 지정 ═══ -->
+    <div class="view" id="v-mapselect">
+      <div class="mapview">
+        <div class="mapback backbtn clickable" onclick="go('v-search')" style="background:#fff;box-shadow:0 4px 10px rgba(20,21,15,.15);"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></div>
+        <div class="mappin">
+          <svg viewBox="0 0 24 24" fill="#1f231a"><path d="M12 2C7.6 2 4 5.6 4 10c0 6 8 12 8 12s8-6 8-12c0-4.4-3.6-8-8-8z"/><circle cx="12" cy="10" r="3" fill="#c6f135"/></svg>
+        </div>
+        <div class="attribution">© Kakao</div>
+        <div class="addrsheet">
+          <div class="al">현재 핀 위치</div>
+          <div class="av" id="pinAddr">서울 강남구 역삼동 733-32</div>
+          <button class="pbtn" onclick="confirmMapPin()">이 위치로 설정</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="legend">
+    <p><b>보는 법</b> — 검색창에 실제로 "강남"이라고 타이핑해봐. 최근 검색·주요 장소가 사라지고 결과가 실시간으로 좁혀져.</p>
+    <p style="margin-top:8px;"><b>결과 없음</b> — "asdf" 같이 매칭 안 되는 값을 입력하면 결과 없음 상태가 나와.</p>
+    <p style="margin-top:8px;"><b>지도에서 선택</b> — 결과 목록 맨 아래 "지도에서 선택"을 누르면 핀 고정 화면으로 이동해.</p>
+    <div class="hint">직접 타이핑 가능 · 실시간 필터링</div>
+  </div>
+</div>
+
+<script>
+  const PLACES = [
+    {name:'강남역', addr:'서울 강남구 강남대로 396', dist:'0.4km', kind:'subway'},
+    {name:'강남역 2번 출구', addr:'서울 강남구 강남대로 지하 396', dist:'0.4km', kind:'subway'},
+    {name:'강남구청', addr:'서울 강남구 학동로 426', dist:'1.8km', kind:'place'},
+    {name:'강남파이낸스센터', addr:'서울 강남구 테헤란로 152', dist:'2.1km', kind:'place'},
+    {name:'강남세브란스병원', addr:'서울 강남구 언주로 211', dist:'3.0km', kind:'place'},
+    {name:'홍대입구역', addr:'서울 마포구 양화로 지하 160', dist:'6.2km', kind:'subway'},
+    {name:'서울역', addr:'서울 용산구 한강대로 405', dist:'5.4km', kind:'subway'},
+  ];
+  const RECENT = [
+    {name:'강남역', addr:'서울 강남구 강남대로 396'},
+    {name:'디자인 리뷰 미팅룸', addr:'서울 강남구 테헤란로 152, 8층'},
+    {name:'성수동 카페', addr:'서울 성동구 성수이로 77'},
+    {name:'집', addr:'서울 마포구 성산동 12-3'},
+  ];
+  const PRIMARY = [
+    {name:'집', addr:'서울 마포구 성산동 12-3'},
+    {name:'직장', addr:'서울 강남구 테헤란로 152'},
+  ];
+
+  const iconClock = `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>`;
+  const iconHome = `<svg viewBox="0 0 24 24"><path d="M3 10l9-7 9 7v9a2 2 0 01-2 2h-4v-6H9v6H5a2 2 0 01-2-2z"/></svg>`;
+  const iconWork = `<svg viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="1.5"/><path d="M9 21v-4h6v4"/></svg>`;
+  const iconPin = `<svg viewBox="0 0 24 24"><path d="M12 2C7.6 2 4 5.6 4 10c0 6 8 12 8 12s8-6 8-12c0-4.4-3.6-8-8-8z"/><circle cx="12" cy="10" r="2.4"/></svg>`;
+
+  function renderDefault(){
+    let html = '<div class="sec-label">최근 검색</div>';
+    RECENT.forEach(r=>{
+      html += `<div class="row"><div class="ic">${iconClock}</div><div class="rt"><div class="rname">${r.name}</div><div class="raddr">${r.addr}</div></div></div>`;
+    });
+    html += '<div class="sec-label">주요 장소</div>';
+    PRIMARY.forEach((r,i)=>{
+      html += `<div class="row"><div class="ic">${i===0?iconHome:iconWork}</div><div class="rt"><div class="rname">${r.name}</div><div class="raddr">${r.addr}</div></div></div>`;
+    });
+    html += `<div class="mapselect-cta clickable" onclick="go('v-mapselect')">${iconPin.replace('width="24" height="24"','')} 지도에서 선택</div>`;
+    document.getElementById('resultsArea').innerHTML = html;
+    document.getElementById('clearBtn').style.display = 'none';
+  }
+
+  function renderResults(q){
+    const matches = PLACES.filter(p=>p.name.includes(q));
+    document.getElementById('clearBtn').style.display = 'flex';
+    if(matches.length===0){
+      document.getElementById('resultsArea').innerHTML = `
+        <div class="noresult">
+          <div class="nt">검색 결과가 없어요</div>
+          <div class="ns">다른 이름으로 찾아보시겠어요?</div>
+        </div>`;
+      return;
+    }
+    let html = '';
+    matches.forEach(p=>{
+      const idx = p.name.indexOf(q);
+      const highlighted = idx>=0 ? p.name.slice(0,idx) + '<b>' + p.name.slice(idx,idx+q.length) + '</b>' + p.name.slice(idx+q.length) : p.name;
+      html += `<div class="row"><div class="ic">${iconPin}</div><div class="rt"><div class="rname">${highlighted}</div><div class="raddr">${p.addr}</div></div><div class="rdist">${p.dist}</div></div>`;
+    });
+    html += `<div class="mapselect-cta clickable" onclick="go('v-mapselect')">${iconPin.replace('width="24" height="24"','')} 지도에서 선택</div>`;
+    document.getElementById('resultsArea').innerHTML = html;
+  }
+
+  function onSearch(v){
+    if(v.trim()==='') renderDefault();
+    else renderResults(v.trim());
+  }
+  function clearSearch(){
+    document.getElementById('searchInput').value='';
+    renderDefault();
+    document.getElementById('searchInput').focus();
+  }
+  function closeSearch(){
+    // in a real app this would dismiss the modal; here just clear
+    clearSearch();
+  }
+  function go(id){
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('on'));
+    document.getElementById(id).classList.add('on');
+  }
+  function confirmMapPin(){
+    document.getElementById('pinAddr').textContent = '설정 완료 — 서울 강남구 역삼동 733-32';
+  }
+
+  renderDefault();
+</script>
+
+<script>(function(){ if(window.self!==window.top){ document.body.classList.add('embed'); } })();</script>
+
+</body>
+</html>

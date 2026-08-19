@@ -5,6 +5,7 @@ import "package:google_sign_in/google_sign_in.dart";
 import "../../core/logout_helper.dart";
 import "../../network/api_client.dart";
 import "../../providers/auth_providers.dart";
+import "../../theme/ensom_colors.dart";
 
 /// PRF-02 계정 정보
 class AccountScreen extends ConsumerWidget {
@@ -24,8 +25,14 @@ class AccountScreen extends ConsumerWidget {
           ),
           const Divider(),
           ListTile(
-            title: const Text("회원 탈퇴", style: TextStyle(color: Colors.red)),
-            leading: const Icon(Icons.delete_forever, color: Colors.red),
+            title: const Text(
+              "회원 탈퇴",
+              style: TextStyle(color: EnsomColors.caution),
+            ),
+            leading: const Icon(
+              Icons.delete_forever,
+              color: EnsomColors.caution,
+            ),
             onTap: () => context.push("/profile/withdraw"),
           ),
         ],
@@ -61,10 +68,13 @@ class _WithdrawScreenState extends ConsumerState<WithdrawScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Icon(Icons.warning_amber_rounded, size: 48, color: Colors.orange),
+        const Icon(
+          Icons.warning_amber_rounded,
+          size: 48,
+          color: EnsomColors.caution,
+        ),
         const SizedBox(height: 16),
-        Text("정말 탈퇴하시겠어요?",
-            style: Theme.of(context).textTheme.headlineSmall),
+        Text("정말 탈퇴하시겠어요?", style: Theme.of(context).textTheme.headlineSmall),
         const SizedBox(height: 16),
         const Text("탈퇴하면 다음 데이터가 모두 삭제되며 복구할 수 없어요."),
         const SizedBox(height: 12),
@@ -72,8 +82,10 @@ class _WithdrawScreenState extends ConsumerState<WithdrawScreen> {
         const Text("• 맞춤 준비 항목과 개인화 기록"),
         const Text("• 웰니스 설정과 행동 기록"),
         const SizedBox(height: 8),
-        const Text("동의 이력만 법적 의무에 따라 보존됩니다.",
-            style: TextStyle(color: Colors.grey, fontSize: 12)),
+        const Text(
+          "동의 이력만 법적 의무에 따라 보존됩니다.",
+          style: TextStyle(color: EnsomColors.inkMuted, fontSize: 12),
+        ),
         const Spacer(),
         Row(
           children: [
@@ -88,8 +100,8 @@ class _WithdrawScreenState extends ConsumerState<WithdrawScreen> {
               child: ElevatedButton(
                 onPressed: () => setState(() => _step = 2),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red,
-                  foregroundColor: Colors.white,
+                  backgroundColor: EnsomColors.caution,
+                  foregroundColor: EnsomColors.canvas,
                 ),
                 child: const Text("탈퇴할게요"),
               ),
@@ -104,8 +116,7 @@ class _WithdrawScreenState extends ConsumerState<WithdrawScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text("마지막 확인",
-            style: Theme.of(context).textTheme.headlineSmall),
+        Text("마지막 확인", style: Theme.of(context).textTheme.headlineSmall),
         const SizedBox(height: 16),
         const Text("본인 확인을 위해 다시 한번 로그인해주세요."),
         const SizedBox(height: 24),
@@ -123,8 +134,8 @@ class _WithdrawScreenState extends ConsumerState<WithdrawScreen> {
                 : const Icon(Icons.delete_forever),
             label: Text(_processing ? "처리 중..." : "탈퇴 확인"),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
+              backgroundColor: EnsomColors.caution,
+              foregroundColor: EnsomColors.canvas,
             ),
           ),
         ),
@@ -141,9 +152,9 @@ class _WithdrawScreenState extends ConsumerState<WithdrawScreen> {
       if (account == null) {
         // 사용자가 재인증을 취소
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("본인 확인이 필요해요.")),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text("본인 확인이 필요해요.")));
           setState(() => _processing = false);
         }
         return;
@@ -174,9 +185,9 @@ class _WithdrawScreenState extends ConsumerState<WithdrawScreen> {
       }
     } on ApiException catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.message)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
         setState(() => _processing = false);
       }
     } catch (_) {

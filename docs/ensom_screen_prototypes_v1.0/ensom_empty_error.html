@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ensom — 빈 상태·오류 상태 6종 프로토타입</title>
+<style>
+  :root{
+    --lime:#c6f135;--lime-soft:#e4fb9b;--lime-ink:#4e6810;
+    --canvas:#ffffff;--surface-1:#ffffff;--surface-2:#eef0ea;--surface-neutral:#e9e9e6;
+    --hairline:#e3e5e0;--ink:#14150f;--ink-muted:#63655e;--ink-faint:#6f7269;
+    --panel:#15170f;--cta:#1f231a;--caution:#e3a13b;
+    --font:'Pretendard','Apple SD Gothic Neo','Malgun Gothic',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:var(--font);background:#d9dcd3;color:var(--ink);padding:32px 20px 60px;-webkit-font-smoothing:antialiased;}
+  .page-head{max-width:1180px;margin:0 auto 22px;}
+  .page-head h1{font-size:22px;font-weight:700;letter-spacing:-.4px;}
+  .page-head p{font-size:13px;color:#55584f;margin-top:6px;line-height:1.55;}
+  .stage{max-width:1180px;margin:0 auto;display:flex;gap:36px;flex-wrap:wrap;align-items:flex-start;}
+  .phone{width:344px;height:730px;flex:0 0 auto;background:var(--canvas);border-radius:46px;border:9px solid #16170f;position:relative;overflow:hidden;box-shadow:0 20px 50px rgba(20,21,15,.26);}
+  .notch{position:absolute;top:0;left:50%;transform:translateX(-50%);width:112px;height:26px;background:#16170f;border-radius:0 0 16px 16px;z-index:60;}
+
+  .view{position:absolute;inset:0;display:none;flex-direction:column;padding:46px 18px 0;}
+  .view.on{display:flex;}
+  .clickable{cursor:pointer;}
+
+  .word{font-size:13px;font-weight:700;letter-spacing:1.6px;display:inline-flex;align-items:center;}
+  .wm-o{width:.78em;height:.78em;margin:0 1px;flex:0 0 auto;}
+  .topbar{flex:0 0 auto;height:40px;background:transparent;color:var(--ink);display:flex;align-items:center;gap:10px;padding:0;}
+  .backbtn{width:32px;height:32px;border-radius:999px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;flex:0 0 auto;}
+  .backbtn svg{width:14px;height:14px;stroke:var(--ink);fill:none;stroke-width:2.1;}
+  .toptitle{color:var(--ink);font-size:16px;font-weight:700;letter-spacing:-.2px;}
+  .greet{margin-top:18px;}
+  .greet h3{font-size:20px;font-weight:700;letter-spacing:-.4px;}
+
+  .card{background:var(--surface-1);border:1px solid var(--hairline);border-radius:24px;padding:20px 16px;margin-top:16px;text-align:center;}
+  .card p{font-size:13px;font-weight:600;}
+  .card .sub{font-size:11.5px;color:var(--ink-muted);font-weight:400;margin-top:6px;line-height:1.5;}
+  .empty-actions{display:flex;gap:8px;margin-top:14px;}
+  .ebtn{flex:1 1 0;font-family:var(--font);border:0;border-radius:999px;padding:11px 8px;font-size:12px;font-weight:700;cursor:pointer;}
+  .ebtn.primary{background:var(--cta);color:#fff;}
+  .ebtn.secondary{background:var(--surface-2);color:var(--ink);}
+
+  .hero{margin-top:16px;background:var(--lime);border-radius:28px;padding:16px 16px 18px;display:flex;flex-direction:column;gap:9px;}
+  .hero-top{display:flex;justify-content:space-between;align-items:center;}
+  .hbadge{background:rgba(255,255,255,.62);color:var(--ink);font-size:10.5px;font-weight:700;padding:4px 10px;border-radius:999px;}
+  .hbadge.neutral{background:rgba(20,21,15,.12);}
+  .hero-msg{font-size:20px;font-weight:700;letter-spacing:-.5px;line-height:1.28;word-break:keep-all;}
+  .hero-sub{font-size:11.5px;color:rgba(20,21,15,.7);line-height:1.5;word-break:keep-all;}
+  .hero-route{margin-top:2px;padding-top:10px;border-top:1px solid rgba(20,21,15,.14);display:flex;align-items:center;justify-content:space-between;font-size:11px;color:rgba(20,21,15,.75);}
+  .retrybtn{font-weight:700;text-decoration:underline;text-underline-offset:2px;cursor:pointer;}
+
+  .sec-label{font-size:10.5px;font-weight:700;color:var(--ink-faint);letter-spacing:.4px;margin:18px 0 8px;text-transform:uppercase;}
+  .wtags{display:flex;flex-wrap:wrap;gap:6px;}
+  .wtag{background:var(--lime-soft);color:var(--lime-ink);font-size:11px;font-weight:600;padding:6px 10px;border-radius:999px;}
+  .prep-note{font-size:11px;color:var(--ink-faint);margin-top:6px;}
+
+  /* calendar dark panel mini */
+  .panel{background:var(--panel);border-radius:26px;padding:15px;margin-top:14px;}
+  .p-month{color:#fff;font-size:15px;font-weight:700;}
+  .dowrow{display:grid;grid-template-columns:repeat(7,1fr);margin:12px 0 6px;}
+  .dowrow span{text-align:center;font-size:9px;font-weight:600;color:rgba(255,255,255,.38);}
+  .dgrid{display:grid;grid-template-columns:repeat(7,1fr);row-gap:5px;}
+  .dot{width:27px;height:27px;margin:0 auto;border-radius:999px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:rgba(255,255,255,.6);}
+  .dot.today{background:var(--lime);color:var(--ink);font-weight:700;}
+  .dot.sel{background:#fff;color:var(--ink);font-weight:700;}
+  .cal-empty{flex:1 1 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;padding-bottom:80px;}
+  .cal-empty p{font-size:12.5px;color:var(--ink-faint);}
+
+  /* notification empty */
+  .noti-empty{flex:1 1 auto;display:flex;align-items:center;justify-content:center;}
+  .noti-empty p{font-size:13px;color:var(--ink-faint);}
+
+  .fullbleed-title{font-size:15px;font-weight:700;margin-top:4px;}
+
+  .selrow{position:absolute;top:8px;left:0;right:0;display:flex;flex-wrap:wrap;gap:4px;justify-content:center;padding:0 12px;z-index:99;}
+  .selrow button{font-family:var(--font);font-size:9.5px;font-weight:700;border:0;border-radius:999px;padding:5px 8px;background:rgba(255,255,255,.85);color:var(--ink-muted);cursor:pointer;}
+  .selrow button.on{background:var(--cta);color:#fff;}
+
+  .hint{display:inline-block;background:#15170f;color:#c6f135;font-size:11.5px;font-weight:600;padding:6px 12px;border-radius:999px;margin-top:10px;}
+  .legend{max-width:340px;font-size:12px;color:#55584f;line-height:1.7;}
+  .legend b{color:var(--ink);}
+
+  /* ═ embed mode (used when loaded inside ensom_master_flow.html) ═ */
+  body.embed{background:transparent;padding:0;overflow:hidden;}
+  body.embed .page-head,body.embed .legend,body.embed .hint{display:none!important;}
+  body.embed .stage{margin:0;padding:0;gap:0;}
+  body.embed{height:100vh;}
+  body.embed .stage{height:100%;align-items:stretch;}
+  body.embed .phone{width:100%!important;height:100%!important;max-width:100%;border:0!important;border-radius:0!important;box-shadow:none!important;}
+  body.embed .notch{display:none!important;}
+</style>
+</head>
+<body>
+
+<div class="page-head">
+  <h1>Ensom — 빈 상태 · 오류 상태 6종 프로토타입</h1>
+  <p>위 칩을 눌러 6개 상태를 전환해볼 수 있어. 모두 사과하지 않고, 이미 가진 정보는 지우지 않는 톤.</p>
+</div>
+
+<div class="stage">
+  <div class="phone">
+    <div class="notch"></div>
+    <div class="selrow">
+      <button class="on" onclick="show(0,this)">홈-없음</button>
+      <button onclick="show(1,this)">홈-오프라인</button>
+      <button onclick="show(2,this)">홈-경로실패</button>
+      <button onclick="show(3,this)">홈-환경없음</button>
+      <button onclick="show(4,this)">캘린더-없음</button>
+      <button onclick="show(5,this)">알림-없음</button>
+    </div>
+
+    <!-- 0. 홈 — 다음 일정 없음 -->
+    <div class="view on" id="v0">
+      <span class="word">ENS<svg class="wm-o" viewBox="0 0 32 32"><circle cx="16" cy="16" r="11" fill="none" stroke="#4e6810" stroke-width="7"/><circle cx="16" cy="16" r="11" fill="none" stroke="#c6f135" stroke-width="7" stroke-dasharray="47 22" transform="rotate(-90 16 16)" stroke-linecap="round"/></svg>M</span>
+      <div class="greet"><h3>안녕하세요, 도현님</h3></div>
+      <div class="card">
+        <p>관리할 다음 일정이 없어요</p>
+        <div class="sub">일정을 추가하면 준비 시작 시각을 알려드릴게요</div>
+        <div class="empty-actions">
+          <button class="ebtn primary">일정 만들기</button>
+          <button class="ebtn secondary">지도에서 찾기</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 1. 홈 — 오프라인 -->
+    <div class="view" id="v1">
+      <span class="word">ENS<svg class="wm-o" viewBox="0 0 32 32"><circle cx="16" cy="16" r="11" fill="none" stroke="#4e6810" stroke-width="7"/><circle cx="16" cy="16" r="11" fill="none" stroke="#c6f135" stroke-width="7" stroke-dasharray="47 22" transform="rotate(-90 16 16)" stroke-linecap="round"/></svg>M</span>
+      <div class="greet"><h3>안녕하세요, 도현님</h3></div>
+      <div class="hero">
+        <div class="hero-top"><span class="hbadge neutral">오프라인 · 12:31 기준</span></div>
+        <div class="hero-msg">준비 시작까지<br><span style="font-size:30px;">20분</span> 남았어요</div>
+        <div class="hero-sub">강남역 미팅 · 13:52 도착 예정</div>
+      </div>
+      <div class="sec-label">오늘 남은 준비 항목</div>
+      <div class="wtags"><span class="wtag">우산 챙기기</span><span class="wtag">영양제 먹기</span></div>
+    </div>
+
+    <!-- 2. 홈 — 경로 정보 실패 -->
+    <div class="view" id="v2">
+      <span class="word">ENS<svg class="wm-o" viewBox="0 0 32 32"><circle cx="16" cy="16" r="11" fill="none" stroke="#4e6810" stroke-width="7"/><circle cx="16" cy="16" r="11" fill="none" stroke="#c6f135" stroke-width="7" stroke-dasharray="47 22" transform="rotate(-90 16 16)" stroke-linecap="round"/></svg>M</span>
+      <div class="greet"><h3>안녕하세요, 도현님</h3></div>
+      <div class="hero">
+        <div class="hero-top"><span class="hbadge">준비 시작</span></div>
+        <div class="hero-msg">준비 시작까지<br><span style="font-size:30px;">20분</span> 남았어요</div>
+        <div class="hero-route">
+          <span>최신 교통 정보를 가져오지 못했어요 · 12:31 기준</span>
+        </div>
+        <div class="retrybtn" style="font-size:11px;">다시 시도</div>
+      </div>
+    </div>
+
+    <!-- 3. 홈 — 환경 데이터 없음 (웰니스 섹션 자체가 없음) -->
+    <div class="view" id="v3">
+      <span class="word">ENS<svg class="wm-o" viewBox="0 0 32 32"><circle cx="16" cy="16" r="11" fill="none" stroke="#4e6810" stroke-width="7"/><circle cx="16" cy="16" r="11" fill="none" stroke="#c6f135" stroke-width="7" stroke-dasharray="47 22" transform="rotate(-90 16 16)" stroke-linecap="round"/></svg>M</span>
+      <div class="greet"><h3>안녕하세요, 도현님</h3></div>
+      <div class="hero">
+        <div class="hero-top"><span class="hbadge">준비 시작</span></div>
+        <div class="hero-msg">준비 시작까지<br><span style="font-size:30px;">20분</span> 남았어요</div>
+        <div class="hero-sub">강남역 미팅 · 13:52 도착 예정</div>
+      </div>
+      <div class="sec-label">오늘 남은 준비 항목</div>
+      <div class="wtags"><span class="wtag" style="background:var(--surface-2);color:var(--ink);">우산 챙기기</span></div>
+    </div>
+
+    <!-- 4. 캘린더 — 일정 없는 날 -->
+    <div class="view" id="v4">
+      <span class="word">ENS<svg class="wm-o" viewBox="0 0 32 32"><circle cx="16" cy="16" r="11" fill="none" stroke="#4e6810" stroke-width="7"/><circle cx="16" cy="16" r="11" fill="none" stroke="#c6f135" stroke-width="7" stroke-dasharray="47 22" transform="rotate(-90 16 16)" stroke-linecap="round"/></svg>M</span>
+      <div class="panel">
+        <div class="p-month">2026년 8월</div>
+        <div class="dowrow"><span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span></div>
+        <div class="dgrid">
+          <span></span><span></span><span></span><span></span><span></span><span></span><div class="dot">1</div>
+          <div class="dot">2</div><div class="dot">3</div><div class="dot">4</div><div class="dot">5</div><div class="dot">6</div><div class="dot">7</div><div class="dot">8</div>
+          <div class="dot">9</div><div class="dot">10</div><div class="dot">11</div><div class="dot">12</div><div class="dot">13</div><div class="dot">14</div><div class="dot">15</div>
+          <div class="dot">16</div><div class="dot">17</div><div class="dot">18</div><div class="dot today">19</div><div class="dot">20</div><div class="dot">21</div><div class="dot sel">22</div>
+        </div>
+      </div>
+      <div class="cal-empty"><p>이 날은 등록된 일정이 없어요</p></div>
+    </div>
+
+    <!-- 5. 알림 로그 — 당일 알림 없음 -->
+    <div class="view" id="v5">
+      <div class="topbar">
+        <div class="backbtn"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></div>
+        <div class="toptitle">알림 로그</div>
+      </div>
+      <div class="noti-empty"><p>오늘 보낸 알림이 없어요</p></div>
+    </div>
+  </div>
+
+  <div class="legend">
+    <p><b>공통 원칙</b> — 사과 문구 금지, 빨강·경고 아이콘 없음, 오류라도 마지막 계획은 유지하고 "언제 기준인지"만 명시.</p>
+    <p style="margin-top:8px;"><b>홈-오프라인 / 홈-경로실패</b>는 히어로 카드가 사라지지 않고 라임 그대로 유지되는 게 핵심 — 전면 오류로 덮지 않음.</p>
+    <div class="hint">6개 상태 칩으로 전환</div>
+  </div>
+</div>
+
+<script>
+  function show(i, btn){
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('on'));
+    document.getElementById('v'+i).classList.add('on');
+    document.querySelectorAll('.selrow button').forEach(b=>b.classList.remove('on'));
+    btn.classList.add('on');
+  }
+</script>
+
+<script>(function(){ if(window.self!==window.top){ document.body.classList.add('embed'); } })();</script>
+
+</body>
+</html>

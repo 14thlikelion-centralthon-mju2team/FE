@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ensom — 푸시 알림 5종 프로토타입</title>
+<style>
+  :root{
+    --lime:#c6f135;--ink:#14150f;--ink-muted:#63655e;--ink-faint:#6f7269;
+    --surface-2:#eef0ea;--cta:#1f231a;--hairline:#e3e5e0;
+    --font:'Pretendard','Apple SD Gothic Neo','Malgun Gothic',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:var(--font);background:#d9dcd3;color:var(--ink);padding:32px 20px 60px;-webkit-font-smoothing:antialiased;}
+  .page-head{max-width:1180px;margin:0 auto 22px;}
+  .page-head h1{font-size:22px;font-weight:700;letter-spacing:-.4px;}
+  .page-head p{font-size:13px;color:#55584f;margin-top:6px;line-height:1.55;}
+  .stage{max-width:1180px;margin:0 auto;display:flex;gap:36px;flex-wrap:wrap;align-items:flex-start;}
+  .phone{width:344px;height:730px;flex:0 0 auto;position:relative;border-radius:46px;border:9px solid #16170f;overflow:hidden;box-shadow:0 20px 50px rgba(20,21,15,.26);
+    background:linear-gradient(160deg,#3a4a63 0%,#1c2536 55%,#10141f 100%);}
+  .notch{position:absolute;top:0;left:50%;transform:translateX(-50%);width:112px;height:26px;background:#16170f;border-radius:0 0 16px 16px;z-index:60;}
+  .lockclock{text-align:center;color:#fff;padding:56px 0 18px;}
+  .lockclock .t{font-size:54px;font-weight:200;letter-spacing:-1px;}
+  .lockclock .d{font-size:13px;font-weight:500;color:rgba(255,255,255,.75);margin-top:2px;}
+
+  .notifs{padding:8px 14px;display:flex;flex-direction:column;gap:9px;}
+  .notif{background:rgba(255,255,255,.14);backdrop-filter:blur(20px);border-radius:16px;padding:11px 13px;display:flex;gap:10px;}
+  .napp{width:30px;height:30px;border-radius:8px;background:var(--lime);display:flex;align-items:center;justify-content:center;flex:0 0 auto;}
+  .napp svg{width:15px;height:15px;stroke:#14150f;fill:none;stroke-width:2;}
+  .ntext{flex:1 1 auto;min-width:0;}
+  .ntop{display:flex;justify-content:space-between;align-items:baseline;}
+  .nname{font-size:11.5px;font-weight:700;color:#fff;}
+  .ntime{font-size:10px;color:rgba(255,255,255,.55);}
+  .nbody{font-size:12.5px;color:#fff;margin-top:2px;line-height:1.4;}
+  .nsub{font-size:11px;color:rgba(255,255,255,.65);margin-top:3px;}
+
+  .pairlabel{text-align:center;font-size:10px;color:rgba(255,255,255,.5);margin-top:2px;margin-bottom:2px;font-weight:700;letter-spacing:.3px;}
+
+  .hint{display:inline-block;background:#15170f;color:#c6f135;font-size:11.5px;font-weight:600;padding:6px 12px;border-radius:999px;margin-top:10px;}
+  .legend{max-width:340px;font-size:12px;color:#55584f;line-height:1.7;}
+  .legend b{color:var(--ink);}
+
+  /* ═ embed mode (used when loaded inside ensom_master_flow.html) ═ */
+  body.embed{background:transparent;padding:0;overflow:hidden;}
+  body.embed .page-head,body.embed .legend,body.embed .hint{display:none!important;}
+  body.embed .stage{margin:0;padding:0;gap:0;}
+  body.embed{height:100vh;}
+  body.embed .stage{height:100%;align-items:stretch;}
+  body.embed .phone{width:100%!important;height:100%!important;max-width:100%;border:0!important;border-radius:0!important;box-shadow:none!important;}
+  body.embed .notch{display:none!important;}
+</style>
+</head>
+<body>
+
+<div class="page-head">
+  <h1>Ensom — 푸시 알림 5종 프로토타입</h1>
+  <p>iOS 잠금화면 위 알림 카드 5종. 4번(일반 표시)과 5번(잠금화면 숨김)을 나란히 비교하는 게 핵심.</p>
+</div>
+
+<div class="stage">
+  <div class="phone">
+    <div class="notch"></div>
+    <div class="lockclock">
+      <div class="t">9:41</div>
+      <div class="d">8월 19일 수요일</div>
+    </div>
+    <div class="notifs">
+      <div class="notif">
+        <div class="napp"><svg viewBox="0 0 24 24"><path d="M12 6v6l4 2"/><circle cx="12" cy="12" r="9"/></svg></div>
+        <div class="ntext">
+          <div class="ntop"><span class="nname">Ensom</span><span class="ntime">지금</span></div>
+          <div class="nbody">지금부터 천천히 준비해 보세요 · 오후 1시 20분 출발</div>
+        </div>
+      </div>
+
+      <div class="notif">
+        <div class="napp"><svg viewBox="0 0 24 24"><path d="M12 6v6l4 2"/><circle cx="12" cy="12" r="9"/></svg></div>
+        <div class="ntext">
+          <div class="ntop"><span class="nname">Ensom</span><span class="ntime">2분 전</span></div>
+          <div class="nbody">교통 지연 +8분 · 조금 일찍 나서는 게 좋아요</div>
+          <div class="nsub">출발 1:20 → 1:12</div>
+        </div>
+      </div>
+
+      <div class="notif">
+        <div class="napp"><svg viewBox="0 0 24 24"><path d="M12 6v6l4 2"/><circle cx="12" cy="12" r="9"/></svg></div>
+        <div class="ntext">
+          <div class="ntop"><span class="nname">Ensom</span><span class="ntime">5분 전</span></div>
+          <div class="nbody">오늘 자외선이 높아요 · 야외 이동 45분, 선크림 확인해 주세요</div>
+        </div>
+      </div>
+
+      <div class="pairlabel">민감 항목 포함 — 일반 표시 vs 잠금화면 숨김</div>
+
+      <div class="notif">
+        <div class="napp"><svg viewBox="0 0 24 24"><path d="M12 6v6l4 2"/><circle cx="12" cy="12" r="9"/></svg></div>
+        <div class="ntext">
+          <div class="ntop"><span class="nname">Ensom</span><span class="ntime">8분 전</span></div>
+          <div class="nbody">준비 항목 3개를 확인해 주세요 · 영양제, 물, 우산</div>
+        </div>
+      </div>
+      <div class="notif">
+        <div class="napp"><svg viewBox="0 0 24 24"><path d="M12 6v6l4 2"/><circle cx="12" cy="12" r="9"/></svg></div>
+        <div class="ntext">
+          <div class="ntop"><span class="nname">Ensom</span><span class="ntime">8분 전</span></div>
+          <div class="nbody">준비 항목 3개를 확인해 주세요</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="legend">
+    <p><b>1. 준비 시작</b> — 담백한 출발 시각 안내.</p>
+    <p style="margin-top:6px;"><b>2. 교통 지연</b> — 변경 전후 시각을 보조 줄로.</p>
+    <p style="margin-top:6px;"><b>3. 웰니스</b> — 야외 이동 시간 + 제안.</p>
+    <p style="margin-top:6px;"><b>4·5. 민감 항목</b> — 4번은 항목명 노출, 5번은 개수만. 잠금화면 숨김 설정이 켜졌을 때 차이가 이렇게 나요.</p>
+    <div class="hint">정적 목업 — 인터랙션 없음</div>
+  </div>
+</div>
+
+<script>(function(){ if(window.self!==window.top){ document.body.classList.add('embed'); } })();</script>
+
+</body>
+</html>

@@ -10,7 +10,7 @@ import "package:uuid/uuid.dart";
 ///     flutter_secure_storage: ^9.0.0
 class SecureStorageService {
   SecureStorageService({FlutterSecureStorage? storage})
-      : _storage = storage ?? const FlutterSecureStorage();
+    : _storage = storage ?? const FlutterSecureStorage();
 
   final FlutterSecureStorage _storage;
 
@@ -18,6 +18,8 @@ class SecureStorageService {
   static const _kRefreshToken = "refresh_token";
   static const _kUserId = "user_id";
   static const _kInstallationId = "installation_id";
+  static const _kOnboardingCompleted = "onboarding_completed";
+  static const _kOnboardingStep = "onboarding_step";
 
   Future<void> saveSession({
     required String accessToken,
@@ -49,6 +51,21 @@ class SecureStorageService {
     return generated;
   }
 
+  /// 온보딩 완료 영속. 로그인 응답의 isNew=true 시점에 false로 세팅되며,
+  /// S-42에서 완료 후 true로 저장한다. BE에 전용 필드가 없으므로 로컬 기준이다.
+  Future<bool> get onboardingCompleted async =>
+      (await _storage.read(key: _kOnboardingCompleted)) == "true";
+
+  Future<void> setOnboardingCompleted(bool value) =>
+      _storage.write(key: _kOnboardingCompleted, value: value.toString());
+
+  /// 온보딩 진행 단계 저장. 앱 강제 종료 후 복귀 시 마지막 단계로 복원한다.
+  Future<String?> get onboardingStep =>
+      _storage.read(key: _kOnboardingStep);
+
+  Future<void> setOnboardingStep(String step) =>
+      _storage.write(key: _kOnboardingStep, value: step);
+
   /// 로그아웃 시 전체 소거. TRD §14.3 "로그아웃 시 로컬 민감 데이터 제거"
   /// 원칙에 따라 세션뿐 아니라 이 서비스가 관리하는 모든 키를 지운다.
   /// 준비 항목·장소 캐시 등 다른 민감 캐시(Hive)는 이 서비스 책임이
@@ -58,6 +75,8 @@ class SecureStorageService {
       _storage.delete(key: _kAccessToken),
       _storage.delete(key: _kRefreshToken),
       _storage.delete(key: _kUserId),
+      _storage.delete(key: _kOnboardingCompleted),
+      _storage.delete(key: _kOnboardingStep),
     ]);
   }
 

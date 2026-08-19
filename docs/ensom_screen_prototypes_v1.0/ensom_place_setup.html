@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ensom — 주요 장소 설정 프로토타입</title>
+<style>
+  :root{
+    --lime:#c6f135;--lime-soft:#e4fb9b;--lime-ink:#4e6810;
+    --ink:#14150f;--ink-muted:#63655e;--ink-faint:#6f7269;
+    --surface-1:#fff;--surface-2:#eef0ea;--surface-neutral:#e9e9e6;
+    --hairline:#e3e5e0;--cta:#1f231a;--panel:#15170f;--caution:#e3a13b;
+    --font:'Pretendard','Apple SD Gothic Neo','Malgun Gothic',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:var(--font);background:#d9dcd3;color:var(--ink);padding:32px 20px 60px;-webkit-font-smoothing:antialiased;}
+  .page-head{max-width:1180px;margin:0 auto 22px;}
+  .page-head h1{font-size:22px;font-weight:700;letter-spacing:-.4px;}
+  .page-head p{font-size:13px;color:#55584f;margin-top:6px;line-height:1.55;}
+  .stage{max-width:1180px;margin:0 auto;display:flex;gap:36px;flex-wrap:wrap;align-items:flex-start;}
+  .phone{width:344px;height:730px;flex:0 0 auto;background:#fff;border-radius:46px;border:9px solid #16170f;position:relative;overflow:hidden;box-shadow:0 20px 50px rgba(20,21,15,.26);display:flex;flex-direction:column;}
+  .notch{position:absolute;top:0;left:50%;transform:translateX(-50%);width:112px;height:26px;background:#16170f;border-radius:0 0 16px 16px;z-index:60;}
+
+  .view{position:absolute;inset:0;display:none;flex-direction:column;}
+  .view.on{display:flex;}
+  .clickable{cursor:pointer;transition:transform .12s;}
+  .clickable:active{transform:scale(.985);}
+  .scroll{flex:1 1 auto;overflow-y:auto;padding:14px 18px 20px;}
+  .scroll::-webkit-scrollbar{display:none;}
+
+  /* top bar (entry list / step1) */
+  .topbar{flex:0 0 auto;margin:46px 0 0;height:40px;background:transparent;color:var(--ink);display:flex;align-items:center;gap:10px;padding:0 18px;}
+  .backbtn{width:32px;height:32px;border-radius:999px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;flex:0 0 auto;}
+  .backbtn svg{width:14px;height:14px;stroke:var(--ink);fill:none;stroke-width:2.1;}
+  .toptitle{color:var(--ink);font-size:16px;font-weight:700;letter-spacing:-.2px;}
+
+  /* entry state: registered place list */
+  .sec-label{font-size:10.5px;font-weight:700;color:var(--ink-faint);letter-spacing:.4px;margin:14px 2px 6px;text-transform:uppercase;}
+  .prow{display:flex;align-items:center;gap:12px;padding:13px 2px;cursor:pointer;border-bottom:1px solid var(--hairline);}
+  .prow:last-child{border-bottom:0;}
+  .p-ic{width:38px;height:38px;border-radius:999px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;flex:0 0 auto;}
+  .p-ic svg{width:16px;height:16px;fill:none;stroke:var(--ink-muted);stroke-width:1.8;}
+  .p-info{flex:1 1 auto;min-width:0;}
+  .p-name-row{display:flex;align-items:center;gap:6px;}
+  .p-name{font-size:14.5px;font-weight:700;color:var(--ink);}
+  .p-badge{font-size:9.5px;font-weight:700;color:var(--ink-muted);background:var(--surface-2);padding:2px 7px;border-radius:999px;flex:0 0 auto;}
+  .p-addr{font-size:12px;color:var(--ink-muted);margin-top:3px;}
+  .chev{width:14px;height:14px;stroke:var(--ink-faint);fill:none;stroke-width:2;flex:0 0 auto;}
+  .emptyhint{padding:30px 4px;text-align:center;font-size:12.5px;color:var(--ink-muted);}
+  .addplace-btn{margin-top:16px;padding:13px;text-align:center;font-size:13.5px;font-weight:700;color:var(--ink);background:var(--surface-2);border-radius:14px;}
+
+  /* step 1: 장소 유형 선택 */
+  .steplabel{font-size:15px;font-weight:700;margin:16px 2px 14px;}
+  .typegrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  .typetile{background:var(--surface-2);color:var(--ink-muted);border-radius:16px;padding:22px 10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center;}
+  .typetile svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;}
+  .typetile .tt-label{font-size:13.5px;font-weight:700;color:inherit;}
+  .typetile.active{background:var(--cta);color:#fff;}
+  .customwrap{margin-top:16px;}
+  .customlabel{font-size:12px;font-weight:600;color:var(--ink-muted);margin-bottom:8px;}
+  .custominput{width:100%;font-family:var(--font);font-size:14px;border:1.6px solid var(--hairline);border-radius:13px;padding:12px 14px;outline:0;color:var(--ink);background:#fff;}
+  .custominput:focus{border-color:var(--cta);}
+  .custominput::placeholder{color:var(--ink-faint);}
+  .bottombar{flex:0 0 auto;padding:14px 16px 22px;background:#fff;border-top:1px solid var(--hairline);}
+  .pbtn{font-family:var(--font);border:0;border-radius:999px;padding:14px 16px;font-size:14px;font-weight:700;cursor:pointer;width:100%;background:var(--cta);color:#fff;}
+  .pbtn:disabled{background:var(--surface-neutral);color:var(--ink-faint);cursor:not-allowed;}
+
+  /* step 2: 주소 검색 (reuses ensom_search.html's search-row approach) */
+  .shead{flex:0 0 auto;padding:50px 16px 12px;display:flex;align-items:center;gap:10px;}
+  .sbox{flex:1 1 auto;display:flex;align-items:center;gap:8px;background:var(--surface-2);border:1.6px solid transparent;border-radius:13px;padding:10px 13px;}
+  .sbox.focus{border-color:var(--cta);background:#fff;}
+  .sbox svg{width:15px;height:15px;stroke:var(--ink-muted);fill:none;stroke-width:2;flex:0 0 auto;}
+  .sbox input{border:0;outline:0;background:transparent;font-family:var(--font);font-size:14px;flex:1 1 auto;color:var(--ink);}
+  .sbox input::placeholder{color:var(--ink-faint);}
+  .clearx{width:16px;height:16px;border-radius:999px;background:var(--surface-neutral);display:none;align-items:center;justify-content:center;cursor:pointer;flex:0 0 auto;}
+  .clearx svg{width:8px;height:8px;stroke:var(--ink-muted);fill:none;stroke-width:2.4;}
+  .addr-scroll{flex:1 1 auto;overflow-y:auto;padding:6px 16px 20px;}
+  .addr-scroll::-webkit-scrollbar{display:none;}
+  .row{display:flex;align-items:center;gap:12px;padding:11px 2px;cursor:pointer;}
+  .row .ic{width:32px;height:32px;border-radius:999px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;flex:0 0 auto;}
+  .row .ic svg{width:14px;height:14px;stroke:var(--ink-muted);fill:none;stroke-width:1.8;}
+  .row .rt{flex:1 1 auto;min-width:0;}
+  .row .rname{font-size:13.5px;font-weight:600;}
+  .row .rname b{color:var(--ink);font-weight:800;}
+  .row .raddr{font-size:11px;color:var(--ink-faint);margin-top:2px;}
+  .row .rdist{font-size:11px;color:var(--ink-muted);white-space:nowrap;flex:0 0 auto;}
+  .noresult{display:flex;flex-direction:column;align-items:center;justify-content:center;padding-top:70px;text-align:center;}
+  .noresult .nt{font-size:14.5px;font-weight:700;}
+  .noresult .ns{font-size:12px;color:var(--ink-muted);margin-top:6px;}
+
+  /* step 3: 지도에서 핀 조정 */
+  .mapview{position:relative;flex:1 1 auto;background:
+    linear-gradient(0deg, transparent 24%, rgba(200,204,190,.5) 25%, rgba(200,204,190,.5) 26%, transparent 27%, transparent 74%, rgba(200,204,190,.5) 75%, rgba(200,204,190,.5) 76%, transparent 77%),
+    linear-gradient(90deg, transparent 24%, rgba(200,204,190,.5) 25%, rgba(200,204,190,.5) 26%, transparent 27%, transparent 74%, rgba(200,204,190,.5) 75%, rgba(200,204,190,.5) 76%, transparent 77%),
+    #eef0e8;
+  background-size:64px 64px;}
+  .mapback{position:absolute;top:50px;left:16px;z-index:6;background:#fff;box-shadow:0 4px 10px rgba(20,21,15,.15);}
+  .pancontrols{position:absolute;top:96px;left:16px;right:16px;z-index:6;display:flex;gap:8px;flex-wrap:wrap;justify-content:center;}
+  .panchip{background:#fff;box-shadow:0 4px 10px rgba(20,21,15,.15);border-radius:999px;padding:8px 11px;font-size:10.5px;font-weight:700;color:var(--ink);white-space:nowrap;}
+  .map-marker-wrap{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:5;pointer-events:none;display:flex;flex-direction:column;align-items:center;}
+  .map-marker{width:28px;height:28px;border-radius:999px;background:var(--lime);border:4px solid var(--cta);box-shadow:0 3px 8px rgba(20,21,15,.3);}
+  .map-marker-shadow{width:16px;height:6px;border-radius:999px;background:rgba(20,21,15,.18);margin-top:20px;filter:blur(1px);}
+  .attribution{position:absolute;left:10px;bottom:10px;font-size:9px;color:var(--ink-faint);background:rgba(255,255,255,.7);padding:2px 6px;border-radius:6px;z-index:4;}
+  .pincard{position:absolute;left:14px;right:14px;bottom:16px;background:#fff;border-radius:20px;padding:16px;box-shadow:0 10px 26px rgba(21,23,15,.18);z-index:6;}
+  .pc-label{font-size:10px;color:var(--ink-faint);margin-bottom:4px;}
+  .pc-addr{font-size:14.5px;font-weight:700;margin-bottom:14px;line-height:1.4;}
+  .pc-toggle-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+  .pc-toggle-label{font-size:13px;font-weight:600;color:var(--ink);}
+
+  /* toggle switch — exact shared spec, do not modify */
+  .toggle{width:42px;height:25px;border-radius:999px;background:var(--surface-neutral);position:relative;cursor:pointer;flex:0 0 auto;transition:background .15s;}
+  .toggle .knob{position:absolute;top:2.5px;left:2.5px;width:20px;height:20px;border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);transition:left .15s, background .15s;}
+  .toggle.on{background:var(--cta);}
+  .toggle.on .knob{left:19.5px;background:var(--lime);}
+
+  /* toast */
+  .toast{position:absolute;left:16px;right:16px;bottom:24px;background:var(--cta);color:#fff;font-size:12.5px;font-weight:600;padding:13px 16px;border-radius:16px;z-index:90;transform:translateY(16px);opacity:0;transition:all .2s;text-align:center;pointer-events:none;}
+  .toast.on{transform:translateY(0);opacity:1;}
+
+  .hint{display:inline-block;background:#15170f;color:#c6f135;font-size:11.5px;font-weight:600;padding:6px 12px;border-radius:999px;margin-top:10px;}
+  .legend{max-width:340px;font-size:12px;color:#55584f;line-height:1.7;}
+  .legend b{color:var(--ink);}
+
+  /* ═ embed mode (used when loaded inside the shell) ═ */
+  body.embed{background:transparent;padding:0;overflow:hidden;}
+  body.embed .page-head,body.embed .legend,body.embed .hint{display:none!important;}
+  body.embed .stage{margin:0;padding:0;gap:0;}
+  body.embed{height:100vh;}
+  body.embed .stage{height:100%;align-items:stretch;}
+  body.embed .phone{width:100%!important;height:100%!important;max-width:100%;border:0!important;border-radius:0!important;box-shadow:none!important;}
+  body.embed .notch{display:none!important;}
+</style>
+</head>
+<body>
+
+<div class="page-head">
+  <h1>Ensom — 주요 장소 설정 프로토타입</h1>
+  <p>집 · 학교 · 직장처럼 자주 출발하는 장소를 등록해두는 화면. 목록에서 장소를 탭하면 주소 검색부터 다시 밟아 수정할 수 있고, "+ 장소 추가"로는 유형 선택부터 새로 시작해.</p>
+</div>
+
+<div class="stage">
+  <div class="phone">
+    <div class="notch"></div>
+
+    <!-- ═══ 등록된 장소 목록 (entry state) ═══ -->
+    <div class="view on" id="v-list">
+      <div class="topbar">
+        <div class="backbtn"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></div>
+        <div class="toptitle">주요 장소</div>
+      </div>
+      <div class="scroll">
+        <div class="sec-label">등록된 장소</div>
+        <div id="placeList"><!-- rendered by JS --></div>
+        <div class="addplace-btn clickable" onclick="startAdd()">+ 장소 추가</div>
+      </div>
+      <div class="toast" id="toast"></div>
+    </div>
+
+    <!-- ═══ STEP 1 · 장소 유형 선택 ═══ -->
+    <div class="view" id="v-step1">
+      <div class="topbar">
+        <div class="backbtn clickable" onclick="go('v-list')"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></div>
+        <div class="toptitle">장소 추가</div>
+      </div>
+      <div class="scroll">
+        <div class="steplabel">어떤 장소인가요?</div>
+        <div class="typegrid" id="typeGrid"><!-- rendered by JS --></div>
+        <div class="customwrap" id="customWrap" style="display:none;">
+          <div class="customlabel">장소 이름</div>
+          <input class="custominput" id="customInput" type="text" placeholder="예: 헬스장" oninput="onCustomInput(this.value)">
+        </div>
+      </div>
+      <div class="bottombar">
+        <button class="pbtn" id="step1NextBtn" disabled onclick="goStep2FromStep1()">다음</button>
+      </div>
+    </div>
+
+    <!-- ═══ STEP 2 · 주소 검색 ═══ -->
+    <div class="view" id="v-step2">
+      <div class="shead">
+        <div class="backbtn clickable" onclick="backFromStep2()"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></div>
+        <div class="sbox focus">
+          <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+          <input id="addrSearchInput" type="text" placeholder="주소를 입력하세요" oninput="onAddrSearch(this.value)">
+          <div class="clearx clickable" id="addrClearBtn" onclick="clearAddrSearch()"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></div>
+        </div>
+      </div>
+      <div class="addr-scroll" id="addrResults"><!-- filled by JS --></div>
+    </div>
+
+    <!-- ═══ STEP 3 · 지도에서 핀 조정 ═══ -->
+    <div class="view" id="v-step3">
+      <div class="mapview">
+        <div class="mapback backbtn clickable" onclick="go('v-step2')"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></div>
+        <div class="pancontrols">
+          <div class="panchip clickable" onclick="panMap(0)">지도 움직이기 ①</div>
+          <div class="panchip clickable" onclick="panMap(1)">지도 움직이기 ②</div>
+          <div class="panchip clickable" onclick="panMap(2)">지도 움직이기 ③</div>
+        </div>
+        <div class="map-marker-wrap">
+          <div class="map-marker"></div>
+          <div class="map-marker-shadow"></div>
+        </div>
+        <div class="attribution">© Kakao</div>
+        <div class="pincard">
+          <div class="pc-label">현재 주소</div>
+          <div class="pc-addr" id="pinAddrText">서울 강남구 테헤란로 152</div>
+          <div class="pc-toggle-row">
+            <div class="pc-toggle-label">기본 출발지로 지정</div>
+            <div class="toggle" id="defaultToggle" onclick="toggleDefault()"><div class="knob"></div></div>
+          </div>
+          <button class="pbtn" onclick="savePlace()">이 위치로 저장</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="legend">
+    <p><b>등록된 장소</b> — 집·직장이 이미 등록돼 있어. 행을 탭하면 유형은 그대로 두고 주소 검색부터 다시 밟아 수정할 수 있어.</p>
+    <p style="margin-top:8px;"><b>새 장소 추가</b> — "+ 장소 추가" → 유형 선택(기타는 이름 직접 입력) → 주소 검색("강남"이라고 타이핑해보면 결과가 실시간으로 6개 정도 좁혀져) → 지도에서 핀 조정 순서로 진행돼.</p>
+    <p style="margin-top:8px;"><b>핀 조정</b> — 핀은 화면 중앙에 고정, "지도 움직이기" 칩을 누르면 주소 텍스트가 실제로 바뀌어(지도 패닝을 흉내). 저장하면 목록에 실제로 반영되고 토스트가 떠.</p>
+    <div class="hint">탭 · 타이핑 모두 실제 동작</div>
+  </div>
+</div>
+
+<script>
+  // ─── icons ───
+  const iconHome   = `<svg viewBox="0 0 24 24"><path d="M3 10l9-7 9 7v9a2 2 0 01-2 2h-4v-6H9v6H5a2 2 0 01-2-2z"/></svg>`;
+  const iconSchool = `<svg viewBox="0 0 24 24"><path d="M12 3l9 4.5-9 4.5-9-4.5L12 3z"/><path d="M6.5 10.5V16c0 1.4 2.5 3 5.5 3s5.5-1.6 5.5-3v-5.5"/><path d="M21 8v6"/></svg>`;
+  const iconWork   = `<svg viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="1.5"/><path d="M9 21v-4h6v4"/></svg>`;
+  const iconOther  = `<svg viewBox="0 0 24 24"><path d="M20.6 12.3L12.7 4.4a2 2 0 00-1.4-.6H6a2 2 0 00-2 2v5.3c0 .5.2 1 .6 1.4l7.9 7.9c.8.8 2 .8 2.8 0l5.3-5.3c.8-.8.8-2 0-2.8z"/><circle cx="8" cy="8.5" r="1.3"/></svg>`;
+  const iconPin    = `<svg viewBox="0 0 24 24"><path d="M12 2C7.6 2 4 5.6 4 10c0 6 8 12 8 12s8-6 8-12c0-4.4-3.6-8-8-8z"/><circle cx="12" cy="10" r="2.4"/></svg>`;
+
+  function iconFor(type){
+    if(type==='집') return iconHome;
+    if(type==='학교') return iconSchool;
+    if(type==='직장') return iconWork;
+    return iconOther;
+  }
+
+  // ─── data ───
+  let places = [
+    {id:1, type:'집', label:'집', addr:'서울 마포구 성산동 12-3', isDefault:true},
+    {id:2, type:'직장', label:'직장', addr:'서울 강남구 테헤란로 152', isDefault:false},
+  ];
+  let nextId = 3;
+
+  const ADDR_RESULTS = [
+    {name:'집', addr:'서울 마포구 성산동 12-3', dist:'0.1km'},
+    {name:'강남파이낸스센터', addr:'서울 강남구 테헤란로 152', dist:'0.8km'},
+    {name:'강남역', addr:'서울 강남구 강남대로 396', dist:'0.4km'},
+    {name:'강남구청', addr:'서울 강남구 학동로 426', dist:'1.8km'},
+    {name:'강남세브란스병원', addr:'서울 강남구 언주로 211', dist:'2.6km'},
+    {name:'강남우체국', addr:'서울 강남구 봉은사로 100', dist:'1.1km'},
+    {name:'신강남빌딩', addr:'서울 강남구 논현로 100', dist:'2.0km'},
+    {name:'홍대입구역', addr:'서울 마포구 양화로 지하 160', dist:'6.1km'},
+    {name:'상암DMC', addr:'서울 마포구 성암로 267', dist:'1.4km'},
+    {name:'서울역', addr:'서울 용산구 한강대로 405', dist:'5.4km'},
+  ];
+
+  let flow = {editingId:null, type:null, customLabel:'', addr:null, isDefault:false};
+  let currentAddrMatches = [];
+  let panVariants = [];
+  const PAN_ORDER = [1,2,0];
+
+  // ─── view switching ───
+  function go(id){
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('on'));
+    document.getElementById(id).classList.add('on');
+  }
+
+  // ─── entry list ───
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+  function renderPlaces(){
+    const wrap = document.getElementById('placeList');
+    if(places.length===0){
+      wrap.innerHTML = '<div class="emptyhint">아직 등록된 장소가 없어요</div>';
+      return;
+    }
+    wrap.innerHTML = places.map(p=>`
+      <div class="prow clickable" onclick="startEdit(${p.id})">
+        <div class="p-ic">${iconFor(p.type)}</div>
+        <div class="p-info">
+          <div class="p-name-row"><span class="p-name">${escapeHtml(p.label)}</span>${p.isDefault?'<span class="p-badge">기본</span>':''}</div>
+          <div class="p-addr">${escapeHtml(p.addr)}</div>
+        </div>
+        <svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
+      </div>`).join('');
+  }
+
+  // ─── step 1: 장소 유형 선택 ───
+  const TYPES = ['집','학교','직장','기타'];
+  function renderTypeTiles(){
+    document.getElementById('typeGrid').innerHTML = TYPES.map(t=>
+      `<div class="typetile clickable" data-type="${t}" onclick="selectType('${t}')"><div class="tt-ic">${iconFor(t)}</div><div class="tt-label">${t}</div></div>`
+    ).join('');
+  }
+  function startAdd(){
+    flow = {editingId:null, type:null, customLabel:'', addr:null, isDefault: places.length===0};
+    document.querySelectorAll('.typetile').forEach(t=>t.classList.remove('active'));
+    document.getElementById('customWrap').style.display='none';
+    document.getElementById('customInput').value='';
+    updateStep1NextState();
+    go('v-step1');
+  }
+  function selectType(type){
+    flow.type = type;
+    document.querySelectorAll('.typetile').forEach(t=>t.classList.toggle('active', t.dataset.type===type));
+    const cw = document.getElementById('customWrap');
+    if(type==='기타'){
+      cw.style.display='block';
+      setTimeout(()=>document.getElementById('customInput').focus(), 50);
+    } else {
+      cw.style.display='none';
+      flow.customLabel='';
+    }
+    updateStep1NextState();
+  }
+  function onCustomInput(v){
+    flow.customLabel = v;
+    updateStep1NextState();
+  }
+  function updateStep1NextState(){
+    const ok = flow.type && (flow.type!=='기타' || flow.customLabel.trim().length>0);
+    document.getElementById('step1NextBtn').disabled = !ok;
+  }
+  function goStep2FromStep1(){
+    if(document.getElementById('step1NextBtn').disabled) return;
+    document.getElementById('addrSearchInput').value='';
+    document.getElementById('addrClearBtn').style.display='none';
+    renderAddrHint();
+    go('v-step2');
+    setTimeout(()=>document.getElementById('addrSearchInput').focus(), 60);
+  }
+
+  // ─── step 2: 주소 검색 ───
+  function backFromStep2(){
+    if(flow.editingId!=null) go('v-list');
+    else go('v-step1');
+  }
+  function renderAddrHint(){
+    document.getElementById('addrResults').innerHTML = `
+      <div class="noresult">
+        <div class="nt">주소를 검색해보세요</div>
+        <div class="ns">동, 건물명, 도로명으로 찾을 수 있어요</div>
+      </div>`;
+  }
+  function onAddrSearch(v){
+    const q = v.trim();
+    document.getElementById('addrClearBtn').style.display = q ? 'flex' : 'none';
+    if(q===''){ renderAddrHint(); return; }
+    const matches = ADDR_RESULTS.filter(p=>p.name.includes(q) || p.addr.includes(q));
+    renderAddrResults(matches, q);
+  }
+  function clearAddrSearch(){
+    const input = document.getElementById('addrSearchInput');
+    input.value='';
+    input.focus();
+    document.getElementById('addrClearBtn').style.display='none';
+    renderAddrHint();
+  }
+  function renderAddrResults(list, q){
+    currentAddrMatches = list;
+    const area = document.getElementById('addrResults');
+    if(list.length===0){
+      area.innerHTML = `
+        <div class="noresult">
+          <div class="nt">검색 결과가 없어요</div>
+          <div class="ns">다른 이름으로 찾아보시겠어요?</div>
+        </div>`;
+      return;
+    }
+    area.innerHTML = list.map((p,i)=>{
+      const idx = p.name.indexOf(q);
+      const nameHtml = idx>=0 ? p.name.slice(0,idx)+'<b>'+p.name.slice(idx,idx+q.length)+'</b>'+p.name.slice(idx+q.length) : p.name;
+      return `<div class="row clickable" onclick="selectAddrByIdx(${i})">
+        <div class="ic">${iconPin}</div>
+        <div class="rt"><div class="rname">${nameHtml}</div><div class="raddr">${p.addr}</div></div>
+        <div class="rdist">${p.dist}</div>
+      </div>`;
+    }).join('');
+  }
+  function selectAddrByIdx(i){
+    const p = currentAddrMatches[i];
+    if(!p) return;
+    enterStep3(p.addr);
+  }
+
+  // ─── step 3: 지도에서 핀 조정 ───
+  function setPinAddr(addr){
+    flow.addr = addr;
+    document.getElementById('pinAddrText').textContent = addr;
+  }
+  function nearbyVariants(addr){
+    const m = addr.match(/^(.*?)(\d+)(-\d+)?$/);
+    if(!m) return [addr, addr, addr];
+    const base = m[1];
+    const num = parseInt(m[2],10);
+    const v2 = num+4;
+    const v3 = (num-3>0) ? num-3 : num+8;
+    return [addr, base+v2, base+v3];
+  }
+  function enterStep3(addr){
+    panVariants = nearbyVariants(addr);
+    setPinAddr(panVariants[0]);
+    document.getElementById('defaultToggle').classList.toggle('on', !!flow.isDefault);
+    go('v-step3');
+  }
+  function panMap(btnIdx){
+    const target = PAN_ORDER[btnIdx];
+    setPinAddr(panVariants[target]);
+  }
+  function toggleDefault(){
+    flow.isDefault = !flow.isDefault;
+    document.getElementById('defaultToggle').classList.toggle('on', flow.isDefault);
+  }
+
+  // ─── 기존 장소 수정 (주소 검색부터 다시) ───
+  function startEdit(id){
+    const p = places.find(pl=>pl.id===id);
+    if(!p) return;
+    flow = {editingId:id, type:p.type, customLabel: p.type==='기타' ? p.label : '', addr:p.addr, isDefault:p.isDefault};
+    go('v-step2');
+    const input = document.getElementById('addrSearchInput');
+    input.value = p.addr;
+    document.getElementById('addrClearBtn').style.display='flex';
+    onAddrSearch(p.addr);
+  }
+
+  // ─── 저장 ───
+  function withObjParticle(word){
+    const code = word.charCodeAt(word.length-1);
+    if(code>=0xAC00 && code<=0xD7A3){
+      const hasBatchim = (code-0xAC00)%28 !== 0;
+      return word + (hasBatchim ? '을' : '를');
+    }
+    return word + '를';
+  }
+  function savePlace(){
+    const label = flow.type==='기타' ? (flow.customLabel.trim() || '기타') : flow.type;
+    const addr = flow.addr;
+    if(flow.isDefault){
+      places.forEach(p=>p.isDefault=false);
+    }
+    if(flow.editingId!=null){
+      const p = places.find(pl=>pl.id===flow.editingId);
+      if(p){ p.type=flow.type; p.label=label; p.addr=addr; p.isDefault=flow.isDefault; }
+    } else {
+      places.push({id:nextId++, type:flow.type, label:label, addr:addr, isDefault:flow.isDefault});
+    }
+    renderPlaces();
+    go('v-list');
+    setTimeout(()=>{
+      const t = document.getElementById('toast');
+      t.textContent = withObjParticle(label) + ' 저장했어요';
+      t.classList.add('on');
+      setTimeout(()=>t.classList.remove('on'), 2200);
+    }, 200);
+  }
+
+  // ─── init ───
+  renderTypeTiles();
+  renderPlaces();
+</script>
+
+<script>(function(){ if(window.self!==window.top){ document.body.classList.add('embed'); } })();</script>
+
+</body>
+</html>
