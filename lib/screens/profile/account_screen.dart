@@ -19,6 +19,27 @@ class AccountScreen extends ConsumerWidget {
         children: [
           const SizedBox(height: 16),
           ListTile(
+            title: const Text("비밀번호 변경"),
+            leading: const Icon(Icons.lock_outline),
+            onTap: () => context.push("/profile/change-password"),
+          ),
+          ListTile(
+            title: const Text("이메일 변경"),
+            leading: const Icon(Icons.email_outlined),
+            onTap: () => context.push("/profile/change-email"),
+          ),
+          ListTile(
+            title: const Text("로그인 수단"),
+            leading: const Icon(Icons.vpn_key_outlined),
+            onTap: () => context.push("/profile/providers"),
+          ),
+          ListTile(
+            title: const Text("로그인 기록"),
+            leading: const Icon(Icons.devices_outlined),
+            onTap: () => context.push("/profile/sessions"),
+          ),
+          const Divider(),
+          ListTile(
             title: const Text("로그아웃"),
             leading: const Icon(Icons.logout),
             onTap: () => showLogoutConfirmAndExecute(context, ref),

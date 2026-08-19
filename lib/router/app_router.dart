@@ -1,7 +1,6 @@
 import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:go_router/go_router.dart";
-import "placeholder_screen.dart";
 import "../providers/auth_providers.dart";
 import "../screens/onboarding/auth_screen.dart";
 import "../screens/onboarding/consent_screen.dart";
@@ -30,6 +29,12 @@ import "../screens/profile/notification_settings_screen.dart";
 import "../screens/profile/personalization_screen.dart";
 import "../screens/profile/permissions_screen.dart";
 import "../screens/profile/data_management_screen.dart";
+import "../screens/profile/change_password_screen.dart";
+import "../screens/profile/change_email_screen.dart";
+import "../screens/profile/providers_screen.dart";
+import "../screens/profile/sessions_screen.dart";
+import "../screens/onboarding/password_reset_screen.dart";
+import "../screens/map/bookmarks_screen.dart";
 
 /// GoRouter + Riverpod 연동.
 /// AuthState를 구독해서 인증 상태 변화 시 자동 리다이렉트.
@@ -155,7 +160,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: "/onboarding/password-reset",
-        builder: (c, s) => const PlaceholderScreen(title: "비밀번호 재설정"),
+        builder: (c, s) => const PasswordResetScreen(),
       ),
       GoRoute(
         path: "/onboarding/priming/notification",
@@ -268,6 +273,26 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: "/profile/data",
         builder: (c, s) => const DataManagementScreen(),
       ),
+      GoRoute(
+        path: "/profile/change-password",
+        builder: (c, s) => const ChangePasswordScreen(),
+      ),
+      GoRoute(
+        path: "/profile/change-email",
+        builder: (c, s) => const ChangeEmailScreen(),
+      ),
+      GoRoute(
+        path: "/profile/providers",
+        builder: (c, s) => const ProvidersScreen(),
+      ),
+      GoRoute(
+        path: "/profile/sessions",
+        builder: (c, s) => const SessionsScreen(),
+      ),
+      GoRoute(
+        path: "/map/bookmarks",
+        builder: (c, s) => const BookmarksScreen(),
+      ),
 
       // ─── 메인 4탭 (화면설계서 확정: 캘린더·홈·지도·프로필) ────
       StatefulShellRoute.indexedStack(
@@ -345,10 +370,7 @@ class _SplashScreenState extends ConsumerState<_SplashScreen> {
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 16),
-                FilledButton(
-                  onPressed: _retry,
-                  child: const Text("다시 시도"),
-                ),
+                FilledButton(onPressed: _retry, child: const Text("다시 시도")),
               ] else
                 const CircularProgressIndicator(),
             ],
