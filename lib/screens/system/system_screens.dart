@@ -85,3 +85,78 @@ class SessionExpiredScreen extends StatelessWidget {
     );
   }
 }
+
+/// SYS-03 점검 중
+class MaintenanceScreen extends StatelessWidget {
+  const MaintenanceScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(
+      body: Center(
+        child: Padding(
+          padding: EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.construction, size: 64, color: Colors.grey),
+              SizedBox(height: 24),
+              Text(
+                "서비스 점검 중이에요",
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+              ),
+              SizedBox(height: 12),
+              Text(
+                "더 좋은 서비스로 찾아올게요.\n잠시만 기다려주세요.",
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// SYS-04 업데이트 필요
+class ForceUpdateScreen extends StatelessWidget {
+  const ForceUpdateScreen({super.key, this.onUpdate});
+
+  final VoidCallback? onUpdate;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.system_update, size: 64, color: Colors.grey),
+              const SizedBox(height: 24),
+              const Text(
+                "업데이트가 필요해요",
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                "최신 버전으로 업데이트해주세요.\n중요한 변경 사항이 포함되어 있어요.",
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey),
+              ),
+              const SizedBox(height: 32),
+              if (onUpdate != null)
+                ElevatedButton.icon(
+                  onPressed: onUpdate,
+                  icon: const Icon(Icons.download),
+                  label: const Text("업데이트"),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
