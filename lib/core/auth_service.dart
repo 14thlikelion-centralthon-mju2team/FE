@@ -22,9 +22,9 @@ class AuthService {
   Future<SignupResult> signupWithEmail({
     required String email,
     required String password,
-    required String nickname,
-    required String timezone,
-    required String installationId,
+    String? nickname,
+    String? timezone,
+    String? installationId,
   }) async {
     try {
       final data = await _client.post<Map<String, dynamic>>(
@@ -32,15 +32,19 @@ class AuthService {
         body: {
           "email": email,
           "password": password,
-          "nickname": nickname,
-          "timezone": timezone,
-          "installationId": installationId,
+          // BE 계약에 따라 선택적으로 포함. BE가 수용하지 않으면 무시됨.
+          if (nickname != null) "nickname": nickname,
+          if (timezone != null) "timezone": timezone,
+          if (installationId != null) "installationId": installationId,
         },
       );
-      final user = data["user"] as Map<String, dynamic>;
+      // BE 응답 형식 양쪽 대응:
+      //   FE 기대: {"user": {"userId", "email", "emailVerified"}, "verificationSent"}
+      //   BE 현재: {"id", "email", "provider"}
+      final user = data["user"] as Map<String, dynamic>? ?? data;
       return SignupResult(
-        userId: user["userId"] as String,
-        email: user["email"] as String,
+        userId: (user["userId"] ?? user["id"] ?? "") as String,
+        email: (user["email"] ?? email) as String,
         emailVerified: user["emailVerified"] as bool? ?? false,
         verificationSent: data["verificationSent"] as bool? ?? true,
       );
@@ -59,7 +63,7 @@ class AuthService {
   Future<LoginResult> loginWithEmail({
     required String email,
     required String password,
-    required String installationId,
+    String? installationId,
   }) async {
     try {
       final data = await _client.post<Map<String, dynamic>>(
@@ -67,7 +71,7 @@ class AuthService {
         body: {
           "email": email,
           "password": password,
-          "installationId": installationId,
+          if (installationId != null) "installationId": installationId,
         },
       );
       return _handleLoginResponse(data);
@@ -214,19 +218,18 @@ class ConsentEntry {
   const ConsentEntry({
     required this.consentType,
     required this.policyVersion,
-    required this.action,
-    required this.isRequired,
+    required this.agreed,
   });
 
   final String consentType;
   final String policyVersion;
-  final String action; // "agreed" | "revoked"
-  final bool isRequired;
+  final bool agreed;
 
+  /// BE 현재 계약: consentType + policyVersion + agreed (boolean).
+  /// action/isRequired는 FE 전용 개념이므로 서버에 보내지 않는다.
   Map<String, dynamic> toJson() => {
         "consentType": consentType,
         "policyVersion": policyVersion,
-        "action": action,
-        "isRequired": isRequired,
+        "agreed": agreed,
       };
 }
