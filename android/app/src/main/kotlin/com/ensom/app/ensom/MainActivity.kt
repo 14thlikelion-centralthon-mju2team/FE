@@ -1,4 +1,4 @@
-package com.vium.app.vium
+package com.ensom.app.ensom
 
 import io.flutter.embedding.android.FlutterActivity
 

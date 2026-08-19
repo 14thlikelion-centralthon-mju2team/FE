@@ -5,10 +5,10 @@
 // 'flutter create' template.
 
 // The application's name. By default this is also the title of the Flutter window.
-PRODUCT_NAME = vium
+PRODUCT_NAME = ensom
 
 // The application's bundle identifier
-PRODUCT_BUNDLE_IDENTIFIER = com.vium.app.vium
+PRODUCT_BUNDLE_IDENTIFIER = com.ensom.app.ensom
 
 // The copyright displayed in application information
-PRODUCT_COPYRIGHT = Copyright © 2026 com.vium.app. All rights reserved.
+PRODUCT_COPYRIGHT = Copyright © 2026 com.ensom.app. All rights reserved.
