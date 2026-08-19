@@ -48,7 +48,11 @@ dependencies:
   http: ^1.6.0
   google_sign_in: 6.2.1
   timezone: 0.11.1
-  flutter_secure_storage: ^11.0.0
+  # 11.0.0은 compileSdk=37을 강제하는데, 이 값은 로컬 Android SDK에
+  # cmdline-tools가 있어야 제대로 설치되는 아주 최신 플랫폼이라 팀
+  # 전원의 환경에서 안정적으로 빌드되지 않는다. compileSdk 요구가 낮은
+  # 직전 버전(10.3.1)로 고정한다.
+  flutter_secure_storage: 10.3.1
   drift: ^2.34.3
   sqlite3_flutter_libs: ^0.6.0+eol
   flutter_local_notifications: ^22.3.0
@@ -57,6 +61,15 @@ dependencies:
   path: ^1.9.1
   kakao_map_sdk: ^1.2.6
   firebase_core: ^4.13.0
+
+# permission_handler_android 14.0.0(2026-07-31 배포)의 build.gradle.kts가
+# buildscript classpath에 Kotlin Gradle 플러그인만 넣어두고 plugins{}에서
+# 실제로 적용하지 않아 하단 kotlin{compilerOptions{...}} 블록에서
+# "Unresolved reference: kotlin" 컴파일 오류가 난다 (flutter build apk 실패).
+# 바로 전 버전인 13.0.1로 고정해 우회한다. permission_handler_android가
+# 해당 버그를 수정한 패치를 내면 이 override를 제거할 것.
+dependency_overrides:
+  permission_handler_android: 13.0.1
 
 dev_dependencies:
   flutter_test:
