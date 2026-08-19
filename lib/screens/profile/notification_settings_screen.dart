@@ -18,6 +18,7 @@ class _NotificationSettingsScreenState
   String _sensitivity = "normal"; // low, normal, high
   bool _lockscreenHide = true;
   bool _wellnessEvent = false;
+  bool _saving = false;
 
   @override
   void initState() {
@@ -43,6 +44,8 @@ class _NotificationSettingsScreenState
   }
 
   Future<void> _save(Map<String, dynamic> patch) async {
+    if (_saving) return; // 연타 방어
+    setState(() => _saving = true);
     // BE는 부분 patch가 아니라 전체 필드를 요구한다 (SettingsRequest).
     // 현재 state 기준으로 전체를 구성해서 보낸다.
     final fullBody = {
@@ -64,6 +67,8 @@ class _NotificationSettingsScreenState
           const SnackBar(content: Text("설정 저장에 실패했어요.")),
         );
       }
+    } finally {
+      if (mounted) setState(() => _saving = false);
     }
   }
 

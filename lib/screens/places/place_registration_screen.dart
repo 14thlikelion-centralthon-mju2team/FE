@@ -16,7 +16,7 @@ class PlaceRegistrationScreen extends ConsumerStatefulWidget {
   const PlaceRegistrationScreen({super.key, this.isOnboarding = false});
 
   /// 온보딩 흐름에서 호출되면 true — "완료/나중에" 버튼이 표시되고
-  /// 완료 시 /home으로 이동한다.
+  /// 완료 시 /onboarding/wellness로 이동한다.
   final bool isOnboarding;
 
   @override
