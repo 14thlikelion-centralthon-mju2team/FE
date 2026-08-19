@@ -51,6 +51,10 @@ class EnsomApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(appRouterProvider);
+    FcmService.instance.setNotificationTapHandler((metadata) {
+      // notificationId/planId/type만 받은 뒤 서버 notification log에서 최신 상태를 조회한다.
+      router.go("/notifications/today");
+    });
     return MaterialApp.router(
       title: "Ensom",
       theme: ThemeData(
