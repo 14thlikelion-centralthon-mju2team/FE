@@ -62,7 +62,11 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen> {
       );
       await ref.read(ensomRepositoryProvider).createEvent(event);
       if (!mounted) return;
-      context.pop();
+      // 저장 성공 → 일정 상세(DTL-01)로 이동
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("일정을 저장했어요."), duration: Duration(seconds: 2)),
+      );
+      context.go("/home");
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

@@ -21,6 +21,10 @@ import "../screens/calendar/event_form_screen.dart";
 import "../screens/detail/event_detail_screen.dart";
 import "../screens/profile/profile_screen.dart";
 import "../screens/profile/account_screen.dart";
+import "../screens/profile/notification_settings_screen.dart";
+import "../screens/profile/personalization_screen.dart";
+import "../screens/profile/permissions_screen.dart";
+import "../screens/profile/data_management_screen.dart";
 
 /// GoRouter + Riverpod 연동.
 /// AuthState를 구독해서 인증 상태 변화 시 자동 리다이렉트.
@@ -164,19 +168,19 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: "/profile/notifications",
-        builder: (c, s) => const PlaceholderScreen(title: "알림 설정"),
+        builder: (c, s) => const NotificationSettingsScreen(),
       ),
       GoRoute(
         path: "/profile/permissions",
-        builder: (c, s) => const PlaceholderScreen(title: "권한 관리"),
+        builder: (c, s) => const PermissionsScreen(),
       ),
       GoRoute(
         path: "/profile/personalization",
-        builder: (c, s) => const PlaceholderScreen(title: "개인화"),
+        builder: (c, s) => const PersonalizationScreen(),
       ),
       GoRoute(
         path: "/profile/data",
-        builder: (c, s) => const PlaceholderScreen(title: "데이터 관리"),
+        builder: (c, s) => const DataManagementScreen(),
       ),
 
       // ─── 메인 4탭 (화면설계서 확정: 캘린더·홈·지도·프로필) ────
