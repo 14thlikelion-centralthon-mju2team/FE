@@ -64,6 +64,10 @@ class FcmService {
 
       // 포그라운드 메시지 핸들러
       FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
+      // background/terminated tap은 notification metadata만 router에 전달한다.
+      FirebaseMessaging.onMessageOpenedApp.listen(_handleNotificationTap);
+      final initial = await _messaging.getInitialMessage();
+      if (initial != null) _handleNotificationTap(initial);
     } catch (e) {
       // Firebase 미설정 환경 — FCM 비활성, 로컬 알림 폴백만 동작
       // 앱 시작을 중단하지 않는다.
@@ -104,12 +108,9 @@ class FcmService {
 
   /// 포그라운드 메시지 수신 처리.
   ///
-  /// 서버 data payload 규약:
-  ///   - dedupKey: 로컬 알림 취소용
-  ///   - title: 알림 제목
-  ///   - body: 알림 본문 (원문)
-  ///   - bodyMasked: 민감 항목이 일반화된 본문 (TR-10)
-  ///   - notificationCategory: "time" | "wellness"
+  /// BE FCM 계약: data에는 notification_id, plan_id, type만 들어간다.
+  /// 표시 문구는 서버가 이미 마스킹한 FCM notification title/body를 사용하며,
+  /// client data로 원문·좌표·준비 항목명을 전송하지 않는다.
   void _handleForegroundMessage(RemoteMessage message) {
     final data = message.data;
     final dedupKey = data["dedupKey"] as String?;
@@ -121,7 +122,7 @@ class FcmService {
 
     // 포그라운드에서는 시스템 알림이 자동 표시되지 않으므로
     // flutter_local_notifications로 직접 표시한다.
-    _showForegroundNotification(data);
+    _showForegroundNotification(message);
 
     // UI 레이어에도 전달 (인앱 배너 등)
     _foregroundMessageController?.call(message);
@@ -129,9 +130,10 @@ class FcmService {
 
   /// 포그라운드에서 수신한 FCM을 로컬 알림으로 표시.
   /// TR-10: lockscreenHideSensitive이면 bodyMasked를 사용하고 visibility를 제한.
-  Future<void> _showForegroundNotification(Map<String, dynamic> data) async {
-    final title = data["title"] as String? ?? "Ensom";
-    final body = data["body"] as String? ?? "";
+  Future<void> _showForegroundNotification(RemoteMessage message) async {
+    final data = message.data;
+    final title = message.notification?.title ?? "Ensom";
+    final body = message.notification?.body ?? "새 알림이 도착했어요.";
 
     // 잠금화면 설정에 따라 표시할 본문 결정
     // 앱이 포그라운드(잠금 해제 상태)이므로 원문을 보여주되,
@@ -175,6 +177,20 @@ class FcmService {
 
   /// UI 레이어가 포그라운드 메시지를 수신하기 위한 콜백.
   void Function(RemoteMessage)? _foregroundMessageController;
+  void Function(Map<String, String>)? _notificationTapHandler;
+
+  void _handleNotificationTap(RemoteMessage message) {
+    final data = <String, String>{
+      for (final entry in message.data.entries)
+        if ({"notification_id", "plan_id", "type"}.contains(entry.key)) entry.key: entry.value,
+    };
+    if (data["notification_id"] != null) _notificationTapHandler?.call(data);
+  }
+
+  /// Router는 notification metadata만 받고, FCM payload의 표시 문구나 민감 데이터를 받지 않는다.
+  void setNotificationTapHandler(void Function(Map<String, String>) handler) {
+    _notificationTapHandler = handler;
+  }
 
   /// 홈 화면 등에서 포그라운드 메시지 콜백을 등록한다.
   void setForegroundMessageHandler(void Function(RemoteMessage) handler) {
@@ -185,6 +201,7 @@ class FcmService {
   /// 클라이언트는 콜백만 정리.
   void dispose() {
     _foregroundMessageController = null;
+    _notificationTapHandler = null;
   }
 
   String _getPlatform() {
