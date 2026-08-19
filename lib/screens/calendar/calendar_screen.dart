@@ -37,13 +37,14 @@ class CalendarScreen extends ConsumerWidget {
           return ListView.separated(
             padding: const EdgeInsets.all(16),
             itemCount: sorted.length,
-            separatorBuilder: (_, _) => const Divider(height: 1),
+            separatorBuilder: (_, __) => const Divider(height: 1),
             itemBuilder: (context, index) {
               final event = sorted[index];
               return ListTile(
                 title: Text(event.displayName),
                 subtitle: Text(dateFormat.format(event.startsAt)),
                 trailing: _locationStateChip(event.locationState),
+                onTap: () => context.push("/events/${event.eventId}"),
               );
             },
           );

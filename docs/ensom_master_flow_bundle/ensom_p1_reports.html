@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ensom — 일일 마무리 카드 + 주간 리포트 프로토타입</title>
+<style>
+  :root{
+    --lime:#c6f135;--lime-soft:#e4fb9b;--lime-ink:#4e6810;
+    --canvas:#ffffff;--surface-1:#ffffff;--surface-2:#eef0ea;--surface-neutral:#e9e9e6;
+    --hairline:#e3e5e0;--ink:#14150f;--ink-muted:#63655e;--ink-faint:#9a9c92;
+    --panel:#15170f;--cta:#1f231a;
+    --font:'Pretendard','Apple SD Gothic Neo','Malgun Gothic',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:var(--font);background:#d9dcd3;color:var(--ink);padding:32px 20px 60px;-webkit-font-smoothing:antialiased;}
+  .page-head{max-width:1180px;margin:0 auto 22px;}
+  .page-head h1{font-size:22px;font-weight:700;letter-spacing:-.4px;}
+  .page-head p{font-size:13px;color:#55584f;margin-top:6px;line-height:1.55;}
+  .stage{max-width:1180px;margin:0 auto;display:flex;gap:36px;flex-wrap:wrap;align-items:flex-start;}
+  .phone{width:344px;height:730px;flex:0 0 auto;background:var(--canvas);border-radius:46px;border:9px solid #16170f;position:relative;overflow:hidden;box-shadow:0 20px 50px rgba(20,21,15,.26);display:flex;flex-direction:column;}
+  .notch{position:absolute;top:0;left:50%;transform:translateX(-50%);width:112px;height:26px;background:#16170f;border-radius:0 0 16px 16px;z-index:60;}
+
+  .view{position:absolute;inset:0;display:none;flex-direction:column;}
+  .view.on{display:flex;}
+  .clickable{cursor:pointer;transition:transform .12s;}
+  .clickable:active{transform:scale(.985);}
+
+  .selrow{position:absolute;top:8px;left:0;right:0;display:flex;flex-wrap:wrap;gap:4px;justify-content:center;padding:0 12px;z-index:99;}
+  .selrow button{font-family:var(--font);font-size:10px;font-weight:700;border:0;border-radius:999px;padding:6px 9px;background:rgba(255,255,255,.85);color:var(--ink-muted);cursor:pointer;}
+  .selrow button.on{background:var(--cta);color:#fff;}
+
+  /* home w/ daily summary */
+  .homepad{flex:1 1 auto;padding:46px 18px 0;}
+  .word{font-size:13px;font-weight:700;letter-spacing:1.6px;display:inline-flex;align-items:center;}
+  .wm-o{width:.78em;height:.78em;margin:0 1px;flex:0 0 auto;}
+  .greet{margin-top:18px;}
+  .greet h3{font-size:20px;font-weight:700;letter-spacing:-.4px;}
+
+  .sumcard{margin-top:16px;background:var(--lime);border-radius:28px;padding:19px 18px;display:flex;flex-direction:column;gap:12px;position:relative;}
+  .sum-msg{font-size:21px;font-weight:700;letter-spacing:-.5px;line-height:1.3;word-break:keep-all;}
+  .sum-row{display:flex;gap:10px;}
+  .sum-box{flex:1 1 0;background:rgba(255,255,255,.4);border-radius:16px;padding:11px 13px;}
+  .sum-box .sl{font-size:10px;color:rgba(20,21,15,.6);margin-bottom:4px;}
+  .sum-box .sv{font-size:18px;font-weight:700;}
+  .sum-box .sc{font-size:9px;color:rgba(20,21,15,.55);margin-top:2px;}
+  .dwl-badge{display:inline-block;background:rgba(255,255,255,.55);color:var(--ink);font-size:11px;font-weight:700;padding:6px 12px;border-radius:999px;align-self:flex-start;}
+  .suggest{background:rgba(255,255,255,.4);border-radius:14px;padding:10px 13px;font-size:12px;font-weight:600;}
+  .sum-close{align-self:flex-end;background:rgba(20,21,15,.14);color:var(--ink);font-family:var(--font);border:0;border-radius:999px;padding:9px 16px;font-size:12px;font-weight:700;cursor:pointer;}
+
+  .empty-home{margin-top:16px;background:var(--surface-1);border:1px solid var(--hairline);border-radius:24px;padding:22px 16px;text-align:center;font-size:13px;color:var(--ink-muted);}
+
+  /* weekly report */
+  .topbar{flex:0 0 auto;background:var(--cta);padding:46px 16px 14px;display:flex;align-items:center;gap:10px;}
+  .backbtn{width:30px;height:30px;border-radius:999px;background:rgba(255,255,255,.12);display:flex;align-items:center;justify-content:center;}
+  .backbtn svg{width:14px;height:14px;stroke:#fff;fill:none;stroke-width:2.1;}
+  .toptitle{color:#fff;font-size:15px;font-weight:700;letter-spacing:-.2px;}
+  .scroll{flex:1 1 auto;overflow-y:auto;padding:16px 18px 26px;}
+  .weeknav{display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:16px;}
+  .weeknav svg{width:13px;height:13px;stroke:var(--ink-muted);fill:none;stroke-width:2.2;cursor:pointer;}
+  .weeknav span{font-size:11.5px;color:var(--ink-muted);font-weight:600;}
+  .card{background:var(--surface-1);border:1px solid var(--hairline);border-radius:18px;padding:16px;margin-bottom:14px;}
+  .trio{display:flex;text-align:center;}
+  .trio .tb{flex:1 1 0;}
+  .trio .tn{font-size:22px;font-weight:700;letter-spacing:-.3px;}
+  .trio .tl{font-size:10.5px;color:var(--ink-faint);margin-top:4px;}
+  .chartlabel{font-size:12px;font-weight:700;margin-bottom:10px;}
+  .barrow{display:flex;justify-content:space-between;align-items:center;margin-top:4px;}
+  .barrow .bl{font-size:12px;color:var(--ink-muted);}
+  .barrow .bv{font-size:12px;font-weight:700;}
+  .progtrack{height:8px;background:var(--surface-2);border-radius:999px;margin-top:8px;overflow:hidden;}
+  .progfill{height:100%;background:var(--cta);border-radius:999px;}
+
+  .hint{display:inline-block;background:#15170f;color:#c6f135;font-size:11.5px;font-weight:600;padding:6px 12px;border-radius:999px;margin-top:10px;}
+  .legend{max-width:340px;font-size:12px;color:#55584f;line-height:1.7;}
+  .legend b{color:var(--ink);}
+
+  /* ═ embed mode (used when loaded inside ensom_master_flow.html) ═ */
+  body.embed{background:transparent;padding:0;overflow:hidden;}
+  body.embed .page-head,body.embed .legend,body.embed .hint{display:none!important;}
+  body.embed .stage{margin:0;padding:0;gap:0;}
+  body.embed .phone{box-shadow:none;}
+</style>
+</head>
+<body>
+
+<div class="page-head">
+  <h1>[HM-03 / CAL-06] Ensom — 일일 마무리 카드 + 주간 리포트 프로토타입 (P1)</h1>
+  <p>건강 점수·등급 표현 없이, 숫자와 담백한 문구로만 구성. 위 칩으로 3개 상태 전환.</p>
+</div>
+
+<div class="stage">
+  <div class="phone">
+    <div class="notch"></div>
+    <div class="selrow">
+      <button class="on" onclick="show('v-summary',this)">일일 마무리 카드</button>
+      <button onclick="show('v-nocard',this)">일정 0건인 날</button>
+      <button onclick="show('v-weekly',this)">주간 리포트</button>
+    </div>
+
+    <!-- 일일 마무리 카드 -->
+    <div class="view on" id="v-summary">
+      <div class="homepad">
+        <span class="word">ENS<svg class="wm-o" viewBox="0 0 32 32"><circle cx="16" cy="16" r="11" fill="none" stroke="#4e6810" stroke-width="7"/><circle cx="16" cy="16" r="11" fill="none" stroke="#c6f135" stroke-width="7" stroke-dasharray="47 22" transform="rotate(-90 16 16)" stroke-linecap="round"/></svg>M</span>
+        <div class="greet"><h3>안녕하세요, 도현님</h3></div>
+        <div class="sumcard">
+          <div class="dwl-badge">오늘의 부담: 보통</div>
+          <div class="sum-msg">오늘 야외 이동이<br>길었어요</div>
+          <div class="sum-row">
+            <div class="sum-box"><div class="sl">야외 이동</div><div class="sv">1시간 20분</div><div class="sc">추정치</div></div>
+          </div>
+          <div class="suggest">따뜻한 물 한 잔 어때요?</div>
+          <button class="sum-close">확인했어요</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 일정 0건인 날 -->
+    <div class="view" id="v-nocard">
+      <div class="homepad">
+        <span class="word">ENS<svg class="wm-o" viewBox="0 0 32 32"><circle cx="16" cy="16" r="11" fill="none" stroke="#4e6810" stroke-width="7"/><circle cx="16" cy="16" r="11" fill="none" stroke="#c6f135" stroke-width="7" stroke-dasharray="47 22" transform="rotate(-90 16 16)" stroke-linecap="round"/></svg>M</span>
+        <div class="greet"><h3>안녕하세요, 도현님</h3></div>
+        <div class="empty-home">오늘은 관리한 일정이 없어서<br>마무리 카드가 없어요</div>
+      </div>
+    </div>
+
+    <!-- 주간 리포트 -->
+    <div class="view" id="v-weekly">
+      <div class="topbar">
+        <div class="backbtn"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></div>
+        <div class="toptitle">이번 주 리포트</div>
+      </div>
+      <div class="scroll">
+        <div class="weeknav">
+          <svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>
+          <span>8월 13일 - 8월 19일</span>
+          <svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>
+        </div>
+
+        <div class="card">
+          <div class="trio">
+            <div class="tb"><div class="tn">5</div><div class="tl">정시 도착</div></div>
+            <div class="tb"><div class="tn">1</div><div class="tl">촉박</div></div>
+            <div class="tb"><div class="tn">2</div><div class="tl">이른 도착</div></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="chartlabel">준비 시간 예측 오차 추이</div>
+          <svg width="100%" height="70" viewBox="0 0 280 70" preserveAspectRatio="none">
+            <polyline points="0,40 40,30 80,50 120,20 160,35 200,15 240,28 280,10" fill="none" stroke="#1f231a" stroke-width="2"/>
+            <polyline points="0,40 40,30 80,50 120,20 160,35 200,15 240,28 280,10 280,70 0,70" fill="#eef0ea" stroke="none" opacity="0.6"/>
+          </svg>
+        </div>
+
+        <div class="card">
+          <div class="chartlabel">웰니스 행동 완료율</div>
+          <div class="barrow"><span class="bl">이번 주 8개 중 6개 완료</span></div>
+          <div class="progtrack"><div class="progfill" style="width:75%;"></div></div>
+        </div>
+
+        <div class="card">
+          <div class="chartlabel">야외 노출 합계</div>
+          <div class="trio"><div class="tb"><div class="tn">4시간 20분</div><div class="tl">이번 주 총</div></div></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="legend">
+    <p><b>일일 마무리 카드</b> — 히어로 스택 맨 앞 자리를 대체, 뒤 카드 없이 폭 전체 사용. DWL은 숫자 아니라 "보통" 같은 3단계 텍스트로만.</p>
+    <p style="margin-top:8px;"><b>주간 리포트</b> — 점수·등급·별점 없이 숫자+라벨로만. 그래프도 담백하게.</p>
+    <div class="hint">3개 상태 칩으로 전환</div>
+  </div>
+</div>
+
+<script>
+  function show(id, btn){
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('on'));
+    document.getElementById(id).classList.add('on');
+    document.querySelectorAll('.selrow button').forEach(b=>b.classList.remove('on'));
+    btn.classList.add('on');
+  }
+</script>
+
+<script>(function(){ if(new URLSearchParams(location.search).get('embed')==='1'){ document.body.classList.add('embed'); } })();</script>
+
+</body>
+</html>

@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ensom — 권한 프라이밍 + 스플래시 + 앱 아이콘 프로토타입</title>
+<style>
+  :root{
+    --lime:#c6f135;--lime-soft:#e4fb9b;--lime-ink:#4e6810;
+    --ink:#14150f;--ink-muted:#63655e;--ink-faint:#9a9c92;
+    --surface-2:#eef0ea;--cta:#1f231a;--hairline:#e3e5e0;
+    --font:'Pretendard','Apple SD Gothic Neo','Malgun Gothic',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:var(--font);background:#d9dcd3;color:var(--ink);padding:32px 20px 60px;-webkit-font-smoothing:antialiased;}
+  .page-head{max-width:1180px;margin:0 auto 22px;}
+  .page-head h1{font-size:22px;font-weight:700;letter-spacing:-.4px;}
+  .page-head p{font-size:13px;color:#55584f;margin-top:6px;line-height:1.55;}
+  .stage{max-width:1180px;margin:0 auto;display:flex;gap:36px;flex-wrap:wrap;align-items:flex-start;}
+  .phone{width:344px;height:730px;flex:0 0 auto;background:#fff;border-radius:46px;border:9px solid #16170f;position:relative;overflow:hidden;box-shadow:0 20px 50px rgba(20,21,15,.26);}
+  .notch{position:absolute;top:0;left:50%;transform:translateX(-50%);width:112px;height:26px;background:#16170f;border-radius:0 0 16px 16px;z-index:60;}
+
+  .selrow{position:absolute;top:8px;left:0;right:0;display:flex;flex-wrap:wrap;gap:4px;justify-content:center;padding:0 12px;z-index:99;}
+  .selrow button{font-family:var(--font);font-size:9.5px;font-weight:700;border:0;border-radius:999px;padding:5px 8px;background:var(--surface-2);color:var(--ink-muted);cursor:pointer;}
+  .selrow button.on{background:var(--cta);color:#fff;}
+
+  .view{position:absolute;inset:0;display:none;flex-direction:column;}
+  .view.on{display:flex;}
+
+  /* priming */
+  .primewrap{flex:1 1 auto;display:flex;flex-direction:column;padding:60px 26px 30px;}
+  .xbtn{width:28px;height:28px;border-radius:999px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;margin-bottom:24px;}
+  .xbtn svg{width:12px;height:12px;stroke:var(--ink);fill:none;stroke-width:2.2;}
+  .icowrap{width:64px;height:64px;border-radius:999px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;margin-bottom:22px;align-self:center;}
+  .icowrap svg{width:28px;height:28px;stroke:var(--ink-muted);fill:none;stroke-width:1.7;}
+  .icowrap .dot{fill:var(--lime);stroke:none;}
+  .primewrap h2{font-size:19px;font-weight:700;letter-spacing:-.3px;text-align:center;margin-bottom:11px;line-height:1.35;word-break:keep-all;}
+  .primewrap p{font-size:12.5px;color:var(--ink-muted);line-height:1.6;text-align:center;word-break:keep-all;}
+  .infocard{background:var(--surface-2);border-radius:14px;padding:13px 15px;margin-top:18px;font-size:11.5px;color:var(--ink-muted);line-height:1.55;}
+  .primewrap .spacer{flex:1 1 auto;}
+  .pbtn{font-family:var(--font);border:0;border-radius:999px;padding:13px 16px;font-size:14px;font-weight:700;cursor:pointer;width:100%;background:var(--cta);color:#fff;}
+  .textbtn{background:transparent;border:0;font-family:var(--font);font-size:12.5px;color:var(--ink-muted);text-decoration:underline;text-underline-offset:2px;cursor:pointer;text-align:center;margin-top:12px;width:100%;}
+
+  /* splash */
+  .splash{flex:1 1 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+  .splash .word{font-size:22px;font-weight:800;letter-spacing:2px;display:inline-flex;align-items:center;}
+  .splash .word .wm-o{width:.72em;height:.72em;margin:0 2px;flex:0 0 auto;}
+  .splash .slogan{font-size:11px;color:var(--ink-faint);margin-top:10px;letter-spacing:.2px;}
+  .splash .spin{width:18px;height:18px;border:2px solid var(--surface-2);border-top-color:var(--ink-faint);border-radius:999px;position:absolute;bottom:44px;animation:spin 1s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  /* app icons */
+  .iconsgrid{flex:1 1 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:26px;padding:60px 20px;}
+  .iconrow{display:flex;gap:20px;}
+  .appicon{width:64px;height:64px;border-radius:18px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(20,21,15,.15);}
+  .appicon.a1{background:var(--lime);}
+  .appicon.a2{background:var(--cta);}
+  .appicon.a3{background:#fff;border:1.5px solid var(--hairline);}
+  .appicon svg{width:28px;height:28px;stroke-width:2;fill:none;}
+  .iconlabel{text-align:center;font-size:10.5px;color:var(--ink-muted);margin-top:8px;}
+  .iconcol{display:flex;flex-direction:column;align-items:center;}
+
+  .hint{display:inline-block;background:#15170f;color:#c6f135;font-size:11.5px;font-weight:600;padding:6px 12px;border-radius:999px;margin-top:10px;}
+  .legend{max-width:340px;font-size:12px;color:#55584f;line-height:1.7;}
+  .legend b{color:var(--ink);}
+
+  /* ═ embed mode (used when loaded inside ensom_master_flow.html) ═ */
+  body.embed{background:transparent;padding:0;overflow:hidden;}
+  body.embed .page-head,body.embed .legend,body.embed .hint{display:none!important;}
+  body.embed .stage{margin:0;padding:0;gap:0;}
+  body.embed .phone{box-shadow:none;}
+</style>
+</head>
+<body>
+
+<div class="page-head">
+  <h1>[ONB-01 / 07 / 08 / 08b] Ensom — 알림·위치·캘린더 권한 프라이밍 + 스플래시 + 앱 아이콘 프로토타입</h1>
+  <p>OS 권한 다이얼로그 전에 보여주는 설명 화면 3종(알림·위치·캘린더), 앱 시작 스플래시, 아이콘 3안. 캘린더 프라이밍(ONB-08b)은 <code>08_화면상태_체크리스트.md</code>에서 발견된 신규 화면 — 알림·위치는 있는데 캘린더만 설명 화면이 없었어요.</p>
+</div>
+
+<div class="stage">
+  <div class="phone">
+    <div class="notch"></div>
+    <div class="selrow">
+      <button class="on" onclick="show(0,this)">알림 권한</button>
+      <button onclick="show(1,this)">위치 권한</button>
+      <button onclick="show(4,this)">캘린더 권한</button>
+      <button onclick="show(2,this)">스플래시</button>
+      <button onclick="show(3,this)">앱 아이콘</button>
+    </div>
+
+    <!-- 0. 알림 권한 프라이밍 -->
+    <div class="view on" id="v0">
+      <div class="primewrap">
+        <div class="xbtn"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></div>
+        <div class="icowrap"><svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 01-3.4 0"/></svg></div>
+        <h2>준비할 시간을<br>알려드릴게요</h2>
+        <p>알림을 켜두면 준비 시작·출발 시각을 놓치지 않아요. 필요한 순간에만 보내드려요.</p>
+        <div class="infocard">알림 빈도는 나중에 설정에서 조절할 수 있어요</div>
+        <div class="spacer"></div>
+        <button class="pbtn">알림 켜기</button>
+        <button class="textbtn">나중에</button>
+      </div>
+    </div>
+
+    <!-- 1. 위치 권한 프라이밍 -->
+    <div class="view" id="v1">
+      <div class="primewrap">
+        <div class="xbtn"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></div>
+        <div class="icowrap"><svg viewBox="0 0 24 24"><path d="M12 2C7.6 2 4 5.6 4 10c0 6 8 12 8 12s8-6 8-12c0-4.4-3.6-8-8-8z"/><circle class="dot" cx="12" cy="10" r="2.6"/></svg></div>
+        <h2>자동으로 출발·도착을<br>확인하려면</h2>
+        <p>출발한 시각과 도착한 시각을 직접 입력하지 않아도 되고, 실제 이동 시간을 반영해 준비 시간을 더 정확히 맞출 수 있어요.</p>
+        <div class="infocard">위치 정보는 준비·이동 시간 계산에만 사용되고 암호화되어 저장돼요</div>
+        <div class="spacer"></div>
+        <button class="pbtn">허용하러 가기</button>
+        <button class="textbtn">나중에 할게요</button>
+      </div>
+    </div>
+
+    <!-- 4. 캘린더 권한 프라이밍 (ONB-08b) -->
+    <div class="view" id="v4">
+      <div class="primewrap">
+        <div class="xbtn"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></div>
+        <div class="icowrap"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4M3 11h18"/></svg></div>
+        <h2>다음 일정과 장소를<br>자동으로 인식하려면</h2>
+        <p>캘린더를 연동하면 일정을 따로 입력하지 않아도 언제 준비를 시작해야 하는지 알려드려요. 제목은 저장하지 않고 분류에만 잠깐 쓰고 즉시 지워요.</p>
+        <div class="infocard">읽기 전용으로만 접근해요. 참석자·메모는 가져오지 않아요</div>
+        <div class="spacer"></div>
+        <button class="pbtn">캘린더 연동하기</button>
+        <button class="textbtn">나중에</button>
+      </div>
+    </div>
+
+    <!-- 2. 스플래시 -->
+    <div class="view" id="v2">
+      <div class="splash">
+        <div class="word">ENS<svg class="wm-o" viewBox="0 0 32 32"><circle cx="16" cy="16" r="11" fill="none" stroke="#4e6810" stroke-width="7"/><circle cx="16" cy="16" r="11" fill="none" stroke="#c6f135" stroke-width="7" stroke-dasharray="47 22" transform="rotate(-90 16 16)" stroke-linecap="round"/></svg>M</div>
+        <div class="slogan">늦지 않게, 서두르지 않게.</div>
+        <div class="spin"></div>
+      </div>
+    </div>
+
+    <!-- 3. 앱 아이콘 3안 -->
+    <div class="view" id="v3">
+      <div class="iconsgrid">
+        <div class="iconcol">
+          <div class="appicon a1"><svg viewBox="0 0 24 24" stroke="#14150f"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></svg></div>
+          <div class="iconlabel">① 라임 배경 + 어두운 심볼</div>
+        </div>
+        <div class="iconcol">
+          <div class="appicon a2"><svg viewBox="0 0 24 24" stroke="#c6f135"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></svg></div>
+          <div class="iconlabel">② 어두운 배경 + 라임 심볼</div>
+        </div>
+        <div class="iconcol">
+          <div class="appicon a3"><svg viewBox="0 0 24 24" stroke="#14150f"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></svg></div>
+          <div class="iconlabel">③ 흰 배경 + 조합</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="legend">
+    <p><b>프라이밍 화면 3종</b> — OS 다이얼로그 뜨기 전에 왜 필요한지 설명. "나중에" 텍스트 버튼으로 건너뛸 수 있음.</p>
+    <p style="margin-top:8px;"><b>앱 아이콘</b> — 심볼은 시계/시간 흐름을 단순화한 형태로 통일.</p>
+    <div class="hint">5개 상태 칩으로 전환</div>
+  </div>
+</div>
+
+<script>
+  function show(i, btn){
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('on'));
+    document.getElementById('v'+i).classList.add('on');
+    document.querySelectorAll('.selrow button').forEach(b=>b.classList.remove('on'));
+    btn.classList.add('on');
+  }
+</script>
+
+<script>(function(){ if(new URLSearchParams(location.search).get('embed')==='1'){ document.body.classList.add('embed'); } })();</script>
+
+</body>
+</html>

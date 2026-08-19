@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>[HM-02] Ensom — 알림 로그 프로토타입</title>
+<style>
+  :root{
+    --lime:#c6f135;--lime-soft:#e4fb9b;--lime-ink:#4e6810;
+    --canvas:#ffffff;--surface-1:#ffffff;--surface-2:#eef0ea;--surface-neutral:#e9e9e6;
+    --hairline:#e3e5e0;--ink:#14150f;--ink-muted:#63655e;--ink-faint:#6f7269;
+    --panel:#15170f;--cta:#1f231a;--caution:#e3a13b;--caution-ink:#7a4f0c;
+    --font:'Pretendard','Apple SD Gothic Neo','Malgun Gothic',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:var(--font);background:#d9dcd3;color:var(--ink);padding:32px 20px 60px;-webkit-font-smoothing:antialiased;}
+  .page-head{max-width:1180px;margin:0 auto 22px;}
+  .page-head h1{font-size:22px;font-weight:700;letter-spacing:-.4px;}
+  .page-head p{font-size:13px;color:#55584f;margin-top:6px;line-height:1.55;}
+  .stage{max-width:1180px;margin:0 auto;display:flex;gap:36px;flex-wrap:wrap;align-items:flex-start;}
+
+  .controls{max-width:1180px;margin:0 auto 24px;display:flex;flex-wrap:wrap;gap:20px;background:#fff;border-radius:16px;padding:16px 18px;}
+  .cg{display:flex;flex-direction:column;gap:8px;}
+  .cl{font-size:11px;font-weight:600;letter-spacing:.4px;color:#7a7d74;text-transform:uppercase;}
+  .cseg{display:flex;background:var(--surface-2);border-radius:999px;padding:4px;gap:2px;}
+  .cseg button{font-family:var(--font);font-size:13px;font-weight:600;border:0;background:transparent;color:var(--ink-muted);padding:8px 14px;border-radius:999px;cursor:pointer;white-space:nowrap;}
+  .cseg button.on{background:var(--cta);color:#fff;}
+
+  .phone{width:344px;height:730px;flex:0 0 auto;background:var(--canvas);border-radius:46px;border:9px solid #16170f;position:relative;overflow:hidden;box-shadow:0 20px 50px rgba(20,21,15,.26);display:flex;flex-direction:column;}
+  .notch{position:absolute;top:0;left:50%;transform:translateX(-50%);width:112px;height:26px;background:#16170f;border-radius:0 0 16px 16px;z-index:60;}
+
+  .topbar{flex:0 0 auto;margin:46px 2px 0;height:40px;display:flex;align-items:center;gap:10px;padding:0 16px;}
+  .backbtn{width:32px;height:32px;border-radius:999px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;cursor:pointer;flex:0 0 auto;}
+  .backbtn svg{width:14px;height:14px;stroke:var(--ink);fill:none;stroke-width:2.1;}
+  .toptitle{font-size:16px;font-weight:700;letter-spacing:-.2px;}
+
+  .scroll{flex:1 1 auto;overflow-y:auto;padding:14px 18px 24px;}
+  .scroll::-webkit-scrollbar{display:none;}
+  .daylabel{font-size:11px;font-weight:700;color:var(--ink-faint);letter-spacing:.3px;text-transform:uppercase;margin:6px 0 10px;}
+
+  .nrow{border-bottom:1px solid var(--hairline);padding:13px 2px;}
+  .nrow:last-child{border-bottom:none;}
+  .ntop{display:flex;align-items:center;justify-content:space-between;gap:8px;}
+  .ntype{font-size:10px;font-weight:700;padding:4px 9px;border-radius:999px;white-space:nowrap;}
+  .ntype.ease{background:var(--lime-soft);color:var(--lime-ink);}
+  .ntype.extreme{background:var(--cta);color:#fff;}
+  .ntype.disrupt{background:var(--caution);color:var(--ink);}
+  .ntype.wellness{background:var(--surface-2);color:var(--ink-muted);}
+  .ntime{font-size:11px;color:var(--ink-faint);white-space:nowrap;}
+  .nbody{font-size:13.5px;font-weight:600;margin-top:8px;line-height:1.4;}
+  .nreason{font-size:11.5px;color:var(--ink-muted);margin-top:4px;}
+  .nresponse{display:flex;align-items:center;gap:6px;margin-top:8px;}
+  .nresponse .rlabel{font-size:10px;font-weight:700;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.3px;}
+  .nresponse .rval{font-size:11.5px;font-weight:700;color:var(--ink);}
+  .nchange{margin-top:8px;background:var(--surface-2);border-radius:12px;padding:9px 11px;font-size:11px;color:var(--ink-muted);display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+  .nchange b{color:var(--ink);font-weight:700;}
+  .nchange svg{width:11px;height:11px;stroke:var(--ink-faint);fill:none;stroke-width:2.2;flex:0 0 auto;}
+
+  .noti-empty{flex:1 1 auto;display:flex;align-items:center;justify-content:center;}
+  .noti-empty p{font-size:13px;color:var(--ink-faint);}
+
+  .hint{display:inline-block;background:#15170f;color:#c6f135;font-size:11.5px;font-weight:600;padding:6px 12px;border-radius:999px;margin-top:10px;}
+  .legend{max-width:340px;font-size:12px;color:#55584f;line-height:1.7;}
+  .legend b{color:var(--ink);}
+
+  body.embed{background:transparent;padding:0;overflow:hidden;}
+  body.embed .page-head,body.embed .legend,body.embed .hint,body.embed .controls{display:none!important;}
+  body.embed .stage{margin:0;padding:0;gap:0;}
+  body.embed .phone{box-shadow:none;}
+</style>
+</head>
+<body>
+
+<div class="page-head">
+  <h1>[HM-02] Ensom — 알림 로그 프로토타입</h1>
+  <p>당일 발송된 시간·교통·웰니스 알림을 최신순으로 재확인하는 화면. 지금까지 "당일 없음" 빈 상태(<code>ensom_empty_error.html</code> v5)만 있고 실제 목록 화면 자체가 없었어요 — 이번에 신규 제작.</p>
+</div>
+
+<div class="controls">
+  <div class="cg">
+    <div class="cl">상태</div>
+    <div class="cseg" id="stateSeg">
+      <button data-s="list" class="on">당일 알림 있음</button>
+      <button data-s="empty">당일 알림 없음</button>
+    </div>
+  </div>
+</div>
+
+<div class="stage">
+  <div class="phone">
+    <div class="notch"></div>
+    <div class="topbar">
+      <div class="backbtn" onclick="location.href='ensom_prototype.html'"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></div>
+      <div class="toptitle">알림 로그</div>
+    </div>
+
+    <div class="scroll" id="listView">
+      <div class="daylabel">오늘 · 8월 19일</div>
+      <div id="rows"></div>
+    </div>
+
+    <div class="noti-empty" id="emptyView" style="display:none;"><p>오늘 보낸 알림이 없어요</p></div>
+  </div>
+
+  <div class="legend">
+    <p><b>행 구성</b> — 유형 배지(여유·극한·돌발·웰니스) · 발송 시각 · 본문 · 발생 이유 · 사용자 반응 · 변경된 계획(있으면 before→after).</p>
+    <p style="margin-top:8px;"><b>돌발 알림</b>이 계획을 바꾼 경우, 바뀌기 전/후 시각을 나란히 보여줘요 — 사용자가 "왜 바뀌었는지" 되짚을 수 있게.</p>
+    <div class="hint">HM-02 · 뒤로가기 → HM-01</div>
+  </div>
+</div>
+
+<script>
+const NOTIS = [
+  {type:'disrupt',label:'돌발',time:'13:05',body:'경로가 8분 늦어져서 출발 시각을 앞당겼어요',reason:'교통 지연 +8분',response:'확인함',change:{before:'13:26',after:'13:18'}},
+  {type:'extreme',label:'극한',time:'12:58',body:'이제 출발할 시간이에요',reason:'권장 출발 3분 전',response:'출발했어요'},
+  {type:'wellness',label:'웰니스',time:'12:45',body:'선크림을 다시 확인해 주세요',reason:'자외선 높음 · 야외 이동 지속',response:'완료'},
+  {type:'ease',label:'여유',time:'12:10',body:'12시 40분부터 준비하면 충분합니다',reason:'준비 시작 30분 전 안내',response:'-'},
+];
+
+function render(){
+  document.getElementById('rows').innerHTML = NOTIS.map(n=>`
+    <div class="nrow">
+      <div class="ntop">
+        <span class="ntype ${n.type}">${n.label}</span>
+        <span class="ntime">${n.time}</span>
+      </div>
+      <div class="nbody">${n.body}</div>
+      <div class="nreason">발생 이유 · ${n.reason}</div>
+      <div class="nresponse"><span class="rlabel">반응</span><span class="rval">${n.response}</span></div>
+      ${n.change ? `<div class="nchange"><svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg>준비 시작 <b>${n.change.before}</b> → <b>${n.change.after}</b>로 변경됨</div>` : ''}
+    </div>`).join('');
+}
+render();
+
+document.querySelectorAll('#stateSeg button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('#stateSeg button').forEach(x=>x.classList.remove('on'));
+  b.classList.add('on');
+  const empty = b.dataset.s==='empty';
+  document.getElementById('listView').style.display = empty ? 'none' : 'block';
+  document.getElementById('emptyView').style.display = empty ? 'flex' : 'none';
+});
+</script>
+
+<script>(function(){ if(new URLSearchParams(location.search).get('embed')==='1'){ document.body.classList.add('embed'); } })();</script>
+
+</body>
+</html>

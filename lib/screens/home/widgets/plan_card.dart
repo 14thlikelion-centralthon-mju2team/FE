@@ -13,6 +13,7 @@ class PlanCard extends StatelessWidget {
     required this.eventTitle,
     required this.plan,
     this.previousPlan,
+    this.onTap,
     required this.onPrepStart,
     required this.onPrepFinished,
     required this.onDeparted,
@@ -27,6 +28,7 @@ class PlanCard extends StatelessWidget {
   final String eventTitle;
   final Plan plan;
   final Plan? previousPlan;
+  final VoidCallback? onTap;
   final VoidCallback onPrepStart;
   final VoidCallback onPrepFinished;
   final VoidCallback onDeparted;
@@ -67,7 +69,9 @@ class PlanCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final timeFormat = DateFormat("a h:mm", "ko_KR");
-    return Card(
+    return GestureDetector(
+      onTap: onTap,
+      child: Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -126,7 +130,7 @@ class PlanCard extends StatelessWidget {
           ],
         ),
       ),
-    );
+    ));
   }
 }
 

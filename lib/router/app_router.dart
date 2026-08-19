@@ -13,12 +13,14 @@ import "../screens/notifications/notification_log_screen.dart";
 import "../screens/places/place_registration_screen.dart";
 import "../screens/route/route_selection_screen.dart";
 import "../screens/settings/wellness_prefs_screen.dart";
-import "../screens/settings/settings_screen.dart";
 import "../screens/summary/daily_summary_screen.dart";
 import "../screens/map/map_screen.dart";
 import "../screens/events/event_create_from_map_screen.dart";
 import "../screens/calendar/calendar_screen.dart";
 import "../screens/calendar/event_form_screen.dart";
+import "../screens/detail/event_detail_screen.dart";
+import "../screens/profile/profile_screen.dart";
+import "../screens/profile/account_screen.dart";
 
 /// GoRouter + Riverpod 연동.
 /// AuthState를 구독해서 인증 상태 변화 시 자동 리다이렉트.
@@ -135,10 +137,54 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (c, s) => const EventFormScreen(),
       ),
 
-      // ─── 메인 4탭 ───────────────────────────────────────────────
+      // ─── DTL-01 일정 상세 ─────────────────────────────────────
+      GoRoute(
+        path: "/events/:eventId",
+        builder: (c, s) => EventDetailScreen(
+          eventId: s.pathParameters["eventId"]!,
+        ),
+      ),
+
+      // ─── PRF 프로필 하위 ──────────────────────────────────────
+      GoRoute(
+        path: "/profile/account",
+        builder: (c, s) => const AccountScreen(),
+      ),
+      GoRoute(
+        path: "/profile/withdraw",
+        builder: (c, s) => const WithdrawScreen(),
+      ),
+      GoRoute(
+        path: "/profile/prep",
+        builder: (c, s) => const PrepTimeEntryScreen(),
+      ),
+      GoRoute(
+        path: "/profile/notifications",
+        builder: (c, s) => const PlaceholderScreen(title: "알림 설정"),
+      ),
+      GoRoute(
+        path: "/profile/permissions",
+        builder: (c, s) => const PlaceholderScreen(title: "권한 관리"),
+      ),
+      GoRoute(
+        path: "/profile/personalization",
+        builder: (c, s) => const PlaceholderScreen(title: "개인화"),
+      ),
+      GoRoute(
+        path: "/profile/data",
+        builder: (c, s) => const PlaceholderScreen(title: "데이터 관리"),
+      ),
+
+      // ─── 메인 4탭 (화면설계서 확정: 캘린더·홈·지도·프로필) ────
       StatefulShellRoute.indexedStack(
         builder: (context, state, shell) => MainTabShell(shell: shell),
         branches: [
+          StatefulShellBranch(routes: [
+            GoRoute(
+              path: "/calendar",
+              builder: (c, s) => const CalendarScreen(),
+            ),
+          ]),
           StatefulShellBranch(routes: [
             GoRoute(path: "/home", builder: (c, s) => const HomeScreen()),
           ]),
@@ -147,14 +193,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           ]),
           StatefulShellBranch(routes: [
             GoRoute(
-              path: "/calendar",
-              builder: (c, s) => const CalendarScreen(),
-            ),
-          ]),
-          StatefulShellBranch(routes: [
-            GoRoute(
-              path: "/settings",
-              builder: (c, s) => const SettingsScreen(),
+              path: "/profile",
+              builder: (c, s) => const ProfileScreen(),
             ),
           ]),
         ],
@@ -203,13 +243,16 @@ class MainTabShell extends StatelessWidget {
         onTap: shell.goBranch,
         type: BottomNavigationBarType.fixed,
         items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: "홈"),
-          BottomNavigationBarItem(icon: Icon(Icons.map), label: "지도"),
           BottomNavigationBarItem(
             icon: Icon(Icons.calendar_today),
             label: "캘린더",
           ),
-          BottomNavigationBarItem(icon: Icon(Icons.settings), label: "설정"),
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: "홈"),
+          BottomNavigationBarItem(icon: Icon(Icons.map), label: "지도"),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person_outline),
+            label: "프로필",
+          ),
         ],
       ),
     );
