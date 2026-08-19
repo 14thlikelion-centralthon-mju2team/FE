@@ -1,6 +1,8 @@
 import "dart:io";
 
 import "package:flutter_riverpod/flutter_riverpod.dart";
+import "../core/fcm_service.dart";
+import "../core/local_notification_service.dart";
 import "../network/api_client.dart";
 import "auth_providers.dart";
 
@@ -166,7 +168,15 @@ final bootstrapProvider = FutureProvider<BootstrapData>((ref) async {
 
   try {
     final json = await apiClient.get<Map<String, dynamic>>("/me/bootstrap");
-    return BootstrapData.fromJson(json);
+    final data = BootstrapData.fromJson(json);
+
+    // TR-10: 잠금화면 민감 정보 숨김 여부는 bootstrap이 유일한 출처다.
+    // 로컬 알림·FCM 둘 다 알림을 직접 표시하므로 각자 반영해야 한다.
+    final hideSensitive = data.settings.lockscreenHideSensitive;
+    LocalNotificationService.instance.updateSettings(lockscreenHideSensitive: hideSensitive);
+    FcmService.instance.updateSettings(lockscreenHideSensitive: hideSensitive);
+
+    return data;
   } on ApiException catch (e) {
     if (e.code == "EMAIL_VERIFICATION_REQUIRED") {
       // 이메일 미인증 상태 — AuthNotifier로 상태 전이

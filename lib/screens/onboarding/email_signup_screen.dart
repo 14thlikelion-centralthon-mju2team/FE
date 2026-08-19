@@ -1,7 +1,6 @@
 import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:go_router/go_router.dart";
-import "package:uuid/uuid.dart";
 import "../../network/api_client.dart";
 import "../../providers/auth_providers.dart";
 
@@ -22,8 +21,6 @@ class _EmailSignupScreenState extends ConsumerState<EmailSignupScreen> {
 
   bool _submitting = false;
   String? _error;
-
-  static const _uuid = Uuid();
 
   @override
   void dispose() {
@@ -66,12 +63,13 @@ class _EmailSignupScreenState extends ConsumerState<EmailSignupScreen> {
       _error = null;
     });
     try {
+      final installationId = await ref.read(secureStorageProvider).installationId;
       final authNotifier = ref.read(authNotifierProvider.notifier);
       await authNotifier.signupWithEmail(
         email: _emailController.text.trim(),
         password: _passwordController.text,
         nickname: _nicknameController.text.trim(),
-        installationId: _uuid.v4(),
+        installationId: installationId,
       );
 
       if (!mounted) return;

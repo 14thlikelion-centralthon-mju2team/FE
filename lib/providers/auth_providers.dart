@@ -1,6 +1,7 @@
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:flutter_riverpod/legacy.dart";
 import "../core/auth_service.dart";
+import "../core/fcm_service.dart";
 import "../core/secure_storage_service.dart";
 import "../network/api_client.dart";
 
@@ -53,12 +54,14 @@ class AuthNotifier extends StateNotifier<AuthState> {
   AuthNotifier({
     required this.authService,
     required this.secureStorage,
+    required this.apiClient,
   }) : super(AuthState.initial) {
     _checkExistingSession();
   }
 
   final AuthService authService;
   final SecureStorageService secureStorage;
+  final ApiClient apiClient;
 
   /// 앱 시작 시 기존 세션 확인
   Future<void> _checkExistingSession() async {
@@ -68,9 +71,22 @@ class AuthNotifier extends StateNotifier<AuthState> {
       // 여기서는 일단 authenticated로 세팅하고 bootstrap이 403을 주면
       // 라우터가 적절히 처리한다.
       state = const AuthState(status: AuthStatus.authenticated);
+      _syncFcm();
     } else {
       state = const AuthState(status: AuthStatus.unauthenticated);
     }
+  }
+
+  /// main.dart가 Firebase.initializeApp() + 백그라운드 핸들러 등록까지는
+  /// 이미 해 뒀다. 로그인 이후 단계(권한 요청, 토큰 획득, POST
+  /// /push-devices 등록)는 apiClient가 있어야 하므로 여기서 이어 붙인다.
+  void _syncFcm() {
+    secureStorage.installationId.then((installationId) {
+      FcmService.instance.initialize(
+        apiClient: apiClient,
+        installationId: installationId,
+      );
+    });
   }
 
   /// 이메일 가입 성공 — 토큰 미발급, 인증 대기 상태
@@ -126,6 +142,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       status: AuthStatus.authenticated,
       userId: state.userId,
     );
+    _syncFcm();
   }
 
   /// 이메일 인증 확인 완료 후 상태 전이
@@ -134,6 +151,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       status: AuthStatus.authenticated,
       userId: state.userId,
     );
+    _syncFcm();
   }
 
   /// bootstrap이 403 EMAIL_VERIFICATION_REQUIRED를 받았을 때
@@ -148,6 +166,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   /// 로그아웃
   Future<void> logout() async {
     await authService.logout();
+    FcmService.instance.dispose();
     state = const AuthState(status: AuthStatus.unauthenticated);
   }
 
@@ -169,6 +188,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         status: AuthStatus.authenticated,
         userId: result.userId,
       );
+      _syncFcm();
     }
   }
 }
@@ -177,8 +197,10 @@ final authNotifierProvider =
     StateNotifierProvider<AuthNotifier, AuthState>((ref) {
   final authService = ref.watch(authServiceProvider);
   final secureStorage = ref.watch(secureStorageProvider);
+  final apiClient = ref.watch(apiClientProvider);
   return AuthNotifier(
     authService: authService,
     secureStorage: secureStorage,
+    apiClient: apiClient,
   );
 });

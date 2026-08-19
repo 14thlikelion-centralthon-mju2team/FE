@@ -1,4 +1,5 @@
 import "package:flutter_secure_storage/flutter_secure_storage.dart";
+import "package:uuid/uuid.dart";
 
 /// M0 "Secure Storage 세션 관리" 항목.
 /// accessToken/refreshToken을 평문 저장하지 않고 Keychain(iOS)/
@@ -16,6 +17,7 @@ class SecureStorageService {
   static const _kAccessToken = "access_token";
   static const _kRefreshToken = "refresh_token";
   static const _kUserId = "user_id";
+  static const _kInstallationId = "installation_id";
 
   Future<void> saveSession({
     required String accessToken,
@@ -34,6 +36,18 @@ class SecureStorageService {
   Future<String?> get userId => _storage.read(key: _kUserId);
 
   Future<bool> get hasSession async => (await accessToken) != null;
+
+  /// 기기별 안정적 식별자. 로그인·가입 요청과 FCM 토큰 등록(POST
+  /// /push-devices)이 모두 이 값을 쓴다 — 재설치 전까지 같은 기기는
+  /// 항상 같은 값을 반환해야 서버가 push_device 행을 갱신이 아니라
+  /// 새로 만드는 일을 막을 수 있다. 최초 조회 시 1회 생성해 저장한다.
+  Future<String> get installationId async {
+    final existing = await _storage.read(key: _kInstallationId);
+    if (existing != null) return existing;
+    final generated = const Uuid().v4();
+    await _storage.write(key: _kInstallationId, value: generated);
+    return generated;
+  }
 
   /// 로그아웃 시 전체 소거. TRD §14.3 "로그아웃 시 로컬 민감 데이터 제거"
   /// 원칙에 따라 세션뿐 아니라 이 서비스가 관리하는 모든 키를 지운다.
