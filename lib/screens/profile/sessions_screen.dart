@@ -4,6 +4,7 @@ import "package:flutter_riverpod/flutter_riverpod.dart";
 import "../../network/api_client.dart";
 import "../../providers/auth_providers.dart";
 import "../../theme/ensom_colors.dart";
+import "../../widgets/ensom/ensom_pill_button.dart";
 
 /// S-29 로그인 기록 (세션 관리)
 class SessionsScreen extends ConsumerStatefulWidget {
@@ -107,19 +108,26 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: EnsomColors.canvas,
       appBar: AppBar(
-        title: const Text("로그인 기록"),
+        backgroundColor: EnsomColors.canvas,
+        surfaceTintColor: EnsomColors.canvas,
+        elevation: 0,
+        title: const Text(
+          "로그인 기록",
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: EnsomColors.ink),
+        ),
         actions: [
           TextButton(
             onPressed: _deleteAllSessions,
             child: const Text(
               "전체 로그아웃",
-              style: TextStyle(color: EnsomColors.caution),
+              style: TextStyle(fontSize: 12.5, color: EnsomColors.caution, fontWeight: FontWeight.w600),
             ),
           ),
         ],
       ),
-      body: _buildBody(),
+      body: SafeArea(top: false, child: _buildBody()),
     );
   }
 
@@ -135,9 +143,9 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(_error!, textAlign: TextAlign.center),
+              Text(_error!, textAlign: TextAlign.center, style: const TextStyle(color: EnsomColors.inkMuted)),
               const SizedBox(height: 16),
-              FilledButton(onPressed: _load, child: const Text("다시 시도")),
+              EnsomPillButton(label: "다시 시도", expand: false, onPressed: _load),
             ],
           ),
         ),
@@ -146,10 +154,11 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
 
     final sessions = _sessions ?? [];
     if (sessions.isEmpty) {
-      return const Center(child: Text("세션 정보가 없어요."));
+      return const Center(child: Text("세션 정보가 없어요.", style: TextStyle(color: EnsomColors.inkMuted)));
     }
 
     return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(18, 8, 18, 24),
       itemCount: sessions.length,
       itemBuilder: (context, index) {
         final session = sessions[index];
@@ -160,51 +169,73 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
 
         return Dismissible(
           key: Key(id),
-          direction: isCurrent
-              ? DismissDirection.none
-              : DismissDirection.endToStart,
+          direction: isCurrent ? DismissDirection.none : DismissDirection.endToStart,
           background: Container(
-            color: EnsomColors.caution,
+            margin: const EdgeInsets.only(bottom: 9),
+            decoration: BoxDecoration(color: EnsomColors.caution, borderRadius: BorderRadius.circular(16)),
             alignment: Alignment.centerRight,
-            padding: const EdgeInsets.only(right: 24),
-            child: const Icon(Icons.logout, color: EnsomColors.canvas),
+            padding: const EdgeInsets.only(right: 20),
+            child: const Icon(Icons.logout, color: Colors.white, size: 18),
           ),
-          confirmDismiss: (_) async {
-            if (isCurrent) return false;
-            return true;
-          },
+          confirmDismiss: (_) async => !isCurrent,
           onDismissed: (_) => _deleteSession(id),
-          child: ListTile(
-            leading: Icon(
-              isCurrent ? Icons.phone_android : Icons.devices_other,
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 9),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              color: EnsomColors.surface1,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: EnsomColors.hairline),
             ),
-            title: Row(
+            child: Row(
               children: [
-                Flexible(child: Text(deviceName)),
-                if (isCurrent) ...[
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 6,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: EnsomColors.lime,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      "현재 기기",
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: EnsomColors.limeInk,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
+                Container(
+                  width: 34,
+                  height: 34,
+                  decoration: const BoxDecoration(color: EnsomColors.surface2, shape: BoxShape.circle),
+                  child: Icon(
+                    isCurrent ? Icons.phone_android : Icons.devices_other,
+                    size: 15,
+                    color: EnsomColors.inkMuted,
                   ),
-                ],
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              deviceName,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: EnsomColors.ink),
+                            ),
+                          ),
+                          if (isCurrent) ...[
+                            const SizedBox(width: 7),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(color: EnsomColors.limeSoft, borderRadius: BorderRadius.circular(999)),
+                              child: const Text(
+                                "현재 기기",
+                                style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: EnsomColors.limeInk),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                      if (lastActive.isNotEmpty) ...[
+                        const SizedBox(height: 2),
+                        Text(lastActive, style: const TextStyle(fontSize: 11, color: EnsomColors.inkFaint)),
+                      ],
+                    ],
+                  ),
+                ),
               ],
             ),
-            subtitle: lastActive.isNotEmpty ? Text(lastActive) : null,
           ),
         );
       },

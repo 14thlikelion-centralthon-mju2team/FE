@@ -5,6 +5,9 @@ import "../../core/app_config.dart";
 import "../../network/api_client.dart";
 import "../../providers/auth_providers.dart";
 import "../../theme/ensom_colors.dart";
+import "../../widgets/ensom/ensom_error_banner.dart";
+import "../../widgets/ensom/ensom_pill_button.dart";
+import "../../widgets/ensom/ensom_top_bar.dart";
 
 /// S-27 로그인 수단 관리
 class ProvidersScreen extends ConsumerStatefulWidget {
@@ -128,8 +131,9 @@ class _ProvidersScreenState extends ConsumerState<ProvidersScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("로그인 수단")),
-      body: _buildBody(),
+      backgroundColor: EnsomColors.canvas,
+      appBar: const EnsomTopBar(title: "로그인 수단"),
+      body: SafeArea(top: false, child: _buildBody()),
     );
   }
 
@@ -145,9 +149,9 @@ class _ProvidersScreenState extends ConsumerState<ProvidersScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(_error!, textAlign: TextAlign.center),
+              EnsomErrorBanner(title: _error!),
               const SizedBox(height: 16),
-              FilledButton(onPressed: _load, child: const Text("다시 시도")),
+              EnsomPillButton(label: "다시 시도", expand: false, onPressed: _load),
             ],
           ),
         ),
@@ -158,44 +162,51 @@ class _ProvidersScreenState extends ConsumerState<ProvidersScreen> {
     final isOnlyOne = providers.length <= 1;
 
     return ListView(
+      padding: const EdgeInsets.fromLTRB(18, 8, 18, 24),
       children: [
-        const SizedBox(height: 8),
+        const Text(
+          "계정에 연결된 로그인 방법이에요. 최소 한 개는 남겨두어야 해요.",
+          style: TextStyle(fontSize: 11, color: EnsomColors.inkFaint, height: 1.5),
+        ),
+        const SizedBox(height: 10),
         ...providers.map((p) {
           final id = p["identityId"]?.toString() ?? "";
           final type = p["provider"]?.toString() ?? "";
           final email = p["email"]?.toString() ?? "";
-          return ListTile(
-            leading: Icon(_iconForProvider(type)),
-            title: Text(_labelForProvider(type)),
-            subtitle: email.isNotEmpty ? Text(email) : null,
-            trailing: isOnlyOne
-                ? const Tooltip(
-                    message: "마지막 로그인 수단은 해제할 수 없어요",
-                    child: Icon(
-                      Icons.lock_outline,
-                      color: EnsomColors.inkMuted,
-                    ),
-                  )
-                : IconButton(
-                    icon: const Icon(Icons.link_off),
-                    onPressed: () => _disconnect(id),
-                  ),
+          return _ProviderRow(
+            icon: _iconForProvider(type),
+            label: _labelForProvider(type),
+            sub: email.isNotEmpty ? email : null,
+            locked: isOnlyOne,
+            onDisconnect: isOnlyOne ? null : () => _disconnect(id),
           );
         }),
         if (isOnlyOne) ...[
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 6),
             child: Text(
               "마지막 로그인 수단은 해제할 수 없어요. 다른 수단을 먼저 연결해주세요.",
-              style: TextStyle(color: EnsomColors.inkMuted, fontSize: 13),
+              style: TextStyle(fontSize: 11, color: EnsomColors.inkFaint, height: 1.5),
             ),
           ),
         ],
-        const Divider(),
-        ListTile(
-          leading: const Icon(Icons.add),
-          title: const Text("Google 계정 연결"),
+        const Divider(height: 26, color: EnsomColors.hairline),
+        InkWell(
           onTap: _connectGoogle,
+          borderRadius: BorderRadius.circular(12),
+          child: const Padding(
+            padding: EdgeInsets.symmetric(vertical: 11, horizontal: 2),
+            child: Row(
+              children: [
+                Icon(Icons.add, size: 18, color: EnsomColors.inkMuted),
+                SizedBox(width: 13),
+                Text(
+                  "Google 계정 연결",
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: EnsomColors.ink),
+                ),
+              ],
+            ),
+          ),
         ),
       ],
     );
@@ -221,5 +232,69 @@ class _ProvidersScreenState extends ConsumerState<ProvidersScreen> {
       default:
         return type;
     }
+  }
+}
+
+class _ProviderRow extends StatelessWidget {
+  const _ProviderRow({
+    required this.icon,
+    required this.label,
+    required this.locked,
+    this.sub,
+    this.onDisconnect,
+  });
+
+  final IconData icon;
+  final String label;
+  final String? sub;
+  final bool locked;
+  final VoidCallback? onDisconnect;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 9),
+      child: Row(
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            decoration: const BoxDecoration(color: EnsomColors.surface2, shape: BoxShape.circle),
+            child: Icon(icon, size: 15, color: EnsomColors.inkMuted),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: EnsomColors.ink)),
+                if (sub != null) ...[
+                  const SizedBox(height: 2),
+                  Text(sub!, style: const TextStyle(fontSize: 11, color: EnsomColors.inkFaint)),
+                ],
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+            decoration: BoxDecoration(color: EnsomColors.limeSoft, borderRadius: BorderRadius.circular(999)),
+            child: const Text(
+              "연결됨",
+              style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: EnsomColors.limeInk),
+            ),
+          ),
+          if (!locked) ...[
+            const SizedBox(width: 8),
+            InkWell(
+              onTap: onDisconnect,
+              child: const Text(
+                "해제",
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: EnsomColors.inkMuted, decoration: TextDecoration.underline),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
   }
 }
