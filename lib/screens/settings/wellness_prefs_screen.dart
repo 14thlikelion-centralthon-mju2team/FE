@@ -5,14 +5,9 @@ import "../../models/wellness_pref.dart";
 import "../../repository/ensom_repository.dart";
 import "../../repository/providers.dart";
 import "../../theme/ensom_colors.dart";
-
-const _topicLabels = {
-  "uv": "자외선",
-  "pm": "미세먼지",
-  "temp": "기온·체감온도",
-  "rain": "강수",
-  "hydration": "수분 섭취",
-};
+import "../../theme/wellness_topic_copy.dart";
+import "../../widgets/ensom/ensom_toggle.dart";
+import "../../widgets/ensom/ensom_top_bar.dart";
 
 final wellnessPrefsProvider =
     StateNotifierProvider.autoDispose<
@@ -57,6 +52,11 @@ class WellnessPrefsController
   }
 }
 
+/// ensom_profile.html "5. 웰니스" 화면(관심 환경 항목 부분)을 반영.
+/// 목업엔 "선크림 재도포 리마인드"·"일정 중 알림" 전용 섹션도 있지만,
+/// 그건 UV 항목 하나에만 해당하는 별도 기능이고 우리 WellnessPref
+/// 모델엔 topic별 remindIntervalMinutes만 있어서(선크림 전용 필드가
+/// 없음) 이미 있는 재알림 주기 슬라이더로 대체했다.
 class WellnessPrefsScreen extends ConsumerWidget {
   const WellnessPrefsScreen({super.key});
 
@@ -66,21 +66,31 @@ class WellnessPrefsScreen extends ConsumerWidget {
     final controller = ref.read(wellnessPrefsProvider.notifier);
 
     return Scaffold(
-      appBar: AppBar(title: const Text("웰니스 관심 항목")),
+      backgroundColor: EnsomColors.canvas,
+      appBar: const EnsomTopBar(title: "웰니스 관심 항목"),
       body: prefsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, st) => Center(child: Text("불러오지 못했어요: $err")),
-        data: (prefs) => ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            for (final pref in prefs)
-              _PrefTile(pref: pref, onChanged: controller.update),
-            const SizedBox(height: 16),
-            const Text(
-              "재알림 주기는 사용자가 직접 설정해요. 환경과 개인 상태에 따라 달라질 수 있어 앱이 대신 판단하지 않아요.",
-              style: TextStyle(fontSize: 12, color: EnsomColors.inkMuted),
-            ),
-          ],
+        error: (err, st) => const Center(
+          child: Text("불러오지 못했어요.", style: TextStyle(color: EnsomColors.inkMuted)),
+        ),
+        data: (prefs) => SafeArea(
+          top: false,
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(18, 8, 18, 24),
+            children: [
+              const Text(
+                "관심 환경 항목",
+                style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: EnsomColors.inkFaint, letterSpacing: .4),
+              ),
+              const SizedBox(height: 4),
+              for (final pref in prefs) _PrefTile(pref: pref, onChanged: controller.update),
+              const SizedBox(height: 12),
+              const Text(
+                "재알림 주기는 사용자가 직접 설정해요. 환경과 개인 상태에 따라 달라질 수 있어 앱이 대신 판단하지 않아요.",
+                style: TextStyle(fontSize: 11, color: EnsomColors.inkFaint, height: 1.5),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -95,39 +105,55 @@ class _PrefTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Text(_topicLabels[pref.topic] ?? pref.topic),
-              value: pref.isEnabled,
-              onChanged: (v) => onChanged(pref.copyWith(isEnabled: v)),
-            ),
-            if (pref.isEnabled) ...[
-              Text(
-                "재알림 주기: ${pref.remindIntervalMinutes ?? 120}분",
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: EnsomColors.inkMuted,
+    return Container(
+      margin: const EdgeInsets.only(bottom: 9),
+      padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
+      decoration: BoxDecoration(
+        color: EnsomColors.surface1,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: EnsomColors.hairline),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          InkWell(
+            onTap: () => onChanged(pref.copyWith(isEnabled: !pref.isEnabled)),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    wellnessTopicLabels[pref.topic] ?? pref.topic,
+                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: EnsomColors.ink),
+                  ),
                 ),
+                EnsomToggle(value: pref.isEnabled, onChanged: (v) => onChanged(pref.copyWith(isEnabled: v))),
+              ],
+            ),
+          ),
+          if (pref.isEnabled) ...[
+            const SizedBox(height: 6),
+            Text(
+              "재알림 주기: ${pref.remindIntervalMinutes ?? 120}분",
+              style: const TextStyle(fontSize: 11.5, color: EnsomColors.inkMuted),
+            ),
+            SliderTheme(
+              data: SliderTheme.of(context).copyWith(
+                activeTrackColor: EnsomColors.cta,
+                inactiveTrackColor: EnsomColors.surface2,
+                thumbColor: EnsomColors.cta,
+                overlayColor: EnsomColors.cta.withValues(alpha: .12),
+                trackHeight: 3,
               ),
-              Slider(
+              child: Slider(
                 value: (pref.remindIntervalMinutes ?? 120).toDouble(),
                 min: 30,
                 max: 240,
                 divisions: 14,
-                label: "${pref.remindIntervalMinutes ?? 120}분",
-                onChanged: (v) =>
-                    onChanged(pref.copyWith(remindIntervalMinutes: v.round())),
+                onChanged: (v) => onChanged(pref.copyWith(remindIntervalMinutes: v.round())),
               ),
-              const SizedBox(height: 8),
-            ],
+            ),
           ],
-        ),
+        ],
       ),
     );
   }

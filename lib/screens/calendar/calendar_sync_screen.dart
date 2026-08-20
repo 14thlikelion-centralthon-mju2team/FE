@@ -7,6 +7,8 @@ import "../../network/api_client.dart";
 import "../../providers/auth_providers.dart";
 import "../../providers/bootstrap_provider.dart";
 import "../../theme/ensom_colors.dart";
+import "../../widgets/ensom/ensom_error_banner.dart";
+import "../../widgets/ensom/ensom_pill_button.dart";
 
 /// S-41 캘린더 연동 관리.
 /// Google OAuth에서 받은 serverAuthCode를 BE 계약에 맞춰 전달한다.
@@ -151,84 +153,125 @@ class _CalendarSyncScreenState extends ConsumerState<CalendarSyncScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: EnsomColors.canvas,
       appBar: AppBar(
-        title: const Text("캘린더 연동"),
+        backgroundColor: EnsomColors.canvas,
+        surfaceTintColor: EnsomColors.canvas,
+        elevation: 0,
         automaticallyImplyLeading: !widget.isOnboarding,
+        title: const Text(
+          "캘린더 연동",
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: EnsomColors.ink),
+        ),
       ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(18, 4, 18, 16),
         children: [
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+          if (widget.isOnboarding) ...[
+            Container(
+              width: 64,
+              height: 64,
+              margin: const EdgeInsets.only(bottom: 16),
+              decoration: const BoxDecoration(color: EnsomColors.surface2, shape: BoxShape.circle),
+              alignment: Alignment.center,
+              child: const Icon(Icons.calendar_today_outlined, size: 26, color: EnsomColors.ink),
+            ),
+            const Text(
+              "다음 일정과 장소를\n자동으로 인식하려면",
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 19, fontWeight: FontWeight.w700, letterSpacing: -.3, height: 1.35, color: EnsomColors.ink),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              "캘린더를 연동하면 일정마다 시간과 장소를 다시 입력하지 않아도, 언제부터 준비를 시작해야 하는지 자동으로 알려드려요.",
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 13, color: EnsomColors.inkMuted, height: 1.65),
+            ),
+            const SizedBox(height: 20),
+          ],
+          Container(
+            padding: const EdgeInsets.all(15),
+            decoration: BoxDecoration(color: EnsomColors.surface2, borderRadius: BorderRadius.circular(18)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (_connected) ...[
                   Row(
                     children: [
-                      const Icon(Icons.calendar_today),
-                      const SizedBox(width: 12),
-                      Expanded(
+                      const Icon(Icons.check_circle, size: 18, color: EnsomColors.limeInk),
+                      const SizedBox(width: 8),
+                      const Text(
+                        "캘린더를 연동했어요",
+                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: EnsomColors.ink),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  const Padding(
+                    padding: EdgeInsets.only(left: 26),
+                    child: Text(
+                      "Google 캘린더",
+                      style: TextStyle(fontSize: 12.5, color: EnsomColors.inkMuted),
+                    ),
+                  ),
+                ] else
+                  Row(
+                    children: [
+                      Container(
+                        width: 34,
+                        height: 34,
+                        decoration: const BoxDecoration(color: EnsomColors.surface1, shape: BoxShape.circle),
+                        child: const Icon(Icons.calendar_today_outlined, size: 15, color: EnsomColors.ink),
+                      ),
+                      const SizedBox(width: 11),
+                      const Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
-                              "Google 캘린더",
-                              style: TextStyle(fontWeight: FontWeight.w600),
-                            ),
                             Text(
-                              _connected ? "연동됨" : "연동 안 됨",
-                              style: const TextStyle(
-                                color: EnsomColors.inkMuted,
-                                fontSize: 13,
-                              ),
+                              "Google 캘린더",
+                              style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: EnsomColors.ink),
+                            ),
+                            SizedBox(height: 2),
+                            Text(
+                              "연동 안 됨",
+                              style: TextStyle(fontSize: 11.5, color: EnsomColors.inkFaint),
                             ),
                           ],
                         ),
                       ),
-                      if (_connected)
-                        const Icon(
-                          Icons.check_circle,
-                          color: EnsomColors.limeInk,
-                        ),
                     ],
                   ),
-                  if (_error != null) ...[
-                    const SizedBox(height: 12),
-                    Text(
-                      _error!,
-                      style: const TextStyle(color: EnsomColors.caution),
-                    ),
-                  ],
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    child: _connected
-                        ? OutlinedButton(
-                            onPressed: _loading ? null : _disconnect,
-                            child: const Text("연결 해제"),
-                          )
-                        : FilledButton(
-                            onPressed: _loading ? null : _connect,
-                            child: Text(
-                              _loading ? "연결 중..." : "Google 캘린더 연동하기",
-                            ),
-                          ),
-                  ),
+                if (_error != null) ...[
+                  const SizedBox(height: 12),
+                  EnsomErrorBanner(title: _error!),
                 ],
-              ),
+                const SizedBox(height: 14),
+                EnsomPillButton(
+                  label: _connected ? "연결 해제" : (_loading ? "연결 중..." : "캘린더 연동하기"),
+                  variant: _connected ? EnsomPillVariant.secondary : EnsomPillVariant.primary,
+                  onPressed: _loading ? null : (_connected ? _disconnect : _connect),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 24),
-          const Text(
-            "캘린더를 연동하면 다음 일정과 장소를 자동으로 인식해요.\n별도로 일정을 입력하지 않아도 준비 계획을 세워드려요.",
-            style: TextStyle(color: EnsomColors.inkMuted, fontSize: 13),
-          ),
+          if (!widget.isOnboarding) ...[
+            const SizedBox(height: 16),
+            const Text(
+              "캘린더를 연동하면 다음 일정과 장소를 자동으로 인식해요. 별도로 일정을 입력하지 않아도 준비 계획을 세워드려요.",
+              style: TextStyle(fontSize: 12, color: EnsomColors.inkFaint, height: 1.6),
+            ),
+          ],
           if (widget.isOnboarding) ...[
-            const SizedBox(height: 24),
-            TextButton(
-              onPressed: _loading ? null : _continueWithoutCalendar,
-              child: const Text("나중에 할게요"),
+            const SizedBox(height: 16),
+            Center(
+              child: TextButton(
+                onPressed: _loading ? null : _continueWithoutCalendar,
+                child: const Text(
+                  "나중에 할게요",
+                  style: TextStyle(fontSize: 12.5, color: EnsomColors.inkMuted, decoration: TextDecoration.underline),
+                ),
+              ),
             ),
           ],
         ],

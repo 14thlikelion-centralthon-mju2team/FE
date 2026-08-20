@@ -13,6 +13,14 @@ final nextEventProvider = FutureProvider.autoDispose<Event?>((ref) async {
   return repo.fetchNextEvent();
 });
 
+/// DTL-01 일정 상세(event_detail_screen.dart)에서 사용. Plan은
+/// planControllerProvider가 별도로 관리하므로(오프라인 큐·낙관적
+/// 갱신), 여기서는 Event 단건만 담당한다.
+final eventDetailProvider = FutureProvider.autoDispose.family<Event, String>((ref, eventId) async {
+  final repo = ref.watch(ensomRepositoryProvider);
+  return repo.fetchEvent(eventId);
+});
+
 final routeOptionsProvider = FutureProvider.autoDispose
     .family<List<RouteOption>, String>((ref, planId) async {
   final repo = ref.watch(ensomRepositoryProvider);
@@ -74,6 +82,19 @@ class PlanController extends StateNotifier<AsyncValue<Plan>> {
     final plan = state.value;
     if (plan == null) return;
     final updated = await repo.selectRoute(plan.planId, routeOptionId);
+    state = AsyncValue.data(updated);
+  }
+
+  /// PLAN-04. 사용자 직접 수정은 새 리비전을 만든다 (docs/API.md §9.5).
+  Future<void> updatePlan({DateTime? prepStartAt, String? originPlaceId}) async {
+    final plan = state.value;
+    if (plan == null) return;
+    final updated = await repo.updatePlan(
+      plan.planId,
+      prepStartAt: prepStartAt,
+      originPlaceId: originPlaceId,
+    );
+    previousPlan = plan;
     state = AsyncValue.data(updated);
   }
 

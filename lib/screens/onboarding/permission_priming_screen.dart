@@ -1,9 +1,13 @@
 import "package:flutter/material.dart";
 import "../../theme/ensom_colors.dart";
+import "../../widgets/ensom/ensom_pill_button.dart";
 
 /// ONB-07/08/08b 권한 프라이밍 공용 화면
 /// PRD §11.4: "왜 필요한지" 설명 후 OS 권한 다이얼로그 트리거.
 /// [나중에]는 항상 허용 (거부 후 재안내는 기능 진입점에서 1회만).
+///
+/// ensom_permission.html의 `.primewrap`(아이콘 원 + 헤드라인 + 설명 +
+/// 안내 카드 + 버튼 2개) 레이아웃을 반영한다.
 ///
 /// 사용법:
 /// ```dart
@@ -49,6 +53,17 @@ class PermissionPrimingScreen extends StatelessWidget {
     }
   }
 
+  String get _infoNote {
+    switch (type) {
+      case PermissionPrimingType.notification:
+        return "필요한 순간에만 보내드려요 — 일정당 최대 3번이에요.";
+      case PermissionPrimingType.location:
+        return "위치 정보는 준비·이동 시간 계산에만 사용되고 암호화되어 저장돼요.";
+      case PermissionPrimingType.calendar:
+        return "일정의 시간과 장소만 읽어와요 — 참석자·본문 내용은 저장하지 않아요.";
+    }
+  }
+
   IconData get _icon {
     switch (type) {
       case PermissionPrimingType.notification:
@@ -74,49 +89,47 @@ class PermissionPrimingScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: EnsomColors.canvas,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(32),
+          padding: const EdgeInsets.fromLTRB(26, 20, 26, 18),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               const Spacer(flex: 2),
-              Icon(
-                _icon,
-                size: 80,
-                color: Theme.of(context).colorScheme.primary,
+              Container(
+                width: 64,
+                height: 64,
+                decoration: const BoxDecoration(color: EnsomColors.surface2, shape: BoxShape.circle),
+                alignment: Alignment.center,
+                child: Icon(_icon, size: 28, color: EnsomColors.inkFaint),
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 18),
               Text(
                 _title,
-                style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w600,
-                ),
                 textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w700, letterSpacing: -.3, height: 1.35, color: EnsomColors.ink),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 11),
               Text(
                 _description,
-                style: const TextStyle(
-                  color: EnsomColors.inkMuted,
-                  fontSize: 15,
-                ),
                 textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 12.5, color: EnsomColors.inkMuted, height: 1.6),
+              ),
+              Container(
+                width: double.infinity,
+                margin: const EdgeInsets.only(top: 16),
+                padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 13),
+                decoration: BoxDecoration(color: EnsomColors.surface2, borderRadius: BorderRadius.circular(14)),
+                child: Text(
+                  _infoNote,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 11.5, color: EnsomColors.inkMuted, height: 1.55),
+                ),
               ),
               const Spacer(flex: 3),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  onPressed: onAllow,
-                  child: Text(_allowLabel),
-                ),
-              ),
-              const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                child: TextButton(onPressed: onSkip, child: const Text("나중에")),
-              ),
+              EnsomPillButton(label: _allowLabel, onPressed: onAllow),
+              const SizedBox(height: 4),
+              EnsomPillButton(label: "나중에", variant: EnsomPillVariant.text, onPressed: onSkip),
             ],
           ),
         ),
