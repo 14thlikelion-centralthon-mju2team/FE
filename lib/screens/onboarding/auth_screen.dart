@@ -50,6 +50,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       _webGoogleSub = GoogleAuthHelper.instance.onLoginUserChanged.listen(
         _handleWebGoogleAccount,
       );
+      // renderButton()이 실제 버튼을 그리려면 GIS 초기화가 먼저 끝나야
+      // 한다 — 안 하면 "Getting ready" 텍스트만 계속 보인다.
+      unawaited(GoogleAuthHelper.instance.ensureWebLoginReady());
     }
   }
 
