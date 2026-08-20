@@ -89,12 +89,12 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
       // DELETE /me/sessions는 현재 기기를 제외한 세션만 종료한다.
       // 따라서 로컬 소거·로그아웃 없이 세션 목록만 새로고침한다.
       await api.delete<Map<String, dynamic>>("/me/sessions");
-      if (mounted) {
-        await _load();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("다른 기기에서 로그아웃했어요.")),
-        );
-      }
+      if (!mounted) return;
+      await _load();
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("다른 기기에서 로그아웃했어요.")));
     } on ApiException catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(

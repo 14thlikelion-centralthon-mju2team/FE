@@ -29,15 +29,9 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen> {
   MapDraftEvent? _mapDraft;
   bool _saving = false;
 
-  @override
-  void initState() {
-    super.initState();
-    if (!widget.fromMap) return;
-
-    _mapDraft = ref.read(mapDraftEventProvider);
-    final draft = _mapDraft;
-    if (draft == null) return;
-
+  void _applyMapDraft(MapDraftEvent draft) {
+    if (identical(_mapDraft, draft)) return;
+    _mapDraft = draft;
     _startsAt = draft.anchorMode == EventAnchor.departAt
         ? draft.at
         : draft.at.subtract(const Duration(hours: 1));
@@ -159,9 +153,28 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen> {
       if (_destinationName == null) return;
     }
 
+    final draft = _mapDraft;
+    if (draft != null && draft.isExpiredAt(DateTime.now())) {
+      await ref.read(mapDraftEventProvider.notifier).clear();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("선택한 경로가 만료됐어요. 경로를 다시 검색해주세요.")),
+      );
+      context.go(
+        Uri(
+          path: "/map",
+          queryParameters: {
+            "destName": draft.destName,
+            "destLat": draft.destLat.toString(),
+            "destLng": draft.destLng.toString(),
+          },
+        ).toString(),
+      );
+      return;
+    }
+
     setState(() => _saving = true);
     try {
-      final draft = _mapDraft;
       final endsAt = draft?.anchorMode == EventAnchor.arriveBy
           ? draft!.at
           : _startsAt.add(const Duration(hours: 1));
@@ -255,7 +268,59 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.fromMap) {
+      final draftState = ref.watch(mapDraftEventProvider);
+      if (draftState.isLoading) {
+        return Scaffold(
+          appBar: AppBar(title: const Text("일정 만들기")),
+          body: const Center(child: CircularProgressIndicator()),
+        );
+      }
+      if (draftState.hasValue && draftState.value != null) {
+        _applyMapDraft(draftState.value!);
+      }
+    }
+
     final draft = _mapDraft;
+    if (widget.fromMap && draft != null && draft.isExpiredAt(DateTime.now())) {
+      return Scaffold(
+        appBar: AppBar(title: const Text("일정 만들기")),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  "선택한 경로가 만료됐어요.",
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 8),
+                Text("${draft.destName} 경로를 다시 검색해주세요."),
+                const SizedBox(height: 20),
+                FilledButton(
+                  onPressed: () async {
+                    await ref.read(mapDraftEventProvider.notifier).clear();
+                    if (!context.mounted) return;
+                    context.go(
+                      Uri(
+                        path: "/map",
+                        queryParameters: {
+                          "destName": draft.destName,
+                          "destLat": draft.destLat.toString(),
+                          "destLng": draft.destLng.toString(),
+                        },
+                      ).toString(),
+                    );
+                  },
+                  child: const Text("경로 다시 검색"),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
     if (widget.fromMap && draft == null) {
       return Scaffold(
         appBar: AppBar(title: const Text("일정 만들기")),

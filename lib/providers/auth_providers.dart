@@ -4,6 +4,7 @@ import "../core/auth_service.dart";
 import "../core/fcm_service.dart";
 import "../core/secure_storage_service.dart";
 import "../network/api_client.dart";
+import "map_providers.dart";
 
 /// 앱 전역 싱글턴 — 앱 라이프사이클 동안 유지
 final secureStorageProvider = Provider<SecureStorageService>((ref) {
@@ -63,6 +64,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     required this.authService,
     required this.secureStorage,
     required this.apiClient,
+    required this.clearMapDraft,
   }) : super(AuthState.initial) {
     _checkExistingSession();
   }
@@ -70,12 +72,14 @@ class AuthNotifier extends StateNotifier<AuthState> {
   final AuthService authService;
   final SecureStorageService secureStorage;
   final ApiClient apiClient;
+  final Future<void> Function() clearMapDraft;
 
   /// 앱 시작 시 기존 세션을 서버에서 검증한다.
   Future<void> _checkExistingSession() async {
     state = const AuthState(status: AuthStatus.unknown);
     final hasToken = await secureStorage.hasSession;
     if (!hasToken) {
+      await clearMapDraft();
       state = const AuthState(status: AuthStatus.unauthenticated);
       return;
     }
@@ -109,6 +113,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         state = const AuthState(status: AuthStatus.emailVerificationRequired);
         return;
       }
+      await clearMapDraft();
       state = const AuthState(status: AuthStatus.unauthenticated);
     } catch (_) {
       state = const AuthState(
@@ -211,7 +216,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   /// 로그아웃
   Future<void> logout() async {
-    await authService.logout();
+    await Future.wait([authService.logout(), clearMapDraft()]);
     FcmService.instance.dispose();
     state = const AuthState(status: AuthStatus.unauthenticated);
   }
@@ -257,5 +262,6 @@ final authNotifierProvider = StateNotifierProvider<AuthNotifier, AuthState>((
     authService: authService,
     secureStorage: secureStorage,
     apiClient: apiClient,
+    clearMapDraft: () => ref.read(mapDraftEventProvider.notifier).clear(),
   );
 });

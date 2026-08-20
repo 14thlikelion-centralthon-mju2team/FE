@@ -15,7 +15,16 @@ import "../../theme/ensom_colors.dart";
 /// 경로 후보 조회, 캘린더 저장(일정 생성)까지가 이 화면의 범위다
 /// (PRD §21.2 "지도는 기본 경로 기능만" -- 환경 레이어 등은 넣지 않는다).
 class MapScreen extends ConsumerStatefulWidget {
-  const MapScreen({super.key});
+  const MapScreen({
+    super.key,
+    this.initialDestName,
+    this.initialDestLat,
+    this.initialDestLng,
+  });
+
+  final String? initialDestName;
+  final double? initialDestLat;
+  final double? initialDestLng;
 
   @override
   ConsumerState<MapScreen> createState() => _MapScreenState();
@@ -36,6 +45,46 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   double? _destLng;
   bool _searching = false;
   bool _routing = false;
+
+  bool get _hasInitialDestination =>
+      widget.initialDestLat != null && widget.initialDestLng != null;
+
+  @override
+  void initState() {
+    super.initState();
+    _applyInitialDestination();
+  }
+
+  @override
+  void didUpdateWidget(covariant MapScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialDestName == widget.initialDestName &&
+        oldWidget.initialDestLat == widget.initialDestLat &&
+        oldWidget.initialDestLng == widget.initialDestLng) {
+      return;
+    }
+    setState(_applyInitialDestination);
+    _moveToInitialDestination();
+  }
+
+  void _applyInitialDestination() {
+    if (!_hasInitialDestination) return;
+    _destName = widget.initialDestName?.trim().isNotEmpty == true
+        ? widget.initialDestName
+        : "선택한 위치";
+    _destLat = widget.initialDestLat;
+    _destLng = widget.initialDestLng;
+  }
+
+  Future<void> _moveToInitialDestination() async {
+    if (!_hasInitialDestination) return;
+    await _controller?.moveCamera(
+      CameraUpdate.newCenterPosition(
+        LatLng(widget.initialDestLat!, widget.initialDestLng!),
+      ),
+      animation: const CameraAnimation(500),
+    );
+  }
 
   Future<void> _moveToCurrentLocation() async {
     setState(() {
@@ -183,6 +232,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         anchorMode: anchor.$1,
         at: anchor.$2,
       );
+      final routesFetchedAt = DateTime.now();
       if (!mounted) return;
 
       // 빈 결과 처리 — BE에 /routes/search가 없거나 경로를 찾지 못한 경우
@@ -196,16 +246,21 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       final selectedRoute = await _showRouteSheet(routes);
       if (selectedRoute == null) return;
 
-      await ref.read(mapDraftEventProvider.notifier).set(MapDraftEvent(
-            originLat: origin.latitude,
-            originLng: origin.longitude,
-            destName: _destName!,
-            destLat: _destLat!,
-            destLng: _destLng!,
-            selectedRoute: selectedRoute,
-            anchorMode: anchor.$1,
-            at: anchor.$2,
-          ));
+      await ref
+          .read(mapDraftEventProvider.notifier)
+          .set(
+            MapDraftEvent(
+              originLat: origin.latitude,
+              originLng: origin.longitude,
+              destName: _destName!,
+              destLat: _destLat!,
+              destLng: _destLng!,
+              selectedRoute: selectedRoute,
+              anchorMode: anchor.$1,
+              at: anchor.$2,
+              createdAt: routesFetchedAt,
+            ),
+          );
       if (!mounted) return;
       context.push("/events/create-from-map");
     } catch (e) {
@@ -347,14 +402,20 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       body: Stack(
         children: [
           KakaoMap(
-            option: const KakaoMapOption(
-              position: _fallbackPosition,
+            option: KakaoMapOption(
+              position: destSelected
+                  ? LatLng(_destLat!, _destLng!)
+                  : _fallbackPosition,
               zoomLevel: 16,
               mapType: MapType.normal,
             ),
             onMapReady: (controller) {
               _controller = controller;
-              _moveToCurrentLocation();
+              if (_hasInitialDestination) {
+                _moveToInitialDestination();
+              } else {
+                _moveToCurrentLocation();
+              }
             },
             onMapClick: (point, position) => _onMapTapped(position),
           ),
