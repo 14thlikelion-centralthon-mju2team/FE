@@ -20,7 +20,11 @@ class ProfileScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authNotifierProvider);
-    final bootstrap = ref.watch(bootstrapProvider).value;
+    // Riverpod 3의 AsyncValue.value는 이전 데이터 없이 에러 상태면 그
+    // 자리에서 예외를 다시 던진다 — bootstrap 호출이 실패해도 화면
+    // 자체는 뜨게 hasValue로 먼저 가드한다.
+    final bootstrapAsync = ref.watch(bootstrapProvider);
+    final bootstrap = bootstrapAsync.hasValue ? bootstrapAsync.value : null;
     final nickname = bootstrap?.user.nickname ?? "";
     final grantedCount = bootstrap?.permissions.where((p) => p.status == "granted").length;
 

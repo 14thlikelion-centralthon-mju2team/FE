@@ -40,8 +40,11 @@ class _PersonalizationScreenState
         setState(() {
           // 시드(처음 입력한 준비 시간)는 개인화 응답이 아니라 사용자 설정값이다
           // (API §4.1 initialPrepMinutes). bootstrap의 settings에서 읽는다.
-          _seedMinutes =
-              ref.read(bootstrapProvider).value?.settings.initialPrepMinutes;
+          // AsyncValue.value는 에러 상태에서 예외를 다시 던지므로 hasValue로 가드.
+          final bootstrapAsync = ref.read(bootstrapProvider);
+          _seedMinutes = bootstrapAsync.hasValue
+              ? bootstrapAsync.value?.settings.initialPrepMinutes
+              : null;
           _currentMinutes = (latest?["estimatedMinutes"] ?? 30) as int;
           _history = estimates
               .take(5)

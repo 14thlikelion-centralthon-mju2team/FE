@@ -98,7 +98,8 @@ class EventDetailScreen extends ConsumerWidget {
   }
 
   Future<void> _openPlanEditSheet(BuildContext context, WidgetRef ref) async {
-    final plan = ref.read(planControllerProvider(eventId)).value;
+    final planAsync = ref.read(planControllerProvider(eventId));
+    final plan = planAsync.hasValue ? planAsync.value : null;
     if (plan == null) return;
     final saved = await showModalBottomSheet<bool>(
       context: context,
