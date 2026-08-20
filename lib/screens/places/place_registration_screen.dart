@@ -8,6 +8,7 @@ import "package:uuid/uuid.dart";
 import "../../local/place_cache_entry.dart";
 import "../../models/place.dart";
 import "../../providers/auth_providers.dart";
+import "../../providers/map_providers.dart";
 import "../../repository/providers.dart";
 import "../../theme/ensom_colors.dart";
 import "../../widgets/ensom/ensom_chip.dart";
@@ -53,6 +54,7 @@ class _PlaceRegistrationScreenState
   final customLabelController = TextEditingController();
   double? lat;
   double? lng;
+  String? resolvedAddress;
   bool locating = false;
   bool saving = false;
 
@@ -99,9 +101,24 @@ class _PlaceRegistrationScreenState
     try {
       final position = await Geolocator.getCurrentPosition();
       if (!mounted) return;
+      // 좌표 → 주소 역지오코딩. BE POST /places가 address를 필수로 받으므로
+      // 여기서 사람이 읽는 주소를 확보해 둔다. 키가 없거나 실패하면 null이며
+      // 저장 시 좌표 문자열로 폴백한다(address는 not null이라 빈 값 불가).
+      String? address;
+      try {
+        final search = ref.read(kakaoLocalSearchServiceProvider);
+        address = await search.coord2address(
+          position.latitude,
+          position.longitude,
+        );
+      } catch (_) {
+        address = null; // 역지오코딩 실패는 등록을 막지 않는다
+      }
+      if (!mounted) return;
       setState(() {
         lat = position.latitude;
         lng = position.longitude;
+        resolvedAddress = address;
       });
     } catch (e) {
       // geofencing_api와 geolocator가 권한을 공유하지 않는 경우(또는
@@ -128,10 +145,16 @@ class _PlaceRegistrationScreenState
       final repo = ref.read(ensomRepositoryProvider);
       final placeId = const Uuid().v4();
       final placeType = _placeTypeForLabel(label);
+      // BE POST /places는 address 필수(@NotBlank, DB not null). 역지오코딩으로
+      // 얻은 주소를 우선 쓰고, 실패했으면 좌표 문자열로 폴백해 400을 막는다.
+      final address = (resolvedAddress != null && resolvedAddress!.isNotEmpty)
+          ? resolvedAddress!
+          : "위도 ${lat!.toStringAsFixed(6)}, 경도 ${lng!.toStringAsFixed(6)}";
       final place = Place(
         placeId: placeId,
         placeType: placeType,
         placeName: label,
+        address: address,
         lat: lat!,
         lng: lng!,
       );
@@ -161,6 +184,7 @@ class _PlaceRegistrationScreenState
       setState(() {
         lat = null;
         lng = null;
+        resolvedAddress = null;
         customLabelController.clear();
       });
     } catch (e) {
@@ -312,6 +336,18 @@ class _PlaceRegistrationScreenState
                 ],
                 const SizedBox(height: 16),
                 if (lat != null && lng != null) ...[
+                  if (resolvedAddress != null &&
+                      resolvedAddress!.isNotEmpty) ...[
+                    Text(
+                      resolvedAddress!,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: EnsomColors.ink,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                  ],
                   Text(
                     "선택된 위치: ${lat!.toStringAsFixed(4)}, ${lng!.toStringAsFixed(4)}",
                     style: const TextStyle(
