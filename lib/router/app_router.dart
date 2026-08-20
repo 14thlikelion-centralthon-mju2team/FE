@@ -29,6 +29,7 @@ import "../screens/detail/event_detail_screen.dart";
 import "../screens/search/place_search_screen.dart";
 import "../screens/profile/profile_screen.dart";
 import "../screens/profile/account_screen.dart";
+import "../screens/profile/withdraw_screen.dart";
 import "../screens/profile/notification_settings_screen.dart";
 import "../screens/profile/personalization_screen.dart";
 import "../screens/profile/permissions_screen.dart";

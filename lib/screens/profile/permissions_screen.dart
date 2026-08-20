@@ -1,16 +1,10 @@
 import "package:flutter/material.dart";
+import "package:go_router/go_router.dart";
 import "package:permission_handler/permission_handler.dart";
 import "../../theme/ensom_colors.dart";
-import "../../widgets/ensom/ensom_pill_button.dart";
-import "../../widgets/ensom/ensom_top_bar.dart";
 
-/// PRF-05 권한 관리
-/// OS 설정으로 이동하는 간단한 상태 표시 화면
-///
-/// ensom_profile.html "2. 권한 관리" 화면 반영. 목업엔 캘린더 연동
-/// 행도 있지만, 그건 OS 권한이 아니라 OAuth 연동 상태(캘린더 연동
-/// 관리 화면이 따로 있음)라 이 permission_handler 기반 화면에는
-/// 넣지 않았다 — 이 화면이 실제로 조회할 수 있는 상태만 보여준다.
+/// PRF-05 권한 관리 — v6 프로토타입 기준 redesign
+/// 디자인 기준: Ensom_프로토타입_v6_최종/05_설정/ensom_profile.html (v-perm)
 class PermissionsScreen extends StatefulWidget {
   const PermissionsScreen({super.key});
 
@@ -21,6 +15,7 @@ class PermissionsScreen extends StatefulWidget {
 class _PermissionsScreenState extends State<PermissionsScreen>
     with WidgetsBindingObserver {
   Map<Permission, PermissionStatus> _statuses = {};
+  bool _alwaysLocation = false;
 
   @override
   void initState() {
@@ -37,10 +32,7 @@ class _PermissionsScreenState extends State<PermissionsScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    // OS 설정에서 돌아오면 상태 새로고침
-    if (state == AppLifecycleState.resumed) {
-      _checkPermissions();
-    }
+    if (state == AppLifecycleState.resumed) _checkPermissions();
   }
 
   Future<void> _checkPermissions() async {
@@ -52,78 +44,210 @@ class _PermissionsScreenState extends State<PermissionsScreen>
     ]) {
       current[p] = await p.status;
     }
-    if (mounted) setState(() => _statuses = current);
+    if (mounted) {
+      setState(() {
+        _statuses = current;
+        _alwaysLocation = current[Permission.locationAlways]?.isGranted ?? false;
+      });
+    }
   }
+
+  String _pillText(PermissionStatus? status) {
+    if (status == null) return "확인 중";
+    if (status.isGranted) return "허용됨";
+    if (status.isPermanentlyDenied) return "차단됨";
+    return "허용 안 함";
+  }
+
+  bool _isGranted(PermissionStatus? status) => status?.isGranted ?? false;
 
   @override
   Widget build(BuildContext context) {
-    final alwaysGranted = _statuses[Permission.locationAlways]?.isGranted ?? false;
-
     return Scaffold(
       backgroundColor: EnsomColors.canvas,
-      appBar: const EnsomTopBar(title: "권한"),
       body: SafeArea(
-        top: false,
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(18, 8, 18, 24),
+        child: Column(
           children: [
-            _PermissionRow(
-              label: "위치 (사용 중)",
-              status: _statuses[Permission.location],
-            ),
-            const SizedBox(height: 9),
-            _PermissionRow(
-              label: "알림",
-              status: _statuses[Permission.notification],
-            ),
-            const Divider(height: 30, color: EnsomColors.hairline),
-            const Text(
-              "자동 출발 · 도착 확인",
-              style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: EnsomColors.inkFaint, letterSpacing: .4),
-            ),
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.all(15),
-              decoration: BoxDecoration(color: EnsomColors.surface2, borderRadius: BorderRadius.circular(18)),
-              child: Row(
+            _buildTopBar(context),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
                 children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          "항상 위치 허용",
-                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: EnsomColors.ink),
-                        ),
-                        const SizedBox(height: 4),
-                        const Text(
-                          "앱을 쓰지 않을 때도 출발·도착을 자동으로 확인해요.",
-                          style: TextStyle(fontSize: 11.5, color: EnsomColors.inkMuted, height: 1.5),
-                        ),
-                      ],
+                  const SizedBox(height: 16),
+                  // 캘린더 연동
+                  _PermissionCard(
+                    title: "캘린더 연동",
+                    pillText: "연동됨",
+                    isGranted: true,
+                    onTap: () => context.push("/calendar/sync"),
+                  ),
+                  const SizedBox(height: 10),
+                  // 위치
+                  _PermissionCard(
+                    title: "위치",
+                    pillText: _pillText(_statuses[Permission.location]),
+                    isGranted: _isGranted(_statuses[Permission.location]),
+                    onTap: openAppSettings,
+                  ),
+                  const SizedBox(height: 10),
+                  // 알림
+                  _PermissionCard(
+                    title: "알림",
+                    pillText: _pillText(_statuses[Permission.notification]),
+                    isGranted: _isGranted(_statuses[Permission.notification]),
+                    onTap: openAppSettings,
+                  ),
+
+                  // 구분선
+                  Container(
+                    height: 1,
+                    margin: const EdgeInsets.only(top: 16),
+                    color: EnsomColors.hairline,
+                  ),
+
+                  // 자동 출발·도착 확인 섹션
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6, bottom: 8),
+                    child: Text(
+                      "자동 출발 · 도착 확인",
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w700,
+                        color: EnsomColors.inkFaint,
+                        letterSpacing: 0.4,
+                      ),
                     ),
                   ),
-                  Icon(
-                    alwaysGranted ? Icons.check_circle : Icons.chevron_right,
-                    size: alwaysGranted ? 20 : 16,
-                    color: alwaysGranted ? EnsomColors.limeInk : EnsomColors.inkFaint,
+                  _AlwaysLocationCard(
+                    isEnabled: _alwaysLocation,
+                    onChanged: (v) async {
+                      if (v) {
+                        await openAppSettings();
+                      } else {
+                        await openAppSettings();
+                      }
+                    },
                   ),
+
+                  // 안내 카드
+                  if (_alwaysLocation) ...[
+                    const SizedBox(height: 10),
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: EnsomColors.surface2,
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                      child: Text(
+                        "위치 정보는 준비·이동 시간 계산에만 사용되고 암호화되어 저장돼요. 언제든 이 화면에서 다시 끌 수 있어요.",
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: EnsomColors.inkMuted,
+                          height: 1.55,
+                        ),
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 48),
                 ],
               ),
             ),
-            if (alwaysGranted) ...[
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.all(13),
-                decoration: BoxDecoration(color: EnsomColors.surface2, borderRadius: BorderRadius.circular(14)),
-                child: const Text(
-                  "위치 정보는 준비·이동 시간 계산에만 사용되고 암호화되어 저장돼요. 언제든 시스템 설정에서 다시 끌 수 있어요.",
-                  style: TextStyle(fontSize: 11.5, color: EnsomColors.inkMuted, height: 1.5),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTopBar(BuildContext context) {
+    return Container(
+      height: 40,
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Row(
+        children: [
+          GestureDetector(
+            onTap: () => context.pop(),
+            child: Container(
+              width: 32,
+              height: 32,
+              decoration: const BoxDecoration(
+                color: EnsomColors.surface2,
+                shape: BoxShape.circle,
+              ),
+              alignment: Alignment.center,
+              child:
+                  const Icon(Icons.chevron_left, size: 14, color: EnsomColors.ink),
+            ),
+          ),
+          const SizedBox(width: 10),
+          const Text(
+            "권한",
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: EnsomColors.ink,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Permission Card ───
+
+class _PermissionCard extends StatelessWidget {
+  const _PermissionCard({
+    required this.title,
+    required this.pillText,
+    required this.isGranted,
+    required this.onTap,
+  });
+
+  final String title;
+  final String pillText;
+  final bool isGranted;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        decoration: BoxDecoration(
+          color: EnsomColors.surface1,
+          border: Border.all(color: EnsomColors.hairline),
+          borderRadius: BorderRadius.circular(18),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: EnsomColors.ink,
                 ),
               ),
-            ],
-            const SizedBox(height: 22),
-            EnsomPillButton(label: "시스템 설정 열기", onPressed: openAppSettings),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+              decoration: BoxDecoration(
+                color: isGranted ? EnsomColors.limeSoft : EnsomColors.surface2,
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Text(
+                pillText,
+                style: TextStyle(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w700,
+                  color: isGranted ? EnsomColors.limeInk : EnsomColors.inkMuted,
+                ),
+              ),
+            ),
+            const SizedBox(width: 6),
+            const Icon(Icons.chevron_right, size: 14, color: EnsomColors.inkFaint),
           ],
         ),
       ),
@@ -131,42 +255,82 @@ class _PermissionsScreenState extends State<PermissionsScreen>
   }
 }
 
-class _PermissionRow extends StatelessWidget {
-  const _PermissionRow({required this.label, this.status});
+// ─── Always Location Card ───
 
-  final String label;
-  final PermissionStatus? status;
+class _AlwaysLocationCard extends StatelessWidget {
+  const _AlwaysLocationCard({
+    required this.isEnabled,
+    required this.onChanged,
+  });
+
+  final bool isEnabled;
+  final ValueChanged<bool> onChanged;
 
   @override
   Widget build(BuildContext context) {
-    final granted = status?.isGranted ?? false;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: EnsomColors.surface1,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: EnsomColors.hairline),
+        color: EnsomColors.surface2,
+        borderRadius: BorderRadius.circular(18),
       ),
       child: Row(
         children: [
           Expanded(
-            child: Text(
-              label,
-              style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: EnsomColors.ink),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  "항상 위치 허용",
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: EnsomColors.ink,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  "앱을 쓰지 않을 때도 출발·도착을 자동으로 확인해요.",
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: EnsomColors.inkMuted,
+                    height: 1.55,
+                  ),
+                ),
+              ],
             ),
           ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            decoration: BoxDecoration(
-              color: granted ? EnsomColors.limeSoft : EnsomColors.surface2,
-              borderRadius: BorderRadius.circular(999),
-            ),
-            child: Text(
-              granted ? "허용" : "꺼짐",
-              style: TextStyle(
-                fontSize: 10.5,
-                fontWeight: FontWeight.w700,
-                color: granted ? EnsomColors.limeInk : EnsomColors.inkMuted,
+          const SizedBox(width: 10),
+          GestureDetector(
+            onTap: () => onChanged(!isEnabled),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 150),
+              width: 42,
+              height: 25,
+              decoration: BoxDecoration(
+                color: isEnabled ? EnsomColors.cta : EnsomColors.surfaceNeutral,
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: AnimatedAlign(
+                duration: const Duration(milliseconds: 150),
+                alignment:
+                    isEnabled ? Alignment.centerRight : Alignment.centerLeft,
+                child: Container(
+                  margin: const EdgeInsets.all(2.5),
+                  width: 20,
+                  height: 20,
+                  decoration: BoxDecoration(
+                    color: isEnabled ? EnsomColors.lime : Colors.white,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.2),
+                        blurRadius: 3,
+                        offset: const Offset(0, 1),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
           ),

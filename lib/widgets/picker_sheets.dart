@@ -1,12 +1,8 @@
 import "package:flutter/material.dart";
 import "../theme/ensom_colors.dart";
 
-/// PICK-01 날짜 선택 시트
-/// PICK-02 시간 선택 시트
-/// PICK-03 소요시간 선택 시트
-///
-/// CAL-04, PRF-06 등에서 호출하는 공용 피커 컴포넌트.
-/// showModalBottomSheet로 사용.
+/// PICK-01~03 공용 피커 시트 — v6 프로토타입 기준 redesign
+/// 디자인 기준: Ensom_프로토타입_v6_최종/06_공통·P1/ensom_pickers.html
 
 /// PICK-01: 날짜 선택 → DateTime 반환
 Future<DateTime?> showDatePickerSheet(
@@ -39,6 +35,8 @@ Future<int?> showDurationPickerSheet(
 }) {
   return showModalBottomSheet<int>(
     context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
     builder: (_) => _DurationPickerSheet(initialMinutes: initialMinutes),
   );
 }
@@ -53,7 +51,6 @@ class _DurationPickerSheet extends StatefulWidget {
 
 class _DurationPickerSheetState extends State<_DurationPickerSheet> {
   late int _minutes;
-
   static const _quickOptions = [10, 15, 20, 30, 45, 60, 90, 120];
 
   @override
@@ -64,72 +61,150 @@ class _DurationPickerSheetState extends State<_DurationPickerSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(24),
+    return Container(
+      decoration: const BoxDecoration(
+        color: EnsomColors.canvas,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+      ),
+      padding: EdgeInsets.fromLTRB(
+        20,
+        10,
+        20,
+        20 + MediaQuery.of(context).viewInsets.bottom,
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Center(
-            child: Container(
-              width: 32,
-              height: 4,
-              decoration: BoxDecoration(
-                color: EnsomColors.hairline,
-                borderRadius: BorderRadius.circular(2),
-              ),
+          // 핸들
+          Container(
+            width: 36,
+            height: 4,
+            decoration: BoxDecoration(
+              color: EnsomColors.surfaceNeutral,
+              borderRadius: BorderRadius.circular(99),
+            ),
+          ),
+          const SizedBox(height: 14),
+          // 제목
+          const Text(
+            "소요 시간",
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              letterSpacing: -0.2,
+              color: EnsomColors.ink,
             ),
           ),
           const SizedBox(height: 16),
-          Text("소요 시간", style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 16),
+          // 칩 선택
           Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: _quickOptions
-                .map(
-                  (min) => ChoiceChip(
-                    label: Text("$min분"),
-                    selected: _minutes == min,
-                    onSelected: (_) => setState(() => _minutes = min),
+            spacing: 7,
+            runSpacing: 9,
+            children: _quickOptions.map((min) {
+              final isSelected = _minutes == min;
+              return GestureDetector(
+                onTap: () => setState(() => _minutes = min),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: isSelected ? EnsomColors.cta : EnsomColors.surface2,
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                )
-                .toList(),
+                  child: Text(
+                    "$min분",
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: isSelected ? Colors.white : EnsomColors.ink,
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
           ),
           const SizedBox(height: 16),
+          // +/- 조절
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              IconButton(
-                icon: const Icon(Icons.remove_circle_outline),
-                onPressed: _minutes > 5
-                    ? () => setState(() => _minutes -= 5)
-                    : null,
+              _CircleButton(
+                icon: Icons.remove,
+                enabled: _minutes > 5,
+                onTap: () => setState(() => _minutes -= 5),
               ),
+              const SizedBox(width: 20),
               Text(
                 "$_minutes분",
                 style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w600,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700,
+                  color: EnsomColors.ink,
                 ),
               ),
-              IconButton(
-                icon: const Icon(Icons.add_circle_outline),
-                onPressed: _minutes < 180
-                    ? () => setState(() => _minutes += 5)
-                    : null,
+              const SizedBox(width: 20),
+              _CircleButton(
+                icon: Icons.add,
+                enabled: _minutes < 180,
+                onTap: () => setState(() => _minutes += 5),
               ),
             ],
           ),
           const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton(
-              onPressed: () => Navigator.pop(context, _minutes),
-              child: const Text("확인"),
+          // 확인 버튼
+          GestureDetector(
+            onTap: () => Navigator.pop(context, _minutes),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 13),
+              decoration: BoxDecoration(
+                color: EnsomColors.cta,
+                borderRadius: BorderRadius.circular(999),
+              ),
+              alignment: Alignment.center,
+              child: const Text(
+                "확인",
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                ),
+              ),
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _CircleButton extends StatelessWidget {
+  const _CircleButton({
+    required this.icon,
+    required this.enabled,
+    required this.onTap,
+  });
+  final IconData icon;
+  final bool enabled;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: enabled ? onTap : null,
+      child: Container(
+        width: 34,
+        height: 34,
+        decoration: BoxDecoration(
+          color: EnsomColors.surface2,
+          shape: BoxShape.circle,
+        ),
+        alignment: Alignment.center,
+        child: Icon(
+          icon,
+          size: 16,
+          color: enabled ? EnsomColors.ink : EnsomColors.inkFaint,
+        ),
       ),
     );
   }
