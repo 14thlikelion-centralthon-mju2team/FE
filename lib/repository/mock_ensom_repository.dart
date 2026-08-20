@@ -9,7 +9,6 @@ import "../models/daily_wellness_summary.dart";
 import "../models/prep_estimate.dart";
 import "../models/wellness_pref.dart";
 import "../models/execution.dart";
-import "../models/environment_data.dart";
 
 class MockEnsomRepository implements EnsomRepository {
   // -- 일정 --------------------------------------------------------
@@ -260,8 +259,7 @@ class MockEnsomRepository implements EnsomRepository {
   }
 
   @override
-  Future<Plan> selectRoute(String planId, String routeOptionId) =>
-      _mockPlan();
+  Future<Plan> selectRoute(String planId, String routeOptionId) => _mockPlan();
 
   @override
   Future<List<RouteOption>> fetchRouteSearch({
@@ -273,8 +271,7 @@ class MockEnsomRepository implements EnsomRepository {
     required String destName,
     required EventAnchor anchorMode,
     required DateTime at,
-  }) =>
-      fetchRouteOptions("search");
+  }) => fetchRouteOptions("search");
 
   // -- 설정 ---------------------------------------------------------
   @override
@@ -354,7 +351,7 @@ class MockEnsomRepository implements EnsomRepository {
   @override
   Future<void> respondToNotification(
     String notificationId,
-    WellnessResponseAction action,
+    NotificationReaction reaction,
   ) async {
     await Future.delayed(const Duration(milliseconds: 200));
   }
@@ -406,8 +403,16 @@ class MockEnsomRepository implements EnsomRepository {
       WellnessPref(topic: "uv", isEnabled: true, remindIntervalMinutes: 120),
       WellnessPref(topic: "pm", isEnabled: true, remindIntervalMinutes: 180),
       WellnessPref(topic: "heat", isEnabled: false, remindIntervalMinutes: 90),
-      WellnessPref(topic: "precipitation", isEnabled: true, remindIntervalMinutes: 60),
-      WellnessPref(topic: "hydration", isEnabled: true, remindIntervalMinutes: 120),
+      WellnessPref(
+        topic: "precipitation",
+        isEnabled: true,
+        remindIntervalMinutes: 60,
+      ),
+      WellnessPref(
+        topic: "hydration",
+        isEnabled: true,
+        remindIntervalMinutes: 120,
+      ),
     ];
   }
 
@@ -526,19 +531,6 @@ class MockEnsomRepository implements EnsomRepository {
   @override
   Future<void> syncCalendar() async {
     await Future.delayed(const Duration(milliseconds: 400));
-  }
-
-  // -- 환경 데이터 ---------------------------------------------------
-  @override
-  Future<EnvironmentData> getEnvironment() async {
-    await Future.delayed(const Duration(milliseconds: 200));
-    return const EnvironmentData(
-      temperature: 28,
-      sky: "맑음",
-      pm10Grade: "보통",
-      pm25Grade: "좋음",
-      uvIndex: 6,
-    );
   }
 
   // -- 계정 --------------------------------------------------------
