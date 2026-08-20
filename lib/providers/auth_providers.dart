@@ -2,6 +2,7 @@ import "dart:async";
 
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:flutter_riverpod/legacy.dart";
+import "../core/app_config.dart";
 import "../core/auth_service.dart";
 import "../core/fcm_service.dart";
 import "../core/secure_storage_service.dart";
@@ -15,10 +16,7 @@ final secureStorageProvider = Provider<SecureStorageService>((ref) {
 
 final apiClientProvider = Provider<ApiClient>((ref) {
   final secureStorage = ref.watch(secureStorageProvider);
-  return ApiClient(
-    baseUrl: "https://api.ensom.app/v1",
-    secureStorage: secureStorage,
-  );
+  return ApiClient(baseUrl: kApiBaseUrl, secureStorage: secureStorage);
 });
 
 final authServiceProvider = Provider<AuthService>((ref) {
