@@ -49,6 +49,9 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen> {
     _destinationName = draft.destName;
     _destinationLat = draft.destLat;
     _destinationLng = draft.destLng;
+    if (draft.label != null && draft.label!.isNotEmpty) {
+      _labelController.text = draft.label!;
+    }
   }
 
   @override
