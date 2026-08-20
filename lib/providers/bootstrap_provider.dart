@@ -1,5 +1,6 @@
 import "dart:io";
 
+import "package:flutter/foundation.dart" show kIsWeb;
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "../core/fcm_service.dart";
 import "../core/local_notification_service.dart";
@@ -177,7 +178,9 @@ final bootstrapProvider = FutureProvider<BootstrapData>((ref) async {
     // 로컬 알림·FCM 둘 다 알림을 직접 표시하므로 각자 반영해야 한다.
     final hideSensitive = data.settings.lockscreenHideSensitive;
     LocalNotificationService.instance.updateSettings(lockscreenHideSensitive: hideSensitive);
-    FcmService.instance.updateSettings(lockscreenHideSensitive: hideSensitive);
+    if (!kIsWeb) {
+      FcmService.instance.updateSettings(lockscreenHideSensitive: hideSensitive);
+    }
 
     return data;
   } on ApiException catch (e) {
