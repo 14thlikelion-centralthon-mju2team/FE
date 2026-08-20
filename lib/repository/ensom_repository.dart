@@ -127,7 +127,7 @@ abstract class EnsomRepository {
 
   // 개인화 (MODEL-01/02)
   Future<List<PrepEstimate>> fetchPrepEstimates();
-  Future<void> revertPersonalization(String eventId);
+  Future<void> revertPersonalization();
   Future<void> resetPersonalization();
 
   // 장소 (SET-01)
