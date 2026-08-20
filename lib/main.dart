@@ -4,6 +4,8 @@ import "package:flutter/foundation.dart" show kIsWeb;
 import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:hive_ce_flutter/hive_ce_flutter.dart";
+import "package:intl/date_symbol_data_local.dart";
+import "package:intl/intl.dart";
 import "package:kakao_map_sdk/kakao_map_sdk.dart";
 import "package:firebase_core/firebase_core.dart";
 import "package:firebase_messaging/firebase_messaging.dart";
@@ -19,6 +21,14 @@ import "theme/ensom_colors.dart";
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // 날짜/시간 로케일 데이터 초기화. 캘린더·홈·알림 화면이 명시적 "ko_KR"
+  // 로케일로 DateFormat(예: "EEEE", "M월 d일", "a h:mm")을 쓰는데, 이 데이터가
+  // 초기화돼 있지 않으면 format() 호출 시 LocaleDataException이 던져진다.
+  // 특히 웹에서는 로케일 데이터가 번들에 자동 포함되지 않아, 캘린더 진입 시
+  // 날짜 라벨 렌더 중 예외 → 위젯 빌드 실패 → 흰 화면이 됐다.
+  await initializeDateFormatting("ko_KR", null);
+  Intl.defaultLocale = "ko_KR";
   // 웹은 firebase_options.dart/웹 Firebase 설정이 없어 시도조차 하지 않는다.
   // FirebaseMessaging.instance(FcmService의 필드 초기화자)가 기본 앱 없이
   // 접근되면 [core/no-app] 예외가 이 try 바깥(위젯 빌드 중)에서 다시
