@@ -5,16 +5,9 @@ import "../../models/wellness_pref.dart";
 import "../../repository/ensom_repository.dart";
 import "../../repository/providers.dart";
 import "../../theme/ensom_colors.dart";
+import "../../theme/wellness_topic_copy.dart";
 import "../../widgets/ensom/ensom_toggle.dart";
 import "../../widgets/ensom/ensom_top_bar.dart";
-
-const _topicLabels = {
-  "uv": "자외선",
-  "pm": "미세먼지",
-  "temp": "기온·체감온도",
-  "rain": "강수",
-  "hydration": "수분 섭취",
-};
 
 final wellnessPrefsProvider =
     StateNotifierProvider.autoDispose<
@@ -129,7 +122,7 @@ class _PrefTile extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(
-                    _topicLabels[pref.topic] ?? pref.topic,
+                    wellnessTopicLabels[pref.topic] ?? pref.topic,
                     style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: EnsomColors.ink),
                   ),
                 ),
