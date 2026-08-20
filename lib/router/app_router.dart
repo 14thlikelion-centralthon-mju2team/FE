@@ -2,10 +2,10 @@ import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:go_router/go_router.dart";
 import "package:permission_handler/permission_handler.dart";
-import "placeholder_screen.dart";
 import "../core/permission_service.dart";
 import "../providers/auth_providers.dart";
 import "../screens/onboarding/auth_screen.dart";
+import "../screens/onboarding/splash_screen.dart";
 import "../screens/onboarding/consent_screen.dart";
 import "../screens/onboarding/email_verification_screen.dart";
 import "../screens/onboarding/location_permission_screen.dart";
@@ -133,7 +133,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     },
     routes: [
       // ─── 스플래시 (세션 확인 중) ─────────────────────────────────
-      GoRoute(path: "/splash", builder: (c, s) => const _SplashScreen()),
+      GoRoute(path: "/splash", builder: (c, s) => const SplashScreen()),
 
       // ─── 온보딩 ──────────────────────────────────────────────────
       GoRoute(path: "/onboarding/auth", builder: (c, s) => const AuthScreen()),
@@ -364,57 +364,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     ],
   );
 });
-
-// ─── 스플래시 (세션 확인 중 표시) ──────────────────────────────────
-class _SplashScreen extends ConsumerStatefulWidget {
-  const _SplashScreen();
-
-  @override
-  ConsumerState<_SplashScreen> createState() => _SplashScreenState();
-}
-
-class _SplashScreenState extends ConsumerState<_SplashScreen> {
-  bool _isRetrying = false;
-
-  Future<void> _retry() async {
-    setState(() => _isRetrying = true);
-    await ref.read(authNotifierProvider.notifier).retrySessionCheck();
-    if (mounted) setState(() => _isRetrying = false);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final authState = ref.watch(authNotifierProvider);
-    final failed = authState.status == AuthStatus.sessionCheckFailed;
-
-    return Scaffold(
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                "Ensom",
-                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 32),
-              if (failed && !_isRetrying) ...[
-                Text(
-                  authState.errorMessage ?? "세션을 확인하지 못했어요.",
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 16),
-                FilledButton(onPressed: _retry, child: const Text("다시 시도")),
-              ] else
-                const CircularProgressIndicator(),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 // ─── 메인 탭 셸 ───────────────────────────────────────────────────
 class MainTabShell extends StatelessWidget {
