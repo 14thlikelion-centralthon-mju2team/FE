@@ -110,7 +110,7 @@ class ApiEnsomRepository implements EnsomRepository {
           "anchorMode": anchorMode == EventAnchor.departAt
               ? "depart_at"
               : "arrive_by",
-          "at": at.toIso8601String(),
+          "at": at.toUtc().toIso8601String(),
         },
       );
       return json
@@ -270,7 +270,7 @@ class ApiEnsomRepository implements EnsomRepository {
   }) async {
     final json = await _client.get<List<dynamic>>(
       "/events",
-      query: {"from": from.toIso8601String(), "to": to.toIso8601String()},
+      query: {"from": from.toUtc().toIso8601String(), "to": to.toUtc().toIso8601String()},
     );
     return json.map((e) => Event.fromJson(e as Map<String, dynamic>)).toList();
   }
@@ -351,13 +351,18 @@ class ApiEnsomRepository implements EnsomRepository {
     DateTime? prepStartAt,
     String? originPlaceId,
   }) async {
+    // API v5.0 §9.5 PATCH /plans/{planId}.
+    // 사용자 직접 수정은 서버가 새 리비전을 만든다(revisionNo 증가).
+    //
+    // 시각 직렬화(TR-02): 로컬 DateTime의 toIso8601String()은 오프셋도 Z도
+    // 붙지 않아("2026-08-20T14:00:00.000") BE(Instant, Jackson JavaTimeModule)가
+    // 역직렬화에 실패해 400을 낸다. toUtc()로 변환하면 "...Z"가 붙고 현재 BE가
+    // 정상 수용한다(양쪽 실행 검증). 명세는 오프셋 포함(+09:00)을 요구하고
+    // "Z만 오는 값은 422"라고 적혀 있으나 그 규칙은 현행 BE에 미구현이다.
+    // BE가 그 422 규칙을 실제 구현하면 그때 +09:00 형태로 직접 포매팅해야 한다.
     final json = await _client.patch<Map<String, dynamic>>(
       "/plans/$planId",
       body: {
-        // BE PlanPatchRequest.prepStartAt은 java.time.Instant다. Jackson의
-        // Instant 역직렬화는 UTC(Z) 또는 오프셋이 붙은 값을 요구하고, Dart 로컬
-        // DateTime의 toIso8601String()은 오프셋/Z가 없어 파싱이 400으로 실패한다.
-        // toUtc()로 변환해 Z가 붙은 순간값(instant)으로 보낸다.
         if (prepStartAt != null)
           "prepStartAt": prepStartAt.toUtc().toIso8601String(),
         if (originPlaceId != null) "originPlaceId": originPlaceId,
@@ -391,7 +396,7 @@ class ApiEnsomRepository implements EnsomRepository {
       body: {
         "action": _actionJsonValues[action],
         "clientEventId": _uuid.v4(),
-        "deviceTs": DateTime.now().toIso8601String(),
+        "deviceTs": DateTime.now().toUtc().toIso8601String(),
       },
     );
   }
@@ -453,12 +458,25 @@ class ApiEnsomRepository implements EnsomRepository {
   }
 
   @override
-  Future<List<PrepEstimate>> fetchPrepEstimates() =>
-      throw UnimplementedError("개인화 조회 화면은 아직 스코프 미배정");
+  Future<List<PrepEstimate>> fetchPrepEstimates() async {
+    // API v5.0 §15 GET /me/personalization. 응답 data.estimates[]를 파싱.
+    // MVP는 scopeType "global"만 사용(§15 주석).
+    final json = await _client.get<Map<String, dynamic>>("/me/personalization");
+    final estimates = (json["estimates"] as List<dynamic>?) ?? const [];
+    return estimates
+        .map((e) => PrepEstimate.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
 
   @override
-  Future<void> revertPersonalization(String eventId) =>
-      throw UnimplementedError("개인화 되돌리기 UI는 아직 스코프 미배정");
+  Future<void> revertPersonalization(String eventId) async {
+    // API v5.0 §15 POST /me/personalization/revert — 직전 보정 되돌리기.
+    // eventId를 바디로 넘겨 특정 보정을 지목한다(서버가 없으면 무시).
+    await _client.post<Map<String, dynamic>>(
+      "/me/personalization/revert",
+      body: {if (eventId.isNotEmpty) "eventId": eventId},
+    );
+  }
 
   @override
   Future<void> resetPersonalization() async {
@@ -466,23 +484,45 @@ class ApiEnsomRepository implements EnsomRepository {
   }
 
   @override
-  Future<List<Place>> fetchPlaces() =>
-      throw UnimplementedError("장소 목록은 feature/geofence-place-management 범위");
+  Future<List<Place>> fetchPlaces() async {
+    // API v5.0 §5 GET /places. api_client가 공통 응답의 data를 벗겨준다.
+    final json = await _client.get<List<dynamic>>("/places");
+    return json
+        .map((e) => Place.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
 
   @override
-  Future<Place> registerPlace(Place place) =>
-      throw UnimplementedError("feature/geofence-place-management 범위");
+  Future<Place> registerPlace(Place place) async {
+    // API v5.0 §5 POST /places. placeId는 서버가 생성하므로 요청 바디에서 제외.
+    // Idempotency-Key는 api_client.post가 자동 부착.
+    final json = await _client.post<Map<String, dynamic>>(
+      "/places",
+      body: {
+        "placeType": place.placeType,
+        "placeName": place.placeName,
+        if (place.address != null) "address": place.address,
+        "lat": place.lat,
+        "lng": place.lng,
+        "isPrimary": place.isPrimary,
+      },
+    );
+    return Place.fromJson(json);
+  }
 
   @override
-  Future<void> deletePlace(String placeId) =>
-      throw UnimplementedError("feature/geofence-place-management 범위");
+  Future<void> deletePlace(String placeId) async {
+    // API v5.0 §5 DELETE /places/{placeId} — 소프트 삭제.
+    await _client.delete<Map<String, dynamic>>("/places/$placeId");
+  }
 
   @override
   Future<void> syncCalendar() async {
-    // BE 경로: POST /calendar/google/connect { authCode }
-    // 실제로는 Google Sign-In에서 받은 serverAuthCode를 전달해야 하지만
-    // 현재 FE에서 캘린더 연동 흐름(CAL-03)이 미구현이므로 호출만 정의.
-    throw UnimplementedError("CAL-03 캘린더 연동 흐름 미구현 — authCode 필요");
+    // API v5.0 §7 POST /calendar/sync — 이미 연결된 캘린더의 수동 동기화.
+    // (연결 추가는 authCode 기반 POST /calendar/google/connect로,
+    //  CalendarSyncScreen이 apiClient로 직접 처리한다 — 별개 흐름)
+    // 바디 없음. Idempotency-Key는 api_client.post가 자동 부착.
+    await _client.post<Map<String, dynamic>>("/calendar/sync", body: const {});
   }
 
   // -- 환경 데이터 (날씨 + 대기질) ------------------------------------
@@ -558,7 +598,7 @@ class ApiEnsomRepository implements EnsomRepository {
           {
             "actionType": "ARRIVED",
             "actionSource": source.name.toUpperCase(),
-            "deviceTs": DateTime.now().toIso8601String(),
+            "deviceTs": DateTime.now().toUtc().toIso8601String(),
             "clientEventId": clientEventId,
             if (confidence != null) "confidence": confidence,
           },

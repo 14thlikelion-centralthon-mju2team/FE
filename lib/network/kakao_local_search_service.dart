@@ -38,6 +38,8 @@ class KakaoLocalSearchService {
         _http = client ?? http.Client();
 
   static const _endpoint = "https://dapi.kakao.com/v2/local/search/keyword.json";
+  static const _coord2addressEndpoint =
+      "https://dapi.kakao.com/v2/local/geo/coord2address.json";
 
   final String _restApiKey;
   final http.Client _http;
@@ -60,5 +62,43 @@ class KakaoLocalSearchService {
     return documents
         .map((e) => KakaoSearchResult.fromJson(e as Map<String, dynamic>))
         .toList();
+  }
+
+  /// 좌표 → 주소 역지오코딩 (카카오 `coord2address`).
+  ///
+  /// 주요 장소 등록은 현재 위치 좌표로만 이뤄지는데 BE `POST /places`가
+  /// `address`를 필수(`@NotBlank`, DB `not null`)로 받으므로, 좌표를 사람이
+  /// 읽는 주소 문자열로 변환해 채워 보낸다.
+  ///
+  /// 도로명 주소를 우선하고 없으면 지번 주소를 쓴다. 키가 없거나 결과가
+  /// 없으면 `null`을 반환해 호출부가 폴백을 결정하게 한다.
+  Future<String?> coord2address(double lat, double lng) async {
+    if (!isAvailable) return null;
+
+    // 카카오 좌표계는 x=경도(lng), y=위도(lat) 순서다.
+    final uri = Uri.parse(_coord2addressEndpoint).replace(
+      queryParameters: {"x": "$lng", "y": "$lat"},
+    );
+    final response = await _http.get(
+      uri,
+      headers: {"Authorization": "KakaoAK $_restApiKey"},
+    );
+
+    if (response.statusCode != 200) return null;
+
+    final body = jsonDecode(response.body) as Map<String, dynamic>;
+    final documents = body["documents"] as List<dynamic>? ?? const [];
+    if (documents.isEmpty) return null;
+
+    final first = documents.first as Map<String, dynamic>;
+    final road = first["road_address"] as Map<String, dynamic>?;
+    final roadName = road?["address_name"] as String?;
+    if (roadName != null && roadName.isNotEmpty) return roadName;
+
+    final addr = first["address"] as Map<String, dynamic>?;
+    final addrName = addr?["address_name"] as String?;
+    if (addrName != null && addrName.isNotEmpty) return addrName;
+
+    return null;
   }
 }

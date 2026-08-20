@@ -74,12 +74,12 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     }
   }
 
-  /// 집·직장 등록 장소(§4.2 place_cache)에서 라벨이 일치하는 항목을 찾는다.
-  PlaceCacheEntry? _placeByLabel(String label) {
+  /// 집·직장 등록 장소(§4.2 place_cache)에서 표시명이 일치하는 항목을 찾는다.
+  PlaceCacheEntry? _placeByLabel(String name) {
     if (!Hive.isBoxOpen("place_cache")) return null;
     final box = Hive.box<PlaceCacheEntry>("place_cache");
     for (final entry in box.values) {
-      if (entry.label == label) return entry;
+      if (entry.placeName == name) return entry;
     }
     return null;
   }
