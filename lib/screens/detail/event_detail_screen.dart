@@ -12,6 +12,7 @@ import "../../widgets/ensom/ensom_pill_button.dart";
 import "../../widgets/permission_degraded_banner.dart";
 import "../../widgets/prep_item_add_sheet.dart";
 import "../../widgets/route_change_sheet.dart";
+import "../home/widgets/arrival_result_card.dart";
 import "../home/widgets/checklist_section.dart";
 import "../home/widgets/wellness_actions_section.dart";
 
@@ -26,10 +27,10 @@ import "../home/widgets/wellness_actions_section.dart";
 /// 구현돼 있는 그 컨트롤러를 그대로 재사용해서, 이 화면만의 별도 API
 /// 호출 경로를 새로 만들지 않는다.
 ///
-/// 목업의 "결과"(종료 후 사후평가) 섹션과 하단 "준비 시작" 액션바는
-/// 넣지 않았다 — 도착 결과·피드백 API가 아직 이 리포지토리에 없고
-/// (§14 계획 문서 단계), "계획 수정"도 기존에 TODO로 남아있던 미구현
-/// 기능이라 눌러도 아무 일도 안 하는 버튼을 만들지 않기 위함이다.
+/// 결과(종료 후 사후평가) 섹션은 `ArrivalResultCard`를 그대로 재사용한다
+/// (홈 카드와 동일 위젯). 하단 "준비 시작" 액션바와 "계획 수정"은 여전히
+/// 넣지 않았다 — "계획 수정"은 기존에 TODO로 남아있던 미구현 기능이라
+/// 눌러도 아무 일도 안 하는 버튼을 만들지 않기 위함이다.
 class EventDetailScreen extends ConsumerWidget {
   const EventDetailScreen({super.key, required this.eventId});
 
@@ -272,6 +273,10 @@ class EventDetailScreen extends ConsumerWidget {
                         if (plan.selectedRouteOptionId != null) ...[
                           const SizedBox(height: 18),
                           _RouteSummaryCard(plan: plan, eventId: eventId),
+                        ],
+                        if (_terminalStatuses.contains(plan.eventStatus)) ...[
+                          const SizedBox(height: 18),
+                          ArrivalResultCard(eventId: eventId),
                         ],
                       ],
                     ),
