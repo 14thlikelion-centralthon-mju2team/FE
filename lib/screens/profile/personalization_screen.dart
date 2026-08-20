@@ -87,6 +87,44 @@ class _PersonalizationScreenState extends ConsumerState<PersonalizationScreen> {
     }
   }
 
+  Future<void> _revert() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("직전 보정을 되돌릴까요?"),
+        content: const Text("가장 최근에 학습된 준비 시간 보정 1회가 취소돼요."),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text("취소"),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text("되돌리기"),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      // API v5.0 §15 POST /me/personalization/revert.
+      final api = ref.read(apiClientProvider);
+      await api.post("/me/personalization/revert", body: const {});
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text("직전 보정을 되돌렸어요.")));
+        _load();
+      }
+    } on ApiException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -122,6 +160,12 @@ class _PersonalizationScreenState extends ConsumerState<PersonalizationScreen> {
                   ),
                 ],
                 const SizedBox(height: 24),
+                OutlinedButton.icon(
+                  onPressed: _revert,
+                  icon: const Icon(Icons.undo),
+                  label: const Text("직전 보정 되돌리기"),
+                ),
+                const SizedBox(height: 12),
                 OutlinedButton.icon(
                   onPressed: _reset,
                   icon: const Icon(Icons.restart_alt),

@@ -455,12 +455,25 @@ class ApiEnsomRepository implements EnsomRepository {
   }
 
   @override
-  Future<List<PrepEstimate>> fetchPrepEstimates() =>
-      throw UnimplementedError("개인화 조회 화면은 아직 스코프 미배정");
+  Future<List<PrepEstimate>> fetchPrepEstimates() async {
+    // API v5.0 §15 GET /me/personalization. 응답 data.estimates[]를 파싱.
+    // MVP는 scopeType "global"만 사용(§15 주석).
+    final json = await _client.get<Map<String, dynamic>>("/me/personalization");
+    final estimates = (json["estimates"] as List<dynamic>?) ?? const [];
+    return estimates
+        .map((e) => PrepEstimate.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
 
   @override
-  Future<void> revertPersonalization(String eventId) =>
-      throw UnimplementedError("개인화 되돌리기 UI는 아직 스코프 미배정");
+  Future<void> revertPersonalization(String eventId) async {
+    // API v5.0 §15 POST /me/personalization/revert — 직전 보정 되돌리기.
+    // eventId를 바디로 넘겨 특정 보정을 지목한다(서버가 없으면 무시).
+    await _client.post<Map<String, dynamic>>(
+      "/me/personalization/revert",
+      body: {if (eventId.isNotEmpty) "eventId": eventId},
+    );
+  }
 
   @override
   Future<void> resetPersonalization() async {
@@ -468,23 +481,45 @@ class ApiEnsomRepository implements EnsomRepository {
   }
 
   @override
-  Future<List<Place>> fetchPlaces() =>
-      throw UnimplementedError("장소 목록은 feature/geofence-place-management 범위");
+  Future<List<Place>> fetchPlaces() async {
+    // API v5.0 §5 GET /places. api_client가 공통 응답의 data를 벗겨준다.
+    final json = await _client.get<List<dynamic>>("/places");
+    return json
+        .map((e) => Place.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
 
   @override
-  Future<Place> registerPlace(Place place) =>
-      throw UnimplementedError("feature/geofence-place-management 범위");
+  Future<Place> registerPlace(Place place) async {
+    // API v5.0 §5 POST /places. placeId는 서버가 생성하므로 요청 바디에서 제외.
+    // Idempotency-Key는 api_client.post가 자동 부착.
+    final json = await _client.post<Map<String, dynamic>>(
+      "/places",
+      body: {
+        "placeType": place.placeType,
+        "placeName": place.placeName,
+        if (place.address != null) "address": place.address,
+        "lat": place.lat,
+        "lng": place.lng,
+        "isPrimary": place.isPrimary,
+      },
+    );
+    return Place.fromJson(json);
+  }
 
   @override
-  Future<void> deletePlace(String placeId) =>
-      throw UnimplementedError("feature/geofence-place-management 범위");
+  Future<void> deletePlace(String placeId) async {
+    // API v5.0 §5 DELETE /places/{placeId} — 소프트 삭제.
+    await _client.delete<Map<String, dynamic>>("/places/$placeId");
+  }
 
   @override
   Future<void> syncCalendar() async {
-    // BE 경로: POST /calendar/google/connect { authCode }
-    // 실제로는 Google Sign-In에서 받은 serverAuthCode를 전달해야 하지만
-    // 현재 FE에서 캘린더 연동 흐름(CAL-03)이 미구현이므로 호출만 정의.
-    throw UnimplementedError("CAL-03 캘린더 연동 흐름 미구현 — authCode 필요");
+    // API v5.0 §7 POST /calendar/sync — 이미 연결된 캘린더의 수동 동기화.
+    // (연결 추가는 authCode 기반 POST /calendar/google/connect로,
+    //  CalendarSyncScreen이 apiClient로 직접 처리한다 — 별개 흐름)
+    // 바디 없음. Idempotency-Key는 api_client.post가 자동 부착.
+    await _client.post<Map<String, dynamic>>("/calendar/sync", body: const {});
   }
 
   // -- 환경 데이터 (날씨 + 대기질) ------------------------------------
