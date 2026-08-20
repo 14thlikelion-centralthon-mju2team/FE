@@ -22,7 +22,11 @@ class GeofenceSync extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final eventAsync = ref.watch(nextEventProvider);
-    final event = eventAsync.value;
+    // Riverpod 3의 AsyncValue.value는 이전 데이터 없이 에러 상태면 그
+    // 자리에서 예외를 다시 던진다 — build() 안에서 무조건 .value를
+    // 읽으면 /events/next가 401 등으로 실패할 때 이 보이지 않는
+    // 위젯이 화면 전체를 깨뜨릴 수 있다. hasValue로 먼저 가드한다.
+    final event = eventAsync.hasValue ? eventAsync.value : null;
 
     if (event == null) {
       if (eventAsync.hasValue) ref.read(geofenceManagerProvider).clear();

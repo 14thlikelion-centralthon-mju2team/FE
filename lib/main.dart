@@ -19,16 +19,22 @@ import "theme/ensom_colors.dart";
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  try {
-    // google-services.json / GoogleService-Info.plist이 프로젝트에 포함돼
-    // 있으면 자동 감지. 없으면 예외 → catch에서 FCM 비활성 처리.
-    // firebase_options.dart는 Git에 기록하지 않으므로(팀 API키 정책)
-    // 옵션 없이 초기화하고 플랫폼 설정 파일에 의존한다.
-    await Firebase.initializeApp();
-    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
-    unawaited(FcmService.instance.retryPendingTokenCleanup());
-  } catch (e) {
-    debugPrint("[firebase] 초기화 실패 — FCM 비활성, 로컬 알림 폴백만 동작: $e");
+  // 웹은 firebase_options.dart/웹 Firebase 설정이 없어 시도조차 하지 않는다.
+  // FirebaseMessaging.instance(FcmService의 필드 초기화자)가 기본 앱 없이
+  // 접근되면 [core/no-app] 예외가 이 try 바깥(위젯 빌드 중)에서 다시
+  // 터져 runApp() 이후에도 화면이 비는 문제가 있었다.
+  if (!kIsWeb) {
+    try {
+      // google-services.json / GoogleService-Info.plist이 프로젝트에 포함돼
+      // 있으면 자동 감지. 없으면 예외 → catch에서 FCM 비활성 처리.
+      // firebase_options.dart는 Git에 기록하지 않으므로(팀 API키 정책)
+      // 옵션 없이 초기화하고 플랫폼 설정 파일에 의존한다.
+      await Firebase.initializeApp();
+      FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+      unawaited(FcmService.instance.retryPendingTokenCleanup());
+    } catch (e) {
+      debugPrint("[firebase] 초기화 실패 — FCM 비활성, 로컬 알림 폴백만 동작: $e");
+    }
   }
 
   await Hive.initFlutter();
@@ -60,10 +66,12 @@ class EnsomApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(appRouterProvider);
-    FcmService.instance.setNotificationTapHandler((metadata) {
-      // notificationId/planId/type만 받은 뒤 서버 notification log에서 최신 상태를 조회한다.
-      router.go("/notifications/today");
-    });
+    if (!kIsWeb) {
+      FcmService.instance.setNotificationTapHandler((metadata) {
+        // notificationId/planId/type만 받은 뒤 서버 notification log에서 최신 상태를 조회한다.
+        router.go("/notifications/today");
+      });
+    }
     return MaterialApp.router(
       title: "Ensom",
       theme: ThemeData(

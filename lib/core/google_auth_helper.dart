@@ -29,6 +29,16 @@ class GoogleAuthHelper {
     ],
   );
 
+  /// 웹 전용 로그인 버튼(google_web_button.dart)이 구독한다.
+  /// GoogleSignIn().signIn()은 웹에서 deprecated고, 클릭→팝업 사이에
+  /// 우리 쪽 비동기 단계(_ensureInitialized 등)가 끼어들어 브라우저의
+  /// user-activation을 잃어버려 팝업이 막힌다 — 그 실패가 Dart
+  /// try-catch로 못 잡는 raw JS 에러로 샌다. renderButton()이 만드는
+  /// 구글 자체 버튼은 클릭→팝업 사이에 우리 코드가 끼지 않아 이 문제가
+  /// 없다. 그 대신 결과는 signIn()의 반환값이 아니라 이 스트림으로 온다.
+  Stream<GoogleSignInAccount?> get onLoginUserChanged =>
+      _loginSignIn.onCurrentUserChanged;
+
   /// 로그인용 — idToken을 반환한다.
   /// 사용자가 취소하면 null, 인증 실패 시 예외.
   Future<String?> signInForLogin() async {

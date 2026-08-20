@@ -47,6 +47,10 @@ dependencies:
   uuid: ^4.6.0
   http: ^1.6.0
   google_sign_in: 6.2.1
+  # 웹 전용 renderButton()/GSI 설정 타입에 직접 접근하려면 트랜지티브가
+  # 아니라 직접 의존성으로 선언해야 import할 수 있다. google_sign_in
+  # 6.2.1이 실제로 끌어오는 버전과 맞춘다.
+  google_sign_in_web: 0.12.4+4
   timezone: 0.11.1
   # 11.0.0은 compileSdk=37을 강제하는데, 이 값은 로컬 Android SDK에
   # cmdline-tools가 있어야 제대로 설치되는 아주 최신 플랫폼이라 팀

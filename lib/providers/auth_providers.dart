@@ -1,5 +1,6 @@
 import "dart:async";
 
+import "package:flutter/foundation.dart" show kIsWeb;
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:flutter_riverpod/legacy.dart";
 import "../core/app_config.dart";
@@ -73,7 +74,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
              apiClient: apiClient,
              installationId: installationId,
            )),
-       _disposeFcm = disposeFcm ?? FcmService.instance.dispose,
+       // FcmService.instance.dispose처럼 바로 tear-off하면 이 생성자
+       // 실행 시점에 FcmService 싱글턴이 즉시 만들어진다 — 필드 초기화자
+       // (FirebaseMessaging.instance)가 Firebase 앱 없이 실행돼 웹에서
+       // [core/no-app] 예외로 앱 부팅 자체를 막았다. 람다로 감싸 실제
+       // 로그아웃 시점까지 접근을 미룬다.
+       _disposeFcm = disposeFcm ?? (() => FcmService.instance.dispose()),
        super(AuthState.initial) {
     _sessionCheckCompletion = _checkExistingSession();
   }
@@ -166,6 +172,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   /// 이미 해 뒀다. 로그인 이후 단계(권한 요청, 토큰 획득, POST
   /// /push-devices 등록)는 apiClient가 있어야 하므로 여기서 이어 붙인다.
   void _syncFcm() {
+    if (kIsWeb) return; // 웹은 firebase_options.dart가 없어 FCM 자체를 안 쓴다.
     final generation = apiClient.sessionGeneration;
     unawaited(() async {
       final installationId = await secureStorage.installationId;
