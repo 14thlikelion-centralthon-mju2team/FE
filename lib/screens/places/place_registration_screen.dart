@@ -8,9 +8,9 @@ import "../../local/place_cache_entry.dart";
 import "../../models/place.dart";
 import "../../providers/auth_providers.dart";
 import "../../repository/providers.dart";
-import "../../widgets/vium_button.dart";
-import "../../widgets/vium_card.dart";
 import "../../theme/ensom_colors.dart";
+import "../../widgets/ensom/ensom_chip.dart";
+import "../../widgets/ensom/ensom_pill_button.dart";
 
 const _labelOptions = ["집", "학교", "회사", "직접 입력"];
 
@@ -138,8 +138,15 @@ class _PlaceRegistrationScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: EnsomColors.canvas,
       appBar: AppBar(
-        title: Text(widget.isOnboarding ? "주요 장소 설정" : "등록 장소 관리"),
+        backgroundColor: EnsomColors.canvas,
+        surfaceTintColor: EnsomColors.canvas,
+        elevation: 0,
+        title: Text(
+          widget.isOnboarding ? "주요 장소 설정" : "등록 장소 관리",
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: EnsomColors.ink),
+        ),
         actions: [
           if (widget.isOnboarding)
             TextButton(
@@ -151,94 +158,196 @@ class _PlaceRegistrationScreenState
                   context.go("/onboarding/priming/notification");
                 }
               },
-              child: const Text("완료"),
+              child: const Text("완료", style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
             ),
         ],
       ),
       body: ListView(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.fromLTRB(18, 8, 18, 24),
         children: [
-          ViumCard(
+          Container(
+            padding: const EdgeInsets.all(15),
+            decoration: BoxDecoration(
+              color: EnsomColors.surface1,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: EnsomColors.hairline),
+            ),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
                   "새 장소 등록",
-                  style: TextStyle(fontWeight: FontWeight.w600),
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, letterSpacing: -.2, color: EnsomColors.ink),
                 ),
                 const SizedBox(height: 12),
-                DropdownButton<String>(
-                  value: selectedLabel,
-                  items: _labelOptions
-                      .map((l) => DropdownMenuItem(value: l, child: Text(l)))
-                      .toList(),
-                  onChanged: (v) => setState(() => selectedLabel = v!),
+                Wrap(
+                  spacing: 7,
+                  runSpacing: 8,
+                  children: [
+                    for (final label in _labelOptions)
+                      EnsomChip(
+                        label: label,
+                        selected: selectedLabel == label,
+                        onTap: () => setState(() => selectedLabel = label),
+                      ),
+                  ],
                 ),
-                if (selectedLabel == "직접 입력")
-                  TextField(
-                    controller: customLabelController,
-                    decoration: const InputDecoration(labelText: "장소 이름"),
-                  ),
-                const SizedBox(height: 12),
-                Text("반경: ${radiusM.round()}m"),
-                Slider(
-                  value: radiusM,
-                  min: 100,
-                  max: 2000,
-                  divisions: 19,
-                  label: "${radiusM.round()}m",
-                  onChanged: (v) => setState(() => radiusM = v),
-                ),
-                const SizedBox(height: 12),
-                if (lat != null && lng != null)
-                  Text(
-                    "선택된 위치: ${lat!.toStringAsFixed(4)}, ${lng!.toStringAsFixed(4)}",
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: EnsomColors.inkMuted,
+                if (selectedLabel == "직접 입력") ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    height: 44,
+                    padding: const EdgeInsets.symmetric(horizontal: 13),
+                    decoration: BoxDecoration(
+                      color: EnsomColors.surface1,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: EnsomColors.hairline, width: 1.4),
+                    ),
+                    child: TextField(
+                      controller: customLabelController,
+                      style: const TextStyle(fontSize: 13, color: EnsomColors.ink),
+                      decoration: const InputDecoration(
+                        border: InputBorder.none,
+                        hintText: "장소 이름",
+                        isCollapsed: true,
+                        hintStyle: TextStyle(color: EnsomColors.inkFaint),
+                      ),
                     ),
                   ),
-                ViumButton(
+                ],
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    const Text(
+                      "반경",
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: EnsomColors.inkMuted),
+                    ),
+                    const Spacer(),
+                    Text(
+                      "${radiusM.round()}m",
+                      style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: EnsomColors.ink),
+                    ),
+                  ],
+                ),
+                SliderTheme(
+                  data: SliderTheme.of(context).copyWith(
+                    activeTrackColor: EnsomColors.cta,
+                    inactiveTrackColor: EnsomColors.surface2,
+                    thumbColor: EnsomColors.cta,
+                    overlayColor: EnsomColors.cta.withValues(alpha: .12),
+                    trackHeight: 3,
+                  ),
+                  child: Slider(
+                    value: radiusM,
+                    min: 100,
+                    max: 2000,
+                    divisions: 19,
+                    onChanged: (v) => setState(() => radiusM = v),
+                  ),
+                ),
+                if (lat != null && lng != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    "선택된 위치: ${lat!.toStringAsFixed(4)}, ${lng!.toStringAsFixed(4)}",
+                    style: const TextStyle(fontSize: 11, color: EnsomColors.inkFaint),
+                  ),
+                ],
+                const SizedBox(height: 14),
+                EnsomPillButton(
                   label: locating ? "위치 확인 중..." : "현재 위치 사용",
-                  isPrimary: false,
+                  variant: EnsomPillVariant.secondary,
                   onPressed: locating ? null : _useCurrentLocation,
                 ),
                 const SizedBox(height: 8),
-                ViumButton(
+                EnsomPillButton(
                   label: saving ? "등록 중..." : "등록하기",
                   onPressed: (lat == null || saving) ? null : _register,
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 24),
-          const Text("등록된 장소", style: TextStyle(fontWeight: FontWeight.w600)),
-          const SizedBox(height: 8),
+          const SizedBox(height: 26),
+          const Text(
+            "등록된 장소",
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, letterSpacing: -.2, color: EnsomColors.ink),
+          ),
+          const SizedBox(height: 10),
           ValueListenableBuilder<Box<PlaceCacheEntry>>(
             valueListenable: _placeBox.listenable(),
             builder: (context, box, _) {
               final entries = box.values.toList();
               if (entries.isEmpty) {
-                return const Text(
-                  "아직 등록된 장소가 없어요.",
-                  style: TextStyle(color: EnsomColors.inkMuted),
+                return const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 8),
+                  child: Text(
+                    "아직 등록된 장소가 없어요.",
+                    style: TextStyle(fontSize: 12.5, color: EnsomColors.inkFaint),
+                  ),
                 );
               }
               return Column(
-                children: entries
-                    .map(
-                      (e) => ListTile(
-                        title: Text(e.label),
-                        subtitle: Text("반경 ${e.radiusM}m"),
-                        trailing: IconButton(
-                          icon: const Icon(Icons.delete_outline),
-                          onPressed: () => _remove(e),
-                        ),
-                      ),
-                    )
-                    .toList(),
+                children: entries.map((e) => _PlaceRow(entry: e, onDelete: () => _remove(e))).toList(),
               );
             },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PlaceRow extends StatelessWidget {
+  const _PlaceRow({required this.entry, required this.onDelete});
+
+  final PlaceCacheEntry entry;
+  final VoidCallback onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 9),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: EnsomColors.surface1,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: EnsomColors.hairline),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            decoration: const BoxDecoration(color: EnsomColors.surface2, shape: BoxShape.circle),
+            child: const Icon(Icons.place_outlined, size: 16, color: EnsomColors.inkMuted),
+          ),
+          const SizedBox(width: 11),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  entry.label,
+                  style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, letterSpacing: -.2, color: EnsomColors.ink),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  "반경 ${entry.radiusM}m",
+                  style: const TextStyle(fontSize: 11, color: EnsomColors.inkFaint),
+                ),
+              ],
+            ),
+          ),
+          Material(
+            color: Colors.transparent,
+            shape: const CircleBorder(),
+            child: InkWell(
+              onTap: onDelete,
+              customBorder: const CircleBorder(),
+              child: const SizedBox(
+                width: 30,
+                height: 30,
+                child: Icon(Icons.delete_outline, size: 18, color: EnsomColors.inkFaint),
+              ),
+            ),
           ),
         ],
       ),
