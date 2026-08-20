@@ -80,5 +80,25 @@
 	</array>
 	<key>NSCalendarsUsageDescription</key>
 	<string>일정을 자동으로 가져와 준비 계획을 세우기 위해 캘린더 접근이 필요해요</string>
+	<!-- Kakao SDK -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>kakao51b8598283169d6ec85c8c934783c2da</string>
+			</array>
+		</dict>
+	</array>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>kakaokompassauth</string>
+		<string>kakaolink</string>
+		<string>kakaomap</string>
+	</array>
+	<key>KAKAO_NATIVE_APP_KEY</key>
+	<string>51b8598283169d6ec85c8c934783c2da</string>
 </dict>
 </plist>

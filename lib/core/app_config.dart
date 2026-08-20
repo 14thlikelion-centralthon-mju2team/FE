@@ -3,15 +3,23 @@
 library;
 
 /// 카카오맵 SDK 네이티브 앱 키. 비어 있으면 지도 화면이 저하 동작한다.
-const String kKakaoNativeAppKey =
-    String.fromEnvironment('KAKAO_NATIVE_APP_KEY', defaultValue: '');
+const String kKakaoNativeAppKey = String.fromEnvironment(
+    'KAKAO_NATIVE_APP_KEY',
+    defaultValue: '51b8598283169d6ec85c8c934783c2da');
 
 /// 카카오 로컬(키워드 검색) REST API 키. 지도 SDK 키와 별도 발급값이다
 /// (카카오 개발자 콘솔의 같은 앱에서 "REST API 키"로 확인 가능).
 /// 비어 있으면 목적지 키워드 검색이 지도를 눌러 좌표를 고르는 방식으로 저하 동작한다.
-const String kKakaoRestApiKey =
-    String.fromEnvironment('KAKAO_REST_API_KEY', defaultValue: '');
+const String kKakaoRestApiKey = String.fromEnvironment(
+    'KAKAO_REST_API_KEY',
+    defaultValue: '2f503b6b7f5cd0a88c1be1b3cbe12be9');
 
 /// 구글 서버 클라이언트 ID. 비어 있으면 구글 로그인 버튼이 숨겨진다.
 const String kGoogleServerClientId =
     String.fromEnvironment('GOOGLE_SERVER_CLIENT_ID', defaultValue: '');
+
+/// API base URL. 로컬 테스트: --dart-define=API_BASE_URL=http://localhost:8080
+/// 배포: https://api.ensom.app/v1
+const String kApiBaseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: 'http://localhost:8080');
