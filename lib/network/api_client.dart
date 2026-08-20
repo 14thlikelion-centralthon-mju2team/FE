@@ -40,7 +40,7 @@ class ApiException implements Exception {
   String toString() => "ApiException($code, status=$statusCode): $message";
 }
 
-enum _RefreshStatus { success, rejected, retryableFailure, stale }
+enum _RefreshStatus { success, rejected, retryableFailure, stale, discarded }
 
 class _SessionSnapshot {
   const _SessionSnapshot({
@@ -64,10 +64,17 @@ class _SessionSnapshot {
 }
 
 class _RefreshOutcome {
-  const _RefreshOutcome(this.status, [this.accessToken]);
+  const _RefreshOutcome(
+    this.status, [
+    this.accessToken,
+    this.error,
+    this.stackTrace,
+  ]);
 
   final _RefreshStatus status;
   final String? accessToken;
+  final Object? error;
+  final StackTrace? stackTrace;
 }
 
 class ApiClient {
@@ -309,6 +316,18 @@ class ApiClient {
               message: "세션을 갱신하지 못했어요. 네트워크를 확인해주세요.",
               retryable: true,
             );
+          case _RefreshStatus.discarded:
+            // refresh write가 세션을 파기했다. 현재 세대면 terminal로
+            // 인증 상태까지 만료시켜 storage와 provider를 일치시킨다.
+            if (isCurrentSessionGeneration(protectedSession.generation)) {
+              await _notifyAuthExpired(protectedSession.generation);
+            }
+            throw ApiException(
+              code: "UNAUTHORIZED",
+              message: "세션이 만료됐어요. 다시 로그인해주세요.",
+              retryable: false,
+              statusCode: 401,
+            );
           case _RefreshStatus.stale:
             throw _staleSessionException();
           case _RefreshStatus.rejected:
@@ -407,8 +426,19 @@ class ApiClient {
         try {
           await _secureStorage.updateAccessToken(accessToken);
         } catch (error, stackTrace) {
+          // access token write가 side effect를 남긴 뒤 실패하면 세션 전체를
+          // rollback한다. 세션을 파기했으므로 재시도가 아니라 terminal로
+          // 인증 상태까지 동기화해야 provider/storage split-brain을 막는다.
           await _rollbackSessionBestEffort(session.generation);
-          Error.throwWithStackTrace(error, stackTrace);
+          if (!isCurrentSessionGeneration(session.generation)) {
+            return const _RefreshOutcome(_RefreshStatus.stale);
+          }
+          return _RefreshOutcome(
+            _RefreshStatus.discarded,
+            null,
+            error,
+            stackTrace,
+          );
         }
         if (!isCurrentSessionGeneration(session.generation)) {
           await _rollbackSessionBestEffort(session.generation);
