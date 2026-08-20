@@ -1,7 +1,9 @@
 import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:go_router/go_router.dart";
+import "package:permission_handler/permission_handler.dart";
 import "placeholder_screen.dart";
+import "../core/permission_service.dart";
 import "../providers/auth_providers.dart";
 import "../screens/onboarding/auth_screen.dart";
 import "../screens/onboarding/consent_screen.dart";
@@ -161,20 +163,42 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: "/onboarding/priming/notification",
         builder: (c, s) => PermissionPrimingScreen(
           type: PermissionPrimingType.notification,
-          onAllow: () {
-            /* TODO: OS 권한 요청 후 다음 단계 */
+          onAllow: () async {
+            final status =
+                await PermissionService.instance.requestNotification();
+            if (!c.mounted) return;
+            if (status.isGranted || status.isLimited) {
+              c.go("/onboarding/priming/location");
+            } else {
+              await PermissionService.instance.showRationale(
+                c,
+                PermissionRationaleType.notification,
+              );
+              if (c.mounted) c.go("/onboarding/priming/location");
+            }
           },
-          onSkip: () => c.go("/home"),
+          onSkip: () => c.go("/onboarding/priming/location"),
         ),
       ),
       GoRoute(
         path: "/onboarding/priming/location",
         builder: (c, s) => PermissionPrimingScreen(
           type: PermissionPrimingType.location,
-          onAllow: () {
-            /* TODO: OS 권한 요청 후 다음 단계 */
+          onAllow: () async {
+            final status =
+                await PermissionService.instance.requestLocation();
+            if (!c.mounted) return;
+            if (status.isGranted) {
+              c.go("/onboarding/priming/calendar");
+            } else {
+              await PermissionService.instance.showRationale(
+                c,
+                PermissionRationaleType.location,
+              );
+              if (c.mounted) c.go("/onboarding/priming/calendar");
+            }
           },
-          onSkip: () => c.go("/home"),
+          onSkip: () => c.go("/onboarding/priming/calendar"),
         ),
       ),
       GoRoute(

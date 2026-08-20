@@ -46,6 +46,42 @@ class FcmService {
     _installationId = installationId;
 
     try {
+      // ─── 로컬 알림 플러그인 초기화 ───────────────────────────────
+      const androidSettings =
+          AndroidInitializationSettings("@mipmap/ic_launcher");
+      const iosSettings = DarwinInitializationSettings();
+      const initSettings = InitializationSettings(
+        android: androidSettings,
+        iOS: iosSettings,
+      );
+      await _localPlugin.initialize(
+        settings: initSettings,
+        onDidReceiveNotificationResponse: _onNotificationResponse,
+      );
+
+      // ─── Android 알림 채널 생성 ──────────────────────────────────
+      final androidPlugin = _localPlugin
+          .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>();
+      if (androidPlugin != null) {
+        await androidPlugin.createNotificationChannel(
+          const AndroidNotificationChannel(
+            "ensom_push",
+            "Ensom 알림",
+            description: "서버에서 발송된 알림",
+            importance: Importance.high,
+          ),
+        );
+        await androidPlugin.createNotificationChannel(
+          const AndroidNotificationChannel(
+            "ensom_prep",
+            "준비 알림",
+            description: "준비 시작 및 출발 시각 안내",
+            importance: Importance.high,
+          ),
+        );
+      }
+
       // 알림 권한 요청 (iOS — Android 13+도 필요)
       await _messaging.requestPermission(
         alert: true,
@@ -202,6 +238,14 @@ class FcmService {
   void dispose() {
     _foregroundMessageController = null;
     _notificationTapHandler = null;
+  }
+
+  /// 알림 탭 시 딥링크 처리 — notificationTapHandler로 전달.
+  void _onNotificationResponse(NotificationResponse response) {
+    final payload = response.payload;
+    if (payload == null) return;
+    // payload에서 notification_id를 추출할 수 있으면 tap handler로 전달
+    _notificationTapHandler?.call({"notification_id": payload});
   }
 
   String _getPlatform() {
