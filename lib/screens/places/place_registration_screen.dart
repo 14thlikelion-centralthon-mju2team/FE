@@ -1,3 +1,4 @@
+import "package:flutter/foundation.dart";
 import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:geolocator/geolocator.dart";
@@ -12,7 +13,14 @@ import "../../theme/ensom_colors.dart";
 import "../../widgets/ensom/ensom_chip.dart";
 import "../../widgets/ensom/ensom_pill_button.dart";
 
-const _labelOptions = ["집", "학교", "회사", "직접 입력"];
+/// "직접 입력" 라벨은 세 곳(옵션 목록·필드 노출 가드·저장 분기)에서 쓰이므로
+/// 상수로 둔다. 문구만 바꿔도 컴파일 에러 없이 커스텀 입력이 깨지던 것을 방지.
+const _customLabel = "직접 입력";
+
+const _labelOptions = ["집", "학교", "회사", _customLabel];
+
+/// 커스텀 장소 이름 최대 길이 — 긴 이름이 행을 무한정 늘리지 않도록 제한.
+const _maxCustomLabelLength = 20;
 
 /// 라벨 → USER_PLACE.place_type 매핑. 스키마에 school 값이 없어
 /// "학교"/"직접 입력"은 other로 잠정 처리한다(Place 모델 주석 참조).
@@ -49,6 +57,13 @@ class _PlaceRegistrationScreenState
   bool saving = false;
 
   @override
+  void initState() {
+    super.initState();
+    // 커스텀 라벨 입력에 따라 등록 버튼 활성/비활성이 즉시 반영되도록 한다.
+    customLabelController.addListener(() => setState(() {}));
+  }
+
+  @override
   void dispose() {
     customLabelController.dispose();
     super.dispose();
@@ -56,6 +71,21 @@ class _PlaceRegistrationScreenState
 
   Box<PlaceCacheEntry> get _placeBox =>
       Hive.box<PlaceCacheEntry>("place_cache");
+
+  /// build마다 새 BoxListenable이 생기지 않도록 한 번만 캐시한다. 슬라이더
+  /// 드래그 중 잦은 setState에도 리스너가 반복 해제/재등록되지 않는다.
+  late final ValueListenable<Box<PlaceCacheEntry>> _placeListenable = _placeBox
+      .listenable();
+
+  /// "직접 입력"을 골랐다면 이름이 채워져 있어야 등록 가능하다.
+  bool get _customLabelReady =>
+      selectedLabel != _customLabel ||
+      customLabelController.text.trim().isNotEmpty;
+
+  /// 등록하기 버튼 활성 조건: 위치가 선택됐고, 커스텀 이름 요건을 만족하며,
+  /// 저장 중이 아닐 때.
+  bool get _canRegister =>
+      lat != null && lng != null && _customLabelReady && !saving;
 
   void _showError(String message) {
     if (!mounted) return;
@@ -84,10 +114,13 @@ class _PlaceRegistrationScreenState
 
   Future<void> _register() async {
     if (lat == null || lng == null) return;
-    final label = selectedLabel == "직접 입력"
+    final label = selectedLabel == _customLabel
         ? customLabelController.text.trim()
         : selectedLabel;
-    if (label.isEmpty) return;
+    if (label.isEmpty) {
+      _showError("장소 이름을 입력해주세요.");
+      return;
+    }
 
     setState(() => saving = true);
 
@@ -137,6 +170,30 @@ class _PlaceRegistrationScreenState
     }
   }
 
+  Future<void> _confirmRemove(PlaceCacheEntry entry) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text("장소 삭제"),
+        content: Text("'${entry.placeName}'을(를) 삭제할까요? 되돌릴 수 없어요."),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text("취소"),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text(
+              "삭제",
+              style: TextStyle(color: EnsomColors.caution),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) await _remove(entry);
+  }
+
   Future<void> _remove(PlaceCacheEntry entry) async {
     try {
       final repo = ref.read(ensomRepositoryProvider);
@@ -158,7 +215,11 @@ class _PlaceRegistrationScreenState
         elevation: 0,
         title: Text(
           widget.isOnboarding ? "주요 장소 설정" : "등록 장소 관리",
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: EnsomColors.ink),
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+            color: EnsomColors.ink,
+          ),
         ),
         actions: [
           if (widget.isOnboarding)
@@ -171,7 +232,10 @@ class _PlaceRegistrationScreenState
                   context.go("/onboarding/priming/notification");
                 }
               },
-              child: const Text("완료", style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+              child: const Text(
+                "완료",
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+              ),
             ),
         ],
       ),
@@ -190,7 +254,12 @@ class _PlaceRegistrationScreenState
               children: [
                 const Text(
                   "새 장소 등록",
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, letterSpacing: -.2, color: EnsomColors.ink),
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -.2,
+                    color: EnsomColors.ink,
+                  ),
                 ),
                 const SizedBox(height: 12),
                 Wrap(
@@ -205,24 +274,38 @@ class _PlaceRegistrationScreenState
                       ),
                   ],
                 ),
-                if (selectedLabel == "직접 입력") ...[
+                if (selectedLabel == _customLabel) ...[
                   const SizedBox(height: 12),
-                  Container(
-                    height: 44,
-                    padding: const EdgeInsets.symmetric(horizontal: 13),
-                    decoration: BoxDecoration(
-                      color: EnsomColors.surface1,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: EnsomColors.hairline, width: 1.4),
-                    ),
-                    child: TextField(
-                      controller: customLabelController,
-                      style: const TextStyle(fontSize: 13, color: EnsomColors.ink),
-                      decoration: const InputDecoration(
-                        border: InputBorder.none,
-                        hintText: "장소 이름",
-                        isCollapsed: true,
-                        hintStyle: TextStyle(color: EnsomColors.inkFaint),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(minHeight: 44),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 13,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: EnsomColors.surface1,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: EnsomColors.hairline,
+                          width: 1.4,
+                        ),
+                      ),
+                      child: TextField(
+                        controller: customLabelController,
+                        textAlignVertical: TextAlignVertical.center,
+                        maxLength: _maxCustomLabelLength,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: EnsomColors.ink,
+                        ),
+                        decoration: const InputDecoration(
+                          border: InputBorder.none,
+                          hintText: "장소 이름",
+                          isCollapsed: true,
+                          counterText: "",
+                          hintStyle: TextStyle(color: EnsomColors.inkFaint),
+                        ),
                       ),
                     ),
                   ),
@@ -231,7 +314,10 @@ class _PlaceRegistrationScreenState
                 if (lat != null && lng != null) ...[
                   Text(
                     "선택된 위치: ${lat!.toStringAsFixed(4)}, ${lng!.toStringAsFixed(4)}",
-                    style: const TextStyle(fontSize: 11, color: EnsomColors.inkFaint),
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: EnsomColors.inkFaint,
+                    ),
                   ),
                   const SizedBox(height: 10),
                 ],
@@ -243,7 +329,7 @@ class _PlaceRegistrationScreenState
                 const SizedBox(height: 8),
                 EnsomPillButton(
                   label: saving ? "등록 중..." : "등록하기",
-                  onPressed: (lat == null || saving) ? null : _register,
+                  onPressed: _canRegister ? _register : null,
                 ),
               ],
             ),
@@ -251,11 +337,16 @@ class _PlaceRegistrationScreenState
           const SizedBox(height: 26),
           const Text(
             "등록된 장소",
-            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, letterSpacing: -.2, color: EnsomColors.ink),
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              letterSpacing: -.2,
+              color: EnsomColors.ink,
+            ),
           ),
           const SizedBox(height: 10),
           ValueListenableBuilder<Box<PlaceCacheEntry>>(
-            valueListenable: _placeBox.listenable(),
+            valueListenable: _placeListenable,
             builder: (context, box, _) {
               final entries = box.values.toList();
               if (entries.isEmpty) {
@@ -263,12 +354,22 @@ class _PlaceRegistrationScreenState
                   padding: EdgeInsets.symmetric(vertical: 8),
                   child: Text(
                     "아직 등록된 장소가 없어요.",
-                    style: TextStyle(fontSize: 12.5, color: EnsomColors.inkFaint),
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      color: EnsomColors.inkFaint,
+                    ),
                   ),
                 );
               }
               return Column(
-                children: entries.map((e) => _PlaceRow(entry: e, onDelete: () => _remove(e))).toList(),
+                children: entries
+                    .map(
+                      (e) => _PlaceRow(
+                        entry: e,
+                        onDelete: () => _confirmRemove(e),
+                      ),
+                    )
+                    .toList(),
               );
             },
           ),
@@ -310,8 +411,15 @@ class _PlaceRow extends StatelessWidget {
           Container(
             width: 34,
             height: 34,
-            decoration: const BoxDecoration(color: EnsomColors.surface2, shape: BoxShape.circle),
-            child: const Icon(Icons.place_outlined, size: 16, color: EnsomColors.inkMuted),
+            decoration: const BoxDecoration(
+              color: EnsomColors.surface2,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.place_outlined,
+              size: 16,
+              color: EnsomColors.inkMuted,
+            ),
           ),
           const SizedBox(width: 11),
           Expanded(
@@ -320,16 +428,27 @@ class _PlaceRow extends StatelessWidget {
               children: [
                 Text(
                   entry.placeName,
-                  style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, letterSpacing: -.2, color: EnsomColors.ink),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: -.2,
+                    color: EnsomColors.ink,
+                  ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   _placeTypeLabel(entry.placeType),
-                  style: const TextStyle(fontSize: 11, color: EnsomColors.inkFaint),
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: EnsomColors.inkFaint,
+                  ),
                 ),
               ],
             ),
           ),
+          // 시각적 원은 30dp로 두되 터치 타깃은 48dp를 보장한다(오탭 방지).
           Material(
             color: Colors.transparent,
             shape: const CircleBorder(),
@@ -337,9 +456,13 @@ class _PlaceRow extends StatelessWidget {
               onTap: onDelete,
               customBorder: const CircleBorder(),
               child: const SizedBox(
-                width: 30,
-                height: 30,
-                child: Icon(Icons.delete_outline, size: 18, color: EnsomColors.inkFaint),
+                width: 48,
+                height: 48,
+                child: Icon(
+                  Icons.delete_outline,
+                  size: 18,
+                  color: EnsomColors.inkFaint,
+                ),
               ),
             ),
           ),

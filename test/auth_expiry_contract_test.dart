@@ -97,6 +97,45 @@ void main() {
       expect(harness.draftClearCount, 0);
     });
 
+    test(
+      "refresh write rollback also expires the authenticated state",
+      () async {
+        final harness = await _createHarness(
+          MockClient((request) async {
+            if (request.url.path.endsWith("/auth/refresh")) {
+              return http.Response(
+                '{"data":{"accessToken":"renewed-access-token"}}',
+                200,
+              );
+            }
+            return http.Response("{}", 401);
+          }),
+        );
+        addTearDown(harness.dispose);
+
+        // refresh 성공 후 access token write가 side effect를 남기고 실패한다.
+        harness.storage.accessUpdateErrorAfterWrite = StateError(
+          "keychain write failed",
+        );
+
+        await expectLater(
+          harness.apiClient.get<Map<String, dynamic>>("/protected"),
+          throwsA(
+            isA<ApiException>()
+                .having((error) => error.isAuthExpired, "isAuthExpired", isTrue)
+                .having((error) => error.retryable, "retryable", isFalse),
+          ),
+        );
+
+        // 세션을 rollback했으면 provider 상태도 동기화돼야 한다.
+        expect(harness.notifier.state.status, AuthStatus.unauthenticated);
+        expect(harness.storage.accessTokenValue, isNull);
+        expect(harness.storage.refreshTokenValue, isNull);
+        expect(harness.storage.userIdValue, isNull);
+        expect(harness.draftClearCount, 1);
+      },
+    );
+
     test("cleanup failures do not mask terminal transition", () async {
       var deviceTokenDeleteCount = 0;
       final harness = await _createHarness(
@@ -540,15 +579,17 @@ void main() {
       },
     );
 
-    test("a partial refresh-token update clears the whole session", () async {
+    test("a partial refresh-token update expires the whole session", () async {
       final storage = _MemorySecureStorage()
         ..accessTokenValue = "access-a"
         ..refreshTokenValue = "refresh-a"
         ..userIdValue = "user-a"
         ..accessUpdateErrorAfterWrite = StateError("access write failed");
+      var expiryCalls = 0;
       final client = ApiClient(
         baseUrl: "https://api.ensom.test/v1",
         secureStorage: storage,
+        onAuthExpired: (_) async => expiryCalls++,
         httpClient: MockClient((request) async {
           if (request.url.path.endsWith("/auth/refresh")) {
             return http.Response('{"data":{"accessToken":"refreshed-a"}}', 200);
@@ -561,10 +602,12 @@ void main() {
         client.get<Map<String, dynamic>>("/protected"),
         throwsA(
           isA<ApiException>()
-              .having((error) => error.code, "code", "NETWORK_ERROR")
-              .having((error) => error.retryable, "retryable", isTrue),
+              .having((error) => error.code, "code", "UNAUTHORIZED")
+              .having((error) => error.retryable, "retryable", isFalse),
         ),
       );
+      // 세션을 파기했으면 terminal handler로 상태를 동기화한다.
+      expect(expiryCalls, 1);
       expect(storage.clearSessionCount, 1);
       expect(storage.accessTokenValue, isNull);
       expect(storage.refreshTokenValue, isNull);

@@ -5,14 +5,7 @@ import "../../models/wellness_pref.dart";
 import "../../repository/ensom_repository.dart";
 import "../../repository/providers.dart";
 import "../../theme/ensom_colors.dart";
-
-const _topicLabels = {
-  "uv": "자외선",
-  "pm": "미세먼지",
-  "temp": "기온·체감온도",
-  "rain": "강수",
-  "hydration": "수분 섭취",
-};
+import "../../theme/wellness_topic_copy.dart";
 
 final wellnessPrefsProvider =
     StateNotifierProvider.autoDispose<
@@ -103,7 +96,7 @@ class _PrefTile extends StatelessWidget {
           children: [
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
-              title: Text(_topicLabels[pref.topic] ?? pref.topic),
+              title: Text(wellnessTopicLabels[pref.topic] ?? pref.topic),
               value: pref.isEnabled,
               onChanged: (v) => onChanged(pref.copyWith(isEnabled: v)),
             ),
