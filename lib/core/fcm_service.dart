@@ -1,10 +1,14 @@
+import "dart:async";
 import "dart:convert";
 import "dart:io" show Platform;
 
 import "package:firebase_messaging/firebase_messaging.dart";
 import "package:flutter_local_notifications/flutter_local_notifications.dart";
+import "package:shared_preferences/shared_preferences.dart";
 import "../network/api_client.dart";
+import "async_session_lifecycle.dart";
 import "local_notification_service.dart";
+import "retrying_async_cleanup.dart";
 
 /// FCM 푸시 수신 서비스.
 ///
@@ -25,10 +29,22 @@ class FcmService {
   FcmService._();
   static final instance = FcmService._();
 
+  static const _pendingTokenCleanupKey = "fcm_token_cleanup_pending";
+
   final _messaging = FirebaseMessaging.instance;
   final _localPlugin = FlutterLocalNotificationsPlugin();
-  ApiClient? _apiClient;
-  String? _installationId;
+  final _sessionLifecycle = AsyncSessionLifecycle();
+  late final RetryingAsyncCleanup _tokenCleanup = RetryingAsyncCleanup(
+    cleanup: _messaging.deleteToken,
+    loadPending: () async {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getBool(_pendingTokenCleanupKey) ?? false;
+    },
+    savePending: (pending) async {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_pendingTokenCleanupKey, pending);
+    },
+  );
 
   /// TR-10: 잠금화면에서 민감 정보 숨김 여부. bootstrap에서 세팅.
   bool _lockscreenHideSensitive = true;
@@ -42,82 +58,114 @@ class FcmService {
   Future<void> initialize({
     required ApiClient apiClient,
     required String installationId,
-  }) async {
-    _apiClient = apiClient;
-    _installationId = installationId;
-
-    try {
-      // ─── 로컬 알림 플러그인 초기화 ───────────────────────────────
-      const androidSettings =
-          AndroidInitializationSettings("@mipmap/ic_launcher");
-      const iosSettings = DarwinInitializationSettings();
-      const initSettings = InitializationSettings(
-        android: androidSettings,
-        iOS: iosSettings,
-      );
-      await _localPlugin.initialize(
-        settings: initSettings,
-        onDidReceiveNotificationResponse: _onNotificationResponse,
-      );
-
-      // ─── Android 알림 채널 생성 ──────────────────────────────────
-      final androidPlugin = _localPlugin
-          .resolvePlatformSpecificImplementation<
-              AndroidFlutterLocalNotificationsPlugin>();
-      if (androidPlugin != null) {
-        await androidPlugin.createNotificationChannel(
-          const AndroidNotificationChannel(
-            "ensom_push",
-            "Ensom 알림",
-            description: "서버에서 발송된 알림",
-            importance: Importance.high,
-          ),
-        );
-        await androidPlugin.createNotificationChannel(
-          const AndroidNotificationChannel(
-            "ensom_prep",
-            "준비 알림",
-            description: "준비 시작 및 출발 시각 안내",
-            importance: Importance.high,
-          ),
-        );
-      }
-
-      // 알림 권한 요청 (iOS — Android 13+도 필요)
-      await _messaging.requestPermission(
-        alert: true,
-        badge: true,
-        sound: true,
-      );
-
-      // 토큰 획득 + 서버 등록
-      final token = await _messaging.getToken();
-      if (token != null) {
-        await _registerToken(token);
-      }
-
-      // 토큰 갱신 콜백 — 앱 재실행마다 갱신될 수 있음 (§2.7)
-      _messaging.onTokenRefresh.listen(_registerToken);
-
-      // 포그라운드 메시지 핸들러
-      FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
-      // background/terminated tap은 notification metadata만 router에 전달한다.
-      FirebaseMessaging.onMessageOpenedApp.listen(_handleNotificationTap);
-      final initial = await _messaging.getInitialMessage();
-      if (initial != null) _handleNotificationTap(initial);
-    } catch (e) {
-      // Firebase 미설정 환경 — FCM 비활성, 로컬 알림 폴백만 동작
-      // 앱 시작을 중단하지 않는다.
-    }
-  }
-
-  /// 로그인 후 apiClient/installationId 갱신 시 재호출.
-  void updateCredentials({
-    required ApiClient apiClient,
-    required String installationId,
   }) {
-    _apiClient = apiClient;
-    _installationId = installationId;
+    return _sessionLifecycle.initialize((generation, isCurrent) async {
+      try {
+        _tokenCleanup.setRecoveryCallback(
+          () => _recoverCurrentToken(
+            apiClient: apiClient,
+            installationId: installationId,
+            isCurrent: isCurrent,
+          ),
+        );
+        await _tokenCleanup.retryPending();
+        if (!isCurrent()) return const [];
+
+        const androidSettings = AndroidInitializationSettings(
+          "@mipmap/ic_launcher",
+        );
+        const iosSettings = DarwinInitializationSettings();
+        const initSettings = InitializationSettings(
+          android: androidSettings,
+          iOS: iosSettings,
+        );
+        await _localPlugin.initialize(
+          settings: initSettings,
+          onDidReceiveNotificationResponse: _onNotificationResponse,
+        );
+        if (!isCurrent()) return const [];
+
+        final androidPlugin = _localPlugin
+            .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin
+            >();
+        if (androidPlugin != null) {
+          await androidPlugin.createNotificationChannel(
+            const AndroidNotificationChannel(
+              "ensom_push",
+              "Ensom 알림",
+              description: "서버에서 발송된 알림",
+              importance: Importance.high,
+            ),
+          );
+          await androidPlugin.createNotificationChannel(
+            const AndroidNotificationChannel(
+              "ensom_prep",
+              "준비 알림",
+              description: "준비 시작 및 출발 시각 안내",
+              importance: Importance.high,
+            ),
+          );
+        }
+        if (!isCurrent()) return const [];
+
+        await _messaging.requestPermission(
+          alert: true,
+          badge: true,
+          sound: true,
+        );
+        if (!isCurrent()) return const [];
+
+        final token = await _messaging.getToken();
+        if (token != null && isCurrent()) {
+          await _registerTokenAndResolveCleanup(
+            token,
+            apiClient: apiClient,
+            installationId: installationId,
+            isCurrent: isCurrent,
+          );
+        }
+        if (!isCurrent()) return const [];
+
+        final subscriptions = <StreamSubscription<dynamic>>[
+          _messaging.onTokenRefresh.listen((token) {
+            if (!isCurrent()) return;
+            unawaited(
+              _registerTokenAndResolveCleanup(
+                token,
+                apiClient: apiClient,
+                installationId: installationId,
+                isCurrent: isCurrent,
+              ),
+            );
+          }),
+          FirebaseMessaging.onMessage.listen((message) {
+            if (isCurrent()) _handleForegroundMessage(message);
+          }),
+          FirebaseMessaging.onMessageOpenedApp.listen((message) {
+            if (isCurrent()) _handleNotificationTap(message);
+          }),
+        ];
+
+        // 초기 메시지 조회는 stream 설치 완료를 막지 않는다. plugin 호출이
+        // 끝나지 않아도 lifecycle은 구독을 즉시 추적하고 dispose할 수 있다.
+        unawaited(() async {
+          try {
+            final initial = await _messaging.getInitialMessage();
+            if (initial != null && isCurrent()) {
+              _handleNotificationTap(initial);
+            }
+          } catch (_) {
+            // 초기 메시지 조회 실패는 실시간 stream 수명주기와 분리한다.
+          }
+        }());
+        return subscriptions;
+      } catch (_) {
+        // Firebase 미설정 환경 — FCM 비활성, 로컬 알림 폴백만 동작
+        // 앱 시작을 중단하지 않는다.
+        return const [];
+      }
+    });
   }
 
   /// bootstrap 설정 반영.
@@ -127,21 +175,62 @@ class FcmService {
 
   /// POST /push-devices — FCM 토큰 등록·갱신 (API 명세 §2.7)
   /// installationId가 UNIQUE이므로 재설치 전까지 같은 기기는 한 행을 갱신.
-  Future<void> _registerToken(String token) async {
-    if (_apiClient == null || _installationId == null) return;
+  Future<bool> _registerToken(
+    String token, {
+    required ApiClient apiClient,
+    required String installationId,
+    required bool Function() isCurrent,
+  }) async {
+    if (!isCurrent()) return false;
     try {
-      await _apiClient!.post<Map<String, dynamic>>(
+      await apiClient.post<Map<String, dynamic>>(
         "/push-devices",
         body: {
-          "installationId": _installationId!,
+          "installationId": installationId,
           "currentToken": token,
           "platform": _getPlatform(),
         },
       );
+      return isCurrent();
     } catch (_) {
       // 토큰 등록 실패는 치명적이지 않음 — 다음 앱 실행 시 재시도
+      return false;
     }
   }
+
+  Future<void> _registerTokenAndResolveCleanup(
+    String token, {
+    required ApiClient apiClient,
+    required String installationId,
+    required bool Function() isCurrent,
+  }) async {
+    final registered = await _registerToken(
+      token,
+      apiClient: apiClient,
+      installationId: installationId,
+      isCurrent: isCurrent,
+    );
+    if (registered) await _tokenCleanup.markResolvedByServerRebind();
+  }
+
+  Future<void> _recoverCurrentToken({
+    required ApiClient apiClient,
+    required String installationId,
+    required bool Function() isCurrent,
+  }) async {
+    if (!isCurrent()) return;
+    final token = await _messaging.getToken();
+    if (token == null || !isCurrent()) return;
+    await _registerTokenAndResolveCleanup(
+      token,
+      apiClient: apiClient,
+      installationId: installationId,
+      isCurrent: isCurrent,
+    );
+  }
+
+  /// 앱 시작 시 이전 프로세스에서 남은 token cleanup을 bounded retry한다.
+  Future<void> retryPendingTokenCleanup() => _tokenCleanup.retryPending();
 
   /// 포그라운드 메시지 수신 처리.
   ///
@@ -227,7 +316,8 @@ class FcmService {
   void _handleNotificationTap(RemoteMessage message) {
     final data = <String, String>{
       for (final entry in message.data.entries)
-        if ({"notification_id", "plan_id", "type"}.contains(entry.key)) entry.key: entry.value,
+        if ({"notification_id", "plan_id", "type"}.contains(entry.key))
+          entry.key: entry.value,
     };
     if (data["notification_id"] != null) _notificationTapHandler?.call(data);
   }
@@ -242,11 +332,16 @@ class FcmService {
     _foregroundMessageController = handler;
   }
 
-  /// 로그아웃 시 — 토큰 비활성화는 서버가 처리 (POST /auth/logout에서)
-  /// 클라이언트는 콜백만 정리.
-  void dispose() {
+  /// 로그아웃/terminal expiry 시 세션 구독과 FCM installation token을 정리한다.
+  /// token 삭제로 Dart stream 밖에서 OS가 표시하는 이전 계정 push도 차단한다.
+  /// router tap handler는 앱 수명 callback이므로 재로그인 복구를 위해 유지한다.
+  Future<void> dispose() async {
     _foregroundMessageController = null;
-    _notificationTapHandler = null;
+    _tokenCleanup.setRecoveryCallback(null);
+    await Future.wait([
+      _sessionLifecycle.dispose(),
+      _tokenCleanup.requestCleanup(),
+    ]);
   }
 
   /// 알림 탭 시 딥링크 처리 — notificationTapHandler로 전달.

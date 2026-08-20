@@ -1,3 +1,5 @@
+import "dart:async";
+
 import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:hive_ce_flutter/hive_ce_flutter.dart";
@@ -23,6 +25,7 @@ void main() async {
     // 옵션 없이 초기화하고 플랫폼 설정 파일에 의존한다.
     await Firebase.initializeApp();
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+    unawaited(FcmService.instance.retryPendingTokenCleanup());
   } catch (e) {
     debugPrint("[firebase] 초기화 실패 — FCM 비활성, 로컬 알림 폴백만 동작: $e");
   }

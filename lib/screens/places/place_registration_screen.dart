@@ -143,9 +143,13 @@ class _PlaceRegistrationScreenState
         actions: [
           if (widget.isOnboarding)
             TextButton(
-              onPressed: () {
-                ref.read(secureStorageProvider).setOnboardingStep("calendar");
-                context.go("/onboarding/priming/notification");
+              onPressed: () async {
+                await ref
+                    .read(secureStorageProvider)
+                    .setOnboardingStep("notification");
+                if (context.mounted) {
+                  context.go("/onboarding/priming/notification");
+                }
               },
               child: const Text("완료"),
             ),

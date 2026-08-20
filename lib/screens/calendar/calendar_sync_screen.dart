@@ -32,19 +32,18 @@ class _CalendarSyncScreenState extends ConsumerState<CalendarSyncScreen> {
 
   Future<void> _loadConnectionStatus() async {
     try {
-      final bootstrap = await ref.read(bootstrapProvider.future);
-      final calendarPermissions = bootstrap.permissions.where(
-        (permission) => permission.permissionType == "calendar",
-      );
+      final data = await ref
+          .read(apiClientProvider)
+          .get<Map<String, dynamic>>("/calendar/google/status");
+      if (!mounted) return;
+      setState(() => _connected = data["connected"] == true);
+    } on ApiException catch (e) {
       if (!mounted) return;
       setState(() {
-        _connected = calendarPermissions.any(
-          (permission) => permission.status == "granted",
-        );
+        _error = e.isNetworkError
+            ? "캘린더 연결 상태를 확인하지 못했어요. 네트워크를 확인해주세요."
+            : "캘린더 연결 상태를 확인하지 못했어요.";
       });
-    } catch (_) {
-      // 전용 connection 조회 API가 없으므로 상태 조회 실패가 화면 전체를
-      // 막지는 않는다. 사용자가 연결을 시도하면 BE 응답으로 재확인한다.
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -80,8 +79,8 @@ class _CalendarSyncScreenState extends ConsumerState<CalendarSyncScreen> {
       ).showSnackBar(const SnackBar(content: Text("캘린더를 연동했어요.")));
 
       if (widget.isOnboarding) {
-        ref.read(secureStorageProvider).setOnboardingStep("wellness");
-        context.go("/onboarding/wellness");
+        await ref.read(secureStorageProvider).setOnboardingStep("wellness");
+        if (mounted) context.go("/onboarding/wellness");
       }
     } on ApiException catch (e) {
       if (!mounted) return;
@@ -144,9 +143,9 @@ class _CalendarSyncScreenState extends ConsumerState<CalendarSyncScreen> {
     }
   }
 
-  void _continueWithoutCalendar() {
-    ref.read(secureStorageProvider).setOnboardingStep("wellness");
-    context.go("/onboarding/wellness");
+  Future<void> _continueWithoutCalendar() async {
+    await ref.read(secureStorageProvider).setOnboardingStep("wellness");
+    if (mounted) context.go("/onboarding/wellness");
   }
 
   @override
