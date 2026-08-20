@@ -67,7 +67,7 @@ class DataManagementScreen extends ConsumerWidget {
   Future<void> _deleteRecords(BuildContext context, WidgetRef ref) async {
     try {
       final api = ref.read(apiClientProvider);
-      await api.delete("/me/personalization");
+      await api.delete<Map<String, dynamic>>("/me/action-logs");
       if (context.mounted) {
         ScaffoldMessenger.of(
           context,
@@ -75,9 +75,12 @@ class DataManagementScreen extends ConsumerWidget {
       }
     } on ApiException catch (e) {
       if (context.mounted) {
+        final msg = e.isNetworkError
+            ? "네트워크에 연결할 수 없어요. 다시 시도해주세요."
+            : e.message;
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text(e.message)));
+        ).showSnackBar(SnackBar(content: Text(msg)));
       }
     }
   }
