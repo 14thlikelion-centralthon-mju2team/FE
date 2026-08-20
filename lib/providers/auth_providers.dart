@@ -1,3 +1,5 @@
+import "dart:async";
+
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:flutter_riverpod/legacy.dart";
 import "../core/auth_service.dart";
@@ -21,8 +23,7 @@ final apiClientProvider = Provider<ApiClient>((ref) {
 
 final authServiceProvider = Provider<AuthService>((ref) {
   final apiClient = ref.watch(apiClientProvider);
-  final secureStorage = ref.watch(secureStorageProvider);
-  return AuthService(apiClient: apiClient, secureStorage: secureStorage);
+  return AuthService(apiClient: apiClient);
 });
 
 /// 인증 상태 — 앱 전체에서 로그인 여부, 온보딩 완료 여부를 추적한다.
@@ -65,8 +66,16 @@ class AuthNotifier extends StateNotifier<AuthState> {
     required this.secureStorage,
     required this.apiClient,
     required this.clearMapDraft,
-    void Function()? disposeFcm,
-  }) : _disposeFcm = disposeFcm ?? FcmService.instance.dispose,
+    Future<void> Function(ApiClient apiClient, String installationId)?
+    initializeFcm,
+    Future<void> Function()? disposeFcm,
+  }) : _initializeFcm =
+           initializeFcm ??
+           ((apiClient, installationId) => FcmService.instance.initialize(
+             apiClient: apiClient,
+             installationId: installationId,
+           )),
+       _disposeFcm = disposeFcm ?? FcmService.instance.dispose,
        super(AuthState.initial) {
     _checkExistingSession();
   }
@@ -75,7 +84,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
   final SecureStorageService secureStorage;
   final ApiClient apiClient;
   final Future<void> Function() clearMapDraft;
-  final void Function() _disposeFcm;
+  final Future<void> Function(ApiClient apiClient, String installationId)
+  _initializeFcm;
+  final Future<void> Function() _disposeFcm;
+  int? _terminalSourceGeneration;
   Future<void>? _terminalAuthExpiryFuture;
 
   /// 앱 시작 시 기존 세션을 서버에서 검증한다.
@@ -117,7 +129,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
         state = const AuthState(status: AuthStatus.emailVerificationRequired);
         return;
       }
-      await onTerminalAuthExpired();
+      if (e.isAuthExpired && state.status == AuthStatus.unauthenticated) {
+        return;
+      }
+      await onTerminalAuthExpired(apiClient.sessionGeneration);
     } catch (_) {
       state = const AuthState(
         status: AuthStatus.sessionCheckFailed,
@@ -132,12 +147,18 @@ class AuthNotifier extends StateNotifier<AuthState> {
   /// 이미 해 뒀다. 로그인 이후 단계(권한 요청, 토큰 획득, POST
   /// /push-devices 등록)는 apiClient가 있어야 하므로 여기서 이어 붙인다.
   void _syncFcm() {
-    secureStorage.installationId.then((installationId) {
-      FcmService.instance.initialize(
-        apiClient: apiClient,
-        installationId: installationId,
-      );
-    });
+    final generation = apiClient.sessionGeneration;
+    unawaited(() async {
+      final installationId = await secureStorage.installationId;
+      if (!apiClient.isCurrentSessionGeneration(generation)) return;
+      await _initializeFcm(apiClient, installationId);
+    }());
+  }
+
+  void _beginLoginTransition() {
+    apiClient.beginSessionTransition();
+    _terminalSourceGeneration = null;
+    _terminalAuthExpiryFuture = null;
   }
 
   /// 이메일 가입 성공 — BE는 token을 발급하지 않고 인증 메일을 보낸다.
@@ -164,6 +185,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     required String password,
     String? installationId,
   }) async {
+    _beginLoginTransition();
     final result = await authService.loginWithEmail(
       email: email,
       password: password,
@@ -177,6 +199,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     required String idToken,
     required String installationId,
   }) async {
+    _beginLoginTransition();
     final result = await authService.loginWithGoogle(
       idToken: idToken,
       installationId: installationId,
@@ -218,22 +241,62 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   /// 실행 중 401 후 refresh token이 거부된 terminal 만료 처리.
-  /// 동시 API 요청에서 중복 신호가 와도 동일 Future를 공유한다.
-  Future<void> onTerminalAuthExpired() {
-    return _terminalAuthExpiryFuture ??= _expireTerminalSession();
+  /// 요청 시작 generation이 현재와 일치할 때만 세션을 무효화한다.
+  Future<void> onTerminalAuthExpired(int sourceGeneration) {
+    if (_terminalSourceGeneration == sourceGeneration &&
+        _terminalAuthExpiryFuture != null) {
+      return _terminalAuthExpiryFuture!;
+    }
+
+    final cleanupGeneration = apiClient.invalidateSessionGeneration(
+      sourceGeneration,
+    );
+    if (cleanupGeneration == null) return Future<void>.value();
+
+    _terminalSourceGeneration = sourceGeneration;
+    final future = _expireTerminalSession(cleanupGeneration);
+    _terminalAuthExpiryFuture = future;
+    unawaited(
+      future.whenComplete(() {
+        if (identical(_terminalAuthExpiryFuture, future)) {
+          _terminalSourceGeneration = null;
+          _terminalAuthExpiryFuture = null;
+        }
+      }),
+    );
+    return future;
   }
 
-  Future<void> _expireTerminalSession() async {
-    await Future.wait([secureStorage.clearSession(), clearMapDraft()]);
-    _disposeFcm();
-    state = const AuthState(status: AuthStatus.unauthenticated);
+  Future<void> _expireTerminalSession(int cleanupGeneration) async {
+    await Future.wait([
+      _bestEffort(apiClient.clearSession),
+      _bestEffort(clearMapDraft),
+      _bestEffort(_disposeFcm),
+    ]);
+    if (apiClient.isCurrentSessionGeneration(cleanupGeneration)) {
+      state = const AuthState(status: AuthStatus.unauthenticated);
+    }
+  }
+
+  Future<void> _bestEffort(Future<void> Function() cleanup) async {
+    try {
+      await cleanup();
+    } catch (_) {
+      // 로컬 cleanup 일부 실패가 terminal 상태 전이를 막지 않는다.
+    }
   }
 
   /// 로그아웃
   Future<void> logout() async {
-    await Future.wait([authService.logout(), clearMapDraft()]);
-    _disposeFcm();
-    state = const AuthState(status: AuthStatus.unauthenticated);
+    final logoutGeneration = apiClient.beginSessionTransition();
+    await Future.wait([
+      _bestEffort(authService.logout),
+      _bestEffort(clearMapDraft),
+      _bestEffort(_disposeFcm),
+    ]);
+    if (apiClient.isCurrentSessionGeneration(logoutGeneration)) {
+      state = const AuthState(status: AuthStatus.unauthenticated);
+    }
   }
 
   void _handleLoginResult(LoginResult result, {String? email}) {

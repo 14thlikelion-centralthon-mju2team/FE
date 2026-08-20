@@ -40,14 +40,42 @@ class ApiException implements Exception {
   String toString() => "ApiException($code, status=$statusCode): $message";
 }
 
-enum _RefreshResult { success, rejected, retryableFailure }
+enum _RefreshStatus { success, rejected, retryableFailure, stale }
+
+class _SessionSnapshot {
+  const _SessionSnapshot({
+    required this.generation,
+    required this.accessToken,
+    required this.refreshToken,
+    required this.userId,
+  });
+
+  final int generation;
+  final String? accessToken;
+  final String? refreshToken;
+  final String? userId;
+
+  _SessionSnapshot withAccessToken(String accessToken) => _SessionSnapshot(
+    generation: generation,
+    accessToken: accessToken,
+    refreshToken: refreshToken,
+    userId: userId,
+  );
+}
+
+class _RefreshOutcome {
+  const _RefreshOutcome(this.status, [this.accessToken]);
+
+  final _RefreshStatus status;
+  final String? accessToken;
+}
 
 class ApiClient {
   ApiClient({
     required this.baseUrl,
     required SecureStorageService secureStorage,
     http.Client? httpClient,
-    Future<void> Function()? onAuthExpired,
+    Future<void> Function(int generation)? onAuthExpired,
   }) : _secureStorage = secureStorage,
        _http = httpClient ?? http.Client(),
        _onAuthExpired = onAuthExpired;
@@ -56,35 +84,102 @@ class ApiClient {
   final SecureStorageService _secureStorage;
   final http.Client _http;
   final _uuid = const Uuid();
-  Future<void> Function()? _onAuthExpired;
+  Future<void> Function(int generation)? _onAuthExpired;
+  int _sessionGeneration = 0;
+  Future<void> _sessionMutationTail = Future<void>.value();
+
+  int get sessionGeneration => _sessionGeneration;
+
+  /// 로그인/로그아웃 시작 시 즉시 이전 요청 세대를 무효화한다.
+  int beginSessionTransition() => ++_sessionGeneration;
+
+  bool isCurrentSessionGeneration(int generation) =>
+      generation == _sessionGeneration;
+
+  /// terminal 응답의 세대가 현재와 같을 때만 새 세대로 전환한다.
+  int? invalidateSessionGeneration(int expectedGeneration) {
+    if (!isCurrentSessionGeneration(expectedGeneration)) return null;
+    return ++_sessionGeneration;
+  }
 
   /// 앱 전역 인증 provider가 생성된 뒤 terminal 세션 만료 처리기를 연결한다.
   /// null을 전달하면 provider dispose 시 연결을 해제한다.
-  void setAuthExpiredHandler(Future<void> Function()? handler) {
+  void setAuthExpiredHandler(Future<void> Function(int generation)? handler) {
     _onAuthExpired = handler;
   }
 
-  Future<void> _notifyAuthExpired() async {
+  Future<void> _notifyAuthExpired(int generation) async {
+    if (!isCurrentSessionGeneration(generation)) return;
     final handler = _onAuthExpired;
-    if (handler != null) await handler();
+    if (handler != null) await handler(generation);
   }
 
-  Future<Map<String, String>> _readHeaders() async {
-    final token = await _secureStorage.accessToken;
-    return {
-      "Content-Type": "application/json",
-      if (token != null) "Authorization": "Bearer $token",
-    };
+  Future<T> _serializeSessionMutation<T>(Future<T> Function() mutation) {
+    final completer = Completer<T>();
+    _sessionMutationTail = _sessionMutationTail.catchError((_) {}).then((
+      _,
+    ) async {
+      try {
+        completer.complete(await mutation());
+      } catch (error, stackTrace) {
+        completer.completeError(error, stackTrace);
+      }
+    });
+    return completer.future;
   }
 
-  Future<Map<String, String>> _writeHeaders(String idempotencyKey) async {
-    final token = await _secureStorage.accessToken;
-    return {
-      "Content-Type": "application/json",
-      if (token != null) "Authorization": "Bearer $token",
-      "Idempotency-Key": idempotencyKey,
-    };
+  Future<void> saveSession({
+    required String accessToken,
+    required String refreshToken,
+    required String userId,
+  }) {
+    final generation = _sessionGeneration;
+    return _serializeSessionMutation(() async {
+      if (!isCurrentSessionGeneration(generation)) return;
+      await _secureStorage.saveSession(
+        accessToken: accessToken,
+        refreshToken: refreshToken,
+        userId: userId,
+      );
+    });
   }
+
+  Future<void> clearSession() {
+    return _serializeSessionMutation(_secureStorage.clearSession);
+  }
+
+  Future<_SessionSnapshot> _captureSession() async {
+    while (true) {
+      final generation = _sessionGeneration;
+      final values = await Future.wait<String?>([
+        _secureStorage.accessToken,
+        _secureStorage.refreshToken,
+        _secureStorage.userId,
+      ]);
+      if (isCurrentSessionGeneration(generation)) {
+        return _SessionSnapshot(
+          generation: generation,
+          accessToken: values[0],
+          refreshToken: values[1],
+          userId: values[2],
+        );
+      }
+    }
+  }
+
+  Map<String, String> _readHeaders(String? accessToken) => {
+    "Content-Type": "application/json",
+    if (accessToken != null) "Authorization": "Bearer $accessToken",
+  };
+
+  Map<String, String> _writeHeaders(
+    String idempotencyKey,
+    String? accessToken,
+  ) => {
+    "Content-Type": "application/json",
+    if (accessToken != null) "Authorization": "Bearer $accessToken",
+    "Idempotency-Key": idempotencyKey,
+  };
 
   Uri _uri(String path, [Map<String, dynamic>? query]) {
     final cleaned = path.startsWith("/") ? path.substring(1) : path;
@@ -93,14 +188,22 @@ class ApiClient {
     ).replace(queryParameters: query?.map((k, v) => MapEntry(k, v.toString())));
   }
 
+  ApiException _staleSessionException() => ApiException(
+    code: "STALE_SESSION",
+    message: "이전 로그인 세션의 요청이 취소됐어요.",
+    retryable: false,
+  );
+
   /// 핵심 요청 처리기. 네트워크 오류와 인증 만료를 구분한다.
   Future<T> _handle<T>(
-    Future<http.Response> Function() request, {
-    bool retryOn401 = true,
+    Future<http.Response> Function(String? accessToken) request, {
+    required _SessionSnapshot? session,
+    required bool allowRefresh,
+    bool hasRetried = false,
   }) async {
     final http.Response response;
     try {
-      response = await request();
+      response = await request(session?.accessToken);
     } on SocketException {
       throw ApiException(
         code: "NETWORK_ERROR",
@@ -133,34 +236,44 @@ class ApiClient {
       );
     }
 
-    // ─── 401 → refresh 시도 ─────────────────────────────────────
-    if (response.statusCode == 401 && retryOn401) {
-      final refreshResult = await _tryRefresh();
-      if (refreshResult == _RefreshResult.success) {
-        return _handle<T>(request, retryOn401: false);
-      }
-      if (refreshResult == _RefreshResult.retryableFailure) {
-        // refresh 전송/서버 일시 장애는 세션 폐기로 간주하지 않는다.
-        throw ApiException(
-          code: "NETWORK_ERROR",
-          message: "세션을 갱신하지 못했어요. 네트워크를 확인해주세요.",
-          retryable: true,
-        );
-      }
-
-      // refresh token 부재/거부만 terminal 만료로 인증 계층에 전달한다.
-      await _notifyAuthExpired();
-      throw ApiException(
-        code: "UNAUTHORIZED",
-        message: "세션이 만료됐어요. 다시 로그인해주세요.",
-        retryable: false,
-        statusCode: 401,
-      );
+    if (session != null && !isCurrentSessionGeneration(session.generation)) {
+      throw _staleSessionException();
     }
 
-    // refresh 성공 뒤 재시도도 401이면 새 토큰 역시 거부된 terminal 상태다.
-    if (response.statusCode == 401) {
-      await _notifyAuthExpired();
+    // ─── 보호 API 401 → 동일 요청 세대의 refresh 시도 ───────────
+    if (response.statusCode == 401 && allowRefresh) {
+      final protectedSession = session!;
+      if (!hasRetried) {
+        final refreshOutcome = await _tryRefresh(protectedSession);
+        switch (refreshOutcome.status) {
+          case _RefreshStatus.success:
+            final refreshedSession = protectedSession.withAccessToken(
+              refreshOutcome.accessToken!,
+            );
+            return _handle<T>(
+              request,
+              session: refreshedSession,
+              allowRefresh: true,
+              hasRetried: true,
+            );
+          case _RefreshStatus.retryableFailure:
+            throw ApiException(
+              code: "NETWORK_ERROR",
+              message: "세션을 갱신하지 못했어요. 네트워크를 확인해주세요.",
+              retryable: true,
+            );
+          case _RefreshStatus.stale:
+            throw _staleSessionException();
+          case _RefreshStatus.rejected:
+            break;
+        }
+      }
+
+      // refresh 거부 또는 refresh 후 재401인 현재 세대만 terminal 처리한다.
+      if (!isCurrentSessionGeneration(protectedSession.generation)) {
+        throw _staleSessionException();
+      }
+      await _notifyAuthExpired(protectedSession.generation);
       throw ApiException(
         code: "UNAUTHORIZED",
         message: "세션이 만료됐어요. 다시 로그인해주세요.",
@@ -206,12 +319,17 @@ class ApiClient {
     );
   }
 
-  /// refresh 토큰으로 access 토큰 갱신.
-  /// refresh token 부재/명시적 거부는 [rejected], 전송·서버 일시 장애는
-  /// [retryableFailure]로 구분해 비종료 오류가 세션 소거로 이어지지 않게 한다.
-  Future<_RefreshResult> _tryRefresh() async {
-    final refreshToken = await _secureStorage.refreshToken;
-    if (refreshToken == null) return _RefreshResult.rejected;
+  /// 요청 시작 시 캡처한 refresh token만 사용한다. 응답 도착 전 세대가
+  /// 바뀌면 storage를 갱신하지 않고 stale로 종료한다.
+  Future<_RefreshOutcome> _tryRefresh(_SessionSnapshot session) async {
+    if (!isCurrentSessionGeneration(session.generation)) {
+      return const _RefreshOutcome(_RefreshStatus.stale);
+    }
+    final refreshToken = session.refreshToken;
+    if (refreshToken == null) {
+      return const _RefreshOutcome(_RefreshStatus.rejected);
+    }
+
     final refreshIdempotencyKey = _uuid.v4();
     try {
       final response = await _http.post(
@@ -222,60 +340,96 @@ class ApiClient {
         },
         body: jsonEncode({"refreshToken": refreshToken}),
       );
+      if (!isCurrentSessionGeneration(session.generation)) {
+        return const _RefreshOutcome(_RefreshStatus.stale);
+      }
       if ({400, 401, 403}.contains(response.statusCode)) {
-        return _RefreshResult.rejected;
+        return const _RefreshOutcome(_RefreshStatus.rejected);
       }
       if (response.statusCode != 200) {
-        return _RefreshResult.retryableFailure;
+        return const _RefreshOutcome(_RefreshStatus.retryableFailure);
       }
+
       final body = jsonDecode(response.body) as Map<String, dynamic>;
-      // BE가 {"data": {accessToken}} 또는 {accessToken} 직접 반환 양쪽 대응
       final data = (body["data"] ?? body) as Map<String, dynamic>;
-      await _secureStorage.updateAccessToken(data["accessToken"] as String);
-      return _RefreshResult.success;
+      final accessToken = data["accessToken"] as String;
+      return _serializeSessionMutation(() async {
+        if (!isCurrentSessionGeneration(session.generation)) {
+          return const _RefreshOutcome(_RefreshStatus.stale);
+        }
+        await _secureStorage.updateAccessToken(accessToken);
+        return _RefreshOutcome(_RefreshStatus.success, accessToken);
+      });
     } catch (_) {
-      return _RefreshResult.retryableFailure;
+      return const _RefreshOutcome(_RefreshStatus.retryableFailure);
     }
   }
 
   // ─── Public HTTP methods ──────────────────────────────────────
 
-  Future<T> get<T>(String path, {Map<String, dynamic>? query}) {
-    return _handle<T>(() async {
-      final headers = await _readHeaders();
-      return _http.get(_uri(path, query), headers: headers);
-    });
+  Future<T> get<T>(
+    String path, {
+    Map<String, dynamic>? query,
+    bool requiresAuth = true,
+  }) async {
+    final session = requiresAuth ? await _captureSession() : null;
+    return _handle<T>(
+      (accessToken) =>
+          _http.get(_uri(path, query), headers: _readHeaders(accessToken)),
+      session: session,
+      allowRefresh: requiresAuth,
+    );
   }
 
-  Future<T> post<T>(String path, {Map<String, dynamic>? body}) {
+  Future<T> post<T>(
+    String path, {
+    Map<String, dynamic>? body,
+    bool requiresAuth = true,
+  }) async {
     final idempotencyKey = _uuid.v4();
-    return _handle<T>(() async {
-      final headers = await _writeHeaders(idempotencyKey);
-      return _http.post(
+    final session = requiresAuth ? await _captureSession() : null;
+    return _handle<T>(
+      (accessToken) => _http.post(
         _uri(path),
-        headers: headers,
+        headers: _writeHeaders(idempotencyKey, accessToken),
         body: jsonEncode(body ?? {}),
-      );
-    });
+      ),
+      session: session,
+      allowRefresh: requiresAuth,
+    );
   }
 
-  Future<T> patch<T>(String path, {Map<String, dynamic>? body}) {
+  Future<T> postPublic<T>(String path, {Map<String, dynamic>? body}) =>
+      post<T>(path, body: body, requiresAuth: false);
+
+  Future<T> patch<T>(
+    String path, {
+    Map<String, dynamic>? body,
+    bool requiresAuth = true,
+  }) async {
     final idempotencyKey = _uuid.v4();
-    return _handle<T>(() async {
-      final headers = await _writeHeaders(idempotencyKey);
-      return _http.patch(
+    final session = requiresAuth ? await _captureSession() : null;
+    return _handle<T>(
+      (accessToken) => _http.patch(
         _uri(path),
-        headers: headers,
+        headers: _writeHeaders(idempotencyKey, accessToken),
         body: jsonEncode(body ?? {}),
-      );
-    });
+      ),
+      session: session,
+      allowRefresh: requiresAuth,
+    );
   }
 
-  Future<T> delete<T>(String path) {
+  Future<T> delete<T>(String path, {bool requiresAuth = true}) async {
     final idempotencyKey = _uuid.v4();
-    return _handle<T>(() async {
-      final headers = await _writeHeaders(idempotencyKey);
-      return _http.delete(_uri(path), headers: headers);
-    });
+    final session = requiresAuth ? await _captureSession() : null;
+    return _handle<T>(
+      (accessToken) => _http.delete(
+        _uri(path),
+        headers: _writeHeaders(idempotencyKey, accessToken),
+      ),
+      session: session,
+      allowRefresh: requiresAuth,
+    );
   }
 }

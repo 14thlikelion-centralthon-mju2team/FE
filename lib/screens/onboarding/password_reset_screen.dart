@@ -40,7 +40,7 @@ class _PasswordResetScreenState extends ConsumerState<PasswordResetScreen> {
 
     try {
       final api = ref.read(apiClientProvider);
-      await api.post<Map<String, dynamic>>(
+      await api.postPublic<Map<String, dynamic>>(
         "/auth/password/reset-request",
         body: {"email": email},
       );

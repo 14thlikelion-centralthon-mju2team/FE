@@ -1,20 +1,14 @@
 import "dart:io";
 
 import "../network/api_client.dart";
-import "secure_storage_service.dart";
 
 /// API 명세 §2 인증 엔드포인트 전담 서비스.
 /// EnsomRepository와 별도로 존재한다 — 인증은 도메인 리소스가 아니라
 /// 세션 수립 경로이며, Bearer 토큰 없이 호출되는 유일한 그룹이기 때문이다.
 class AuthService {
-  AuthService({
-    required ApiClient apiClient,
-    required SecureStorageService secureStorage,
-  })  : _client = apiClient,
-        _secureStorage = secureStorage;
+  AuthService({required ApiClient apiClient}) : _client = apiClient;
 
   final ApiClient _client;
-  final SecureStorageService _secureStorage;
 
   // ─── 이메일 회원가입 (§2.1) ─────────────────────────────────────
   /// 가입 성공 시 토큰을 발급하지 않는다(API 명세 §2.1).
@@ -27,7 +21,7 @@ class AuthService {
     String? installationId,
   }) async {
     try {
-      final data = await _client.post<Map<String, dynamic>>(
+      final data = await _client.postPublic<Map<String, dynamic>>(
         "/auth/email/signup",
         body: {
           "email": email,
@@ -66,7 +60,7 @@ class AuthService {
     String? installationId,
   }) async {
     try {
-      final data = await _client.post<Map<String, dynamic>>(
+      final data = await _client.postPublic<Map<String, dynamic>>(
         "/auth/email/login",
         body: {
           "email": email,
@@ -95,12 +89,9 @@ class AuthService {
     required String installationId,
   }) async {
     try {
-      final data = await _client.post<Map<String, dynamic>>(
+      final data = await _client.postPublic<Map<String, dynamic>>(
         "/auth/google",
-        body: {
-          "idToken": idToken,
-          "installationId": installationId,
-        },
+        body: {"idToken": idToken, "installationId": installationId},
       );
       return _handleLoginResponse(data);
     } on ApiException {
@@ -116,14 +107,14 @@ class AuthService {
 
   // ─── 이메일 인증 (§2.3) ────────────────────────────────────────
   Future<void> verifyEmail(String token) async {
-    await _client.post<Map<String, dynamic>>(
+    await _client.postPublic<Map<String, dynamic>>(
       "/auth/email/verify",
       body: {"token": token},
     );
   }
 
   Future<void> resendVerification(String email) async {
-    await _client.post<Map<String, dynamic>>(
+    await _client.postPublic<Map<String, dynamic>>(
       "/auth/email/verify/resend",
       body: {"email": email},
     );
@@ -149,7 +140,7 @@ class AuthService {
     } catch (_) {
       // 로그아웃 서버 호출 실패해도 로컬은 소거한다
     } finally {
-      await _secureStorage.clearSession();
+      await _client.clearSession();
     }
   }
 
@@ -160,7 +151,7 @@ class AuthService {
     final user = data["user"] as Map<String, dynamic>;
     final userId = user["userId"] as String;
 
-    await _secureStorage.saveSession(
+    await _client.saveSession(
       accessToken: accessToken,
       refreshToken: refreshToken,
       userId: userId,
@@ -173,9 +164,8 @@ class AuthService {
       isNew: user["isNew"] as bool? ?? false,
       emailVerificationRequired:
           data["emailVerificationRequired"] as bool? ?? false,
-      consentRequired: (data["consentRequired"] as List<dynamic>?)
-              ?.cast<String>() ??
-          [],
+      consentRequired:
+          (data["consentRequired"] as List<dynamic>?)?.cast<String>() ?? [],
     );
   }
 }
@@ -228,8 +218,8 @@ class ConsentEntry {
   /// BE 현재 계약: consentType + policyVersion + agreed (boolean).
   /// action/isRequired는 FE 전용 개념이므로 서버에 보내지 않는다.
   Map<String, dynamic> toJson() => {
-        "consentType": consentType,
-        "policyVersion": policyVersion,
-        "agreed": agreed,
-      };
+    "consentType": consentType,
+    "policyVersion": policyVersion,
+    "agreed": agreed,
+  };
 }

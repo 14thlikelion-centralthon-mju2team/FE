@@ -1,9 +1,11 @@
+import "dart:async";
 import "dart:convert";
 import "dart:io" show Platform;
 
 import "package:firebase_messaging/firebase_messaging.dart";
 import "package:flutter_local_notifications/flutter_local_notifications.dart";
 import "../network/api_client.dart";
+import "async_session_lifecycle.dart";
 import "local_notification_service.dart";
 
 /// FCM 푸시 수신 서비스.
@@ -27,8 +29,7 @@ class FcmService {
 
   final _messaging = FirebaseMessaging.instance;
   final _localPlugin = FlutterLocalNotificationsPlugin();
-  ApiClient? _apiClient;
-  String? _installationId;
+  final _sessionLifecycle = AsyncSessionLifecycle();
 
   /// TR-10: 잠금화면에서 민감 정보 숨김 여부. bootstrap에서 세팅.
   bool _lockscreenHideSensitive = true;
@@ -42,82 +43,98 @@ class FcmService {
   Future<void> initialize({
     required ApiClient apiClient,
     required String installationId,
-  }) async {
-    _apiClient = apiClient;
-    _installationId = installationId;
-
-    try {
-      // ─── 로컬 알림 플러그인 초기화 ───────────────────────────────
-      const androidSettings =
-          AndroidInitializationSettings("@mipmap/ic_launcher");
-      const iosSettings = DarwinInitializationSettings();
-      const initSettings = InitializationSettings(
-        android: androidSettings,
-        iOS: iosSettings,
-      );
-      await _localPlugin.initialize(
-        settings: initSettings,
-        onDidReceiveNotificationResponse: _onNotificationResponse,
-      );
-
-      // ─── Android 알림 채널 생성 ──────────────────────────────────
-      final androidPlugin = _localPlugin
-          .resolvePlatformSpecificImplementation<
-              AndroidFlutterLocalNotificationsPlugin>();
-      if (androidPlugin != null) {
-        await androidPlugin.createNotificationChannel(
-          const AndroidNotificationChannel(
-            "ensom_push",
-            "Ensom 알림",
-            description: "서버에서 발송된 알림",
-            importance: Importance.high,
-          ),
-        );
-        await androidPlugin.createNotificationChannel(
-          const AndroidNotificationChannel(
-            "ensom_prep",
-            "준비 알림",
-            description: "준비 시작 및 출발 시각 안내",
-            importance: Importance.high,
-          ),
-        );
-      }
-
-      // 알림 권한 요청 (iOS — Android 13+도 필요)
-      await _messaging.requestPermission(
-        alert: true,
-        badge: true,
-        sound: true,
-      );
-
-      // 토큰 획득 + 서버 등록
-      final token = await _messaging.getToken();
-      if (token != null) {
-        await _registerToken(token);
-      }
-
-      // 토큰 갱신 콜백 — 앱 재실행마다 갱신될 수 있음 (§2.7)
-      _messaging.onTokenRefresh.listen(_registerToken);
-
-      // 포그라운드 메시지 핸들러
-      FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
-      // background/terminated tap은 notification metadata만 router에 전달한다.
-      FirebaseMessaging.onMessageOpenedApp.listen(_handleNotificationTap);
-      final initial = await _messaging.getInitialMessage();
-      if (initial != null) _handleNotificationTap(initial);
-    } catch (e) {
-      // Firebase 미설정 환경 — FCM 비활성, 로컬 알림 폴백만 동작
-      // 앱 시작을 중단하지 않는다.
-    }
-  }
-
-  /// 로그인 후 apiClient/installationId 갱신 시 재호출.
-  void updateCredentials({
-    required ApiClient apiClient,
-    required String installationId,
   }) {
-    _apiClient = apiClient;
-    _installationId = installationId;
+    return _sessionLifecycle.initialize((generation, isCurrent) async {
+      try {
+        const androidSettings = AndroidInitializationSettings(
+          "@mipmap/ic_launcher",
+        );
+        const iosSettings = DarwinInitializationSettings();
+        const initSettings = InitializationSettings(
+          android: androidSettings,
+          iOS: iosSettings,
+        );
+        await _localPlugin.initialize(
+          settings: initSettings,
+          onDidReceiveNotificationResponse: _onNotificationResponse,
+        );
+        if (!isCurrent()) return const [];
+
+        final androidPlugin = _localPlugin
+            .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin
+            >();
+        if (androidPlugin != null) {
+          await androidPlugin.createNotificationChannel(
+            const AndroidNotificationChannel(
+              "ensom_push",
+              "Ensom 알림",
+              description: "서버에서 발송된 알림",
+              importance: Importance.high,
+            ),
+          );
+          await androidPlugin.createNotificationChannel(
+            const AndroidNotificationChannel(
+              "ensom_prep",
+              "준비 알림",
+              description: "준비 시작 및 출발 시각 안내",
+              importance: Importance.high,
+            ),
+          );
+        }
+        if (!isCurrent()) return const [];
+
+        await _messaging.requestPermission(
+          alert: true,
+          badge: true,
+          sound: true,
+        );
+        if (!isCurrent()) return const [];
+
+        final token = await _messaging.getToken();
+        if (token != null && isCurrent()) {
+          await _registerToken(
+            token,
+            apiClient: apiClient,
+            installationId: installationId,
+            isCurrent: isCurrent,
+          );
+        }
+        if (!isCurrent()) return const [];
+
+        final subscriptions = <StreamSubscription<dynamic>>[
+          _messaging.onTokenRefresh.listen((token) {
+            if (!isCurrent()) return;
+            unawaited(
+              _registerToken(
+                token,
+                apiClient: apiClient,
+                installationId: installationId,
+                isCurrent: isCurrent,
+              ),
+            );
+          }),
+          FirebaseMessaging.onMessage.listen((message) {
+            if (isCurrent()) _handleForegroundMessage(message);
+          }),
+          FirebaseMessaging.onMessageOpenedApp.listen((message) {
+            if (isCurrent()) _handleNotificationTap(message);
+          }),
+        ];
+
+        try {
+          final initial = await _messaging.getInitialMessage();
+          if (initial != null && isCurrent()) _handleNotificationTap(initial);
+        } catch (_) {
+          // 초기 메시지 조회 실패와 실시간 stream 구독 수명주기는 분리한다.
+        }
+        return subscriptions;
+      } catch (_) {
+        // Firebase 미설정 환경 — FCM 비활성, 로컬 알림 폴백만 동작
+        // 앱 시작을 중단하지 않는다.
+        return const [];
+      }
+    });
   }
 
   /// bootstrap 설정 반영.
@@ -127,13 +144,18 @@ class FcmService {
 
   /// POST /push-devices — FCM 토큰 등록·갱신 (API 명세 §2.7)
   /// installationId가 UNIQUE이므로 재설치 전까지 같은 기기는 한 행을 갱신.
-  Future<void> _registerToken(String token) async {
-    if (_apiClient == null || _installationId == null) return;
+  Future<void> _registerToken(
+    String token, {
+    required ApiClient apiClient,
+    required String installationId,
+    required bool Function() isCurrent,
+  }) async {
+    if (!isCurrent()) return;
     try {
-      await _apiClient!.post<Map<String, dynamic>>(
+      await apiClient.post<Map<String, dynamic>>(
         "/push-devices",
         body: {
-          "installationId": _installationId!,
+          "installationId": installationId,
           "currentToken": token,
           "platform": _getPlatform(),
         },
@@ -227,7 +249,8 @@ class FcmService {
   void _handleNotificationTap(RemoteMessage message) {
     final data = <String, String>{
       for (final entry in message.data.entries)
-        if ({"notification_id", "plan_id", "type"}.contains(entry.key)) entry.key: entry.value,
+        if ({"notification_id", "plan_id", "type"}.contains(entry.key))
+          entry.key: entry.value,
     };
     if (data["notification_id"] != null) _notificationTapHandler?.call(data);
   }
@@ -242,11 +265,11 @@ class FcmService {
     _foregroundMessageController = handler;
   }
 
-  /// 로그아웃 시 — 토큰 비활성화는 서버가 처리 (POST /auth/logout에서)
-  /// 클라이언트는 콜백만 정리.
-  void dispose() {
+  /// 로그아웃/terminal expiry 시 세션 구독을 모두 취소한다.
+  /// router tap handler는 앱 수명 callback이므로 재로그인 복구를 위해 유지한다.
+  Future<void> dispose() async {
     _foregroundMessageController = null;
-    _notificationTapHandler = null;
+    await _sessionLifecycle.dispose();
   }
 
   /// 알림 탭 시 딥링크 처리 — notificationTapHandler로 전달.
