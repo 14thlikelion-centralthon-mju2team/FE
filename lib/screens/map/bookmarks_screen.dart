@@ -4,6 +4,10 @@ import "package:go_router/go_router.dart";
 import "../../network/api_client.dart";
 import "../../providers/auth_providers.dart";
 import "../../theme/ensom_colors.dart";
+import "../../widgets/ensom/ensom_chip.dart";
+import "../../widgets/ensom/ensom_pill_button.dart";
+import "../../widgets/ensom/ensom_text_field.dart";
+import "../../widgets/ensom/ensom_top_bar.dart";
 
 /// S-30/S-31 북마크 관리
 class BookmarksScreen extends ConsumerStatefulWidget {
@@ -87,55 +91,50 @@ class _BookmarksScreenState extends ConsumerState<BookmarksScreen> {
     final lngCtrl = TextEditingController();
     final folderCtrl = TextEditingController();
 
-    final result = await showDialog<bool>(
+    final result = await showModalBottomSheet<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text("북마크 추가"),
-        content: SingleChildScrollView(
+      isScrollControlled: true,
+      backgroundColor: EnsomColors.canvas,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(26))),
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(
+          left: 22,
+          right: 22,
+          top: 20,
+          bottom: MediaQuery.of(ctx).viewInsets.bottom + 22,
+        ),
+        child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              TextField(
-                controller: placeNameCtrl,
-                decoration: const InputDecoration(labelText: "장소 이름"),
+              const Text(
+                "북마크 추가",
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: -.2, color: EnsomColors.ink),
               ),
-              const SizedBox(height: 8),
-              TextField(
+              const SizedBox(height: 16),
+              EnsomTextField(label: "장소 이름", controller: placeNameCtrl),
+              const SizedBox(height: 12),
+              EnsomTextField(
+                label: "위도 (lat)",
                 controller: latCtrl,
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                ),
-                decoration: const InputDecoration(labelText: "위도 (lat)"),
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
               ),
-              const SizedBox(height: 8),
-              TextField(
+              const SizedBox(height: 12),
+              EnsomTextField(
+                label: "경도 (lng)",
                 controller: lngCtrl,
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                ),
-                decoration: const InputDecoration(labelText: "경도 (lng)"),
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
               ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: folderCtrl,
-                decoration: const InputDecoration(
-                  labelText: "폴더 (선택)",
-                  hintText: "미분류",
-                ),
-              ),
+              const SizedBox(height: 12),
+              EnsomTextField(label: "폴더 (선택)", controller: folderCtrl),
+              const SizedBox(height: 18),
+              EnsomPillButton(label: "추가", onPressed: () => Navigator.pop(ctx, true)),
+              const SizedBox(height: 4),
+              EnsomPillButton(label: "취소", variant: EnsomPillVariant.text, onPressed: () => Navigator.pop(ctx, false)),
             ],
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text("취소"),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text("추가"),
-          ),
-        ],
       ),
     );
 
@@ -180,12 +179,14 @@ class _BookmarksScreenState extends ConsumerState<BookmarksScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("북마크")),
+      backgroundColor: EnsomColors.canvas,
+      appBar: const EnsomTopBar(title: "북마크"),
       floatingActionButton: FloatingActionButton(
+        backgroundColor: EnsomColors.cta,
         onPressed: _showAddDialog,
-        child: const Icon(Icons.add),
+        child: const Icon(Icons.add, color: Colors.white),
       ),
-      body: _buildBody(),
+      body: SafeArea(top: false, child: _buildBody()),
     );
   }
 
@@ -201,9 +202,9 @@ class _BookmarksScreenState extends ConsumerState<BookmarksScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(_error!, textAlign: TextAlign.center),
+              Text(_error!, textAlign: TextAlign.center, style: const TextStyle(color: EnsomColors.inkMuted)),
               const SizedBox(height: 16),
-              FilledButton(onPressed: _load, child: const Text("다시 시도")),
+              EnsomPillButton(label: "다시 시도", expand: false, onPressed: _load),
             ],
           ),
         ),
@@ -214,24 +215,19 @@ class _BookmarksScreenState extends ConsumerState<BookmarksScreen> {
 
     return Column(
       children: [
-        // 폴더 필터 세그먼트
+        // 폴더 필터
         if (_folders.length > 1)
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: const EdgeInsets.fromLTRB(18, 4, 18, 12),
             child: Row(
               children: _folders.map((folder) {
-                final selected = folder == _selectedFolder;
                 return Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: ChoiceChip(
-                    label: Text(folder),
-                    selected: selected,
-                    onSelected: (_) => setState(() => _selectedFolder = folder),
-                    selectedColor: EnsomColors.lime,
-                    labelStyle: TextStyle(
-                      color: selected ? EnsomColors.limeInk : EnsomColors.ink,
-                    ),
+                  padding: const EdgeInsets.only(right: 7),
+                  child: EnsomChip(
+                    label: folder,
+                    selected: folder == _selectedFolder,
+                    onTap: () => setState(() => _selectedFolder = folder),
                   ),
                 );
               }).toList(),
@@ -240,8 +236,9 @@ class _BookmarksScreenState extends ConsumerState<BookmarksScreen> {
         // 리스트
         Expanded(
           child: filtered.isEmpty
-              ? const Center(child: Text("북마크가 없어요."))
+              ? const Center(child: Text("북마크가 없어요.", style: TextStyle(color: EnsomColors.inkFaint)))
               : ListView.builder(
+                  padding: const EdgeInsets.fromLTRB(18, 0, 18, 90),
                   itemCount: filtered.length,
                   itemBuilder: (context, index) {
                     final bookmark = filtered[index];
@@ -255,26 +252,56 @@ class _BookmarksScreenState extends ConsumerState<BookmarksScreen> {
                       key: Key(id),
                       direction: DismissDirection.endToStart,
                       background: Container(
-                        color: EnsomColors.caution,
+                        margin: const EdgeInsets.only(bottom: 9),
+                        decoration: BoxDecoration(color: EnsomColors.caution, borderRadius: BorderRadius.circular(16)),
                         alignment: Alignment.centerRight,
-                        padding: const EdgeInsets.only(right: 24),
-                        child: const Icon(
-                          Icons.delete,
-                          color: EnsomColors.canvas,
-                        ),
+                        padding: const EdgeInsets.only(right: 20),
+                        child: const Icon(Icons.delete_outline, color: Colors.white, size: 18),
                       ),
                       onDismissed: (_) => _deleteBookmark(id),
-                      child: ListTile(
-                        leading: const Icon(Icons.bookmark_outline),
-                        title: Text(name),
-                        subtitle: folder.isNotEmpty ? Text(folder) : null,
-                        // Issue #52: 북마크 탭 → 지도(S-08R)로 좌표 전달하며 이동
+                      child: InkWell(
                         onTap: (lat != null && lng != null)
                             ? () => context.push(
                                   "/map?destLat=$lat&destLng=$lng"
                                   "&destName=${Uri.encodeComponent(name)}",
                                 )
                             : null,
+                        borderRadius: BorderRadius.circular(16),
+                        child: Container(
+                          margin: const EdgeInsets.only(bottom: 9),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          decoration: BoxDecoration(
+                            color: EnsomColors.surface1,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: EnsomColors.hairline),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 34,
+                                height: 34,
+                                decoration: const BoxDecoration(color: EnsomColors.surface2, shape: BoxShape.circle),
+                                child: const Icon(Icons.bookmark_outline, size: 15, color: EnsomColors.inkMuted),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      name,
+                                      style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: EnsomColors.ink),
+                                    ),
+                                    if (folder.isNotEmpty) ...[
+                                      const SizedBox(height: 2),
+                                      Text(folder, style: const TextStyle(fontSize: 11, color: EnsomColors.inkFaint)),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                     );
                   },
