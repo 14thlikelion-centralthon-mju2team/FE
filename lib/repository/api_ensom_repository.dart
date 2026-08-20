@@ -358,12 +358,18 @@ class ApiEnsomRepository implements EnsomRepository {
   }) async {
     // API v5.0 §9.5 PATCH /plans/{planId}.
     // 사용자 직접 수정은 서버가 새 리비전을 만든다(revisionNo 증가).
-    // 시각은 오프셋 포함 ISO-8601 필수(Z만 오는 값은 서버가 422) — TR-02.
+    //
+    // 시각 직렬화(TR-02): 로컬 DateTime의 toIso8601String()은 오프셋도 Z도
+    // 붙지 않아("2026-08-20T14:00:00.000") BE(Instant, Jackson JavaTimeModule)가
+    // 역직렬화에 실패해 400을 낸다. toUtc()로 변환하면 "...Z"가 붙고 현재 BE가
+    // 정상 수용한다(양쪽 실행 검증). 명세는 오프셋 포함(+09:00)을 요구하고
+    // "Z만 오는 값은 422"라고 적혀 있으나 그 규칙은 현행 BE에 미구현이다.
+    // BE가 그 422 규칙을 실제 구현하면 그때 +09:00 형태로 직접 포매팅해야 한다.
     final json = await _client.patch<Map<String, dynamic>>(
       "/plans/$planId",
       body: {
         if (prepStartAt != null)
-          "prepStartAt": prepStartAt.toIso8601String(),
+          "prepStartAt": prepStartAt.toUtc().toIso8601String(),
         if (originPlaceId != null) "originPlaceId": originPlaceId,
       },
     );
