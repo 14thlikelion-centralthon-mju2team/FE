@@ -5,6 +5,7 @@ import "../network/api_client.dart";
 import "../providers/auth_providers.dart";
 import "../providers/home_providers.dart";
 import "../theme/ensom_colors.dart";
+import "ensom/route_option_card.dart";
 
 /// RTE-01 경로 변경 후보 시트
 /// 호출: DTL-01 경로 [변경] 버튼
@@ -95,80 +96,49 @@ class _RouteChangeSheetState extends ConsumerState<RouteChangeSheet> {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Center(
             child: Container(
-              width: 32,
+              width: 36,
               height: 4,
-              decoration: BoxDecoration(
-                color: EnsomColors.hairline,
-                borderRadius: BorderRadius.circular(2),
-              ),
+              decoration: BoxDecoration(color: EnsomColors.hairline, borderRadius: BorderRadius.circular(2)),
             ),
           ),
-          const SizedBox(height: 16),
-          Text("경로 변경", style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 16),
+          const SizedBox(height: 18),
+          const Text(
+            "경로 변경",
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: -.2, color: EnsomColors.ink),
+          ),
+          const SizedBox(height: 14),
           if (_loading)
-            const Center(child: CircularProgressIndicator())
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 20),
+              child: Center(child: CircularProgressIndicator()),
+            )
           else if (_error != null)
-            Center(child: Text(_error!))
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 20),
+              child: Center(child: Text(_error!, style: const TextStyle(color: EnsomColors.inkMuted))),
+            )
           else if (_options == null || _options!.isEmpty)
-            const Center(child: Text("대안 경로가 없어요."))
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 20),
+              child: Center(child: Text("대안 경로가 없어요.", style: TextStyle(color: EnsomColors.inkMuted))),
+            )
           else
-            ...(_options!.map(
-              (opt) => _RouteCard(
+            for (final opt in _options!) ...[
+              EnsomRouteOptionCard(
                 option: opt,
                 selected: _selectedId == opt.routeOptionId,
-                onSelect: _selecting
-                    ? null
-                    : () => _selectRoute(opt.routeOptionId),
+                onSelect: _selecting ? null : () => _selectRoute(opt.routeOptionId),
               ),
-            )),
+              const SizedBox(height: 10),
+            ],
         ],
-      ),
-    );
-  }
-}
-
-class _RouteCard extends StatelessWidget {
-  const _RouteCard({
-    required this.option,
-    required this.selected,
-    this.onSelect,
-  });
-
-  final RouteOption option;
-  final bool selected;
-  final VoidCallback? onSelect;
-
-  String get _typeLabel {
-    switch (option.routeType) {
-      case RouteType.fastest:
-        return "가장 빠른";
-      case RouteType.leastWalk:
-        return "도보 적은";
-      case RouteType.leastTransfer:
-        return "환승 적은";
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      color: selected ? EnsomColors.surface2 : null,
-      child: ListTile(
-        title: Text("$_typeLabel · ${option.totalMinutes}분"),
-        subtitle: Text(
-          "도보 ${option.walkMinutes}분 · 환승 ${option.transferCount}회",
-        ),
-        trailing: selected
-            ? const Icon(Icons.check_circle, color: EnsomColors.cta)
-            : OutlinedButton(onPressed: onSelect, child: const Text("선택")),
       ),
     );
   }
