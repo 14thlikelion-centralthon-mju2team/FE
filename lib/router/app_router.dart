@@ -24,6 +24,7 @@ import "../screens/map/map_screen.dart";
 import "../screens/calendar/calendar_screen.dart";
 import "../screens/calendar/event_form_screen.dart";
 import "../screens/calendar/calendar_sync_screen.dart";
+import "../screens/calendar/weekly_report_screen.dart";
 import "../screens/detail/event_detail_screen.dart";
 import "../screens/search/place_search_screen.dart";
 import "../screens/profile/profile_screen.dart";
@@ -270,6 +271,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (c, s) => CalendarSyncScreen(
           isOnboarding: s.uri.queryParameters["onboarding"] == "true",
         ),
+      ),
+      GoRoute(
+        path: "/calendar/weekly-report",
+        builder: (c, s) => const WeeklyReportScreen(),
       ),
 
       // ─── DTL-01 일정 상세 ─────────────────────────────────────
