@@ -14,6 +14,19 @@ import "../../widgets/ensom/ensom_pill_button.dart";
 
 const _labelOptions = ["집", "학교", "회사", "직접 입력"];
 
+/// 라벨 → USER_PLACE.place_type 매핑. 스키마에 school 값이 없어
+/// "학교"/"직접 입력"은 other로 잠정 처리한다(Place 모델 주석 참조).
+String _placeTypeForLabel(String label) {
+  switch (label) {
+    case "집":
+      return "home";
+    case "회사":
+      return "work";
+    default:
+      return "other";
+  }
+}
+
 class PlaceRegistrationScreen extends ConsumerStatefulWidget {
   const PlaceRegistrationScreen({super.key, this.isOnboarding = false});
 
@@ -30,7 +43,6 @@ class _PlaceRegistrationScreenState
     extends ConsumerState<PlaceRegistrationScreen> {
   String selectedLabel = _labelOptions.first;
   final customLabelController = TextEditingController();
-  double radiusM = 300;
   double? lat;
   double? lng;
   bool locating = false;
@@ -82,12 +94,13 @@ class _PlaceRegistrationScreenState
     try {
       final repo = ref.read(ensomRepositoryProvider);
       final placeId = const Uuid().v4();
+      final placeType = _placeTypeForLabel(label);
       final place = Place(
-        id: placeId,
-        label: label,
+        placeId: placeId,
+        placeType: placeType,
+        placeName: label,
         lat: lat!,
         lng: lng!,
-        radiusM: radiusM.round(),
       );
 
       // 1. 서버에 등록 (mock)
@@ -99,10 +112,10 @@ class _PlaceRegistrationScreenState
         PlaceCacheEntry(
           userId: "current-user", // 실제 로그인 붙으면 provider에서 가져오도록 교체
           placeId: placeId,
-          label: label,
+          placeName: label,
+          placeType: placeType,
           lat: lat!,
           lng: lng!,
-          radiusM: radiusM.round(),
         ),
       );
 
@@ -215,43 +228,13 @@ class _PlaceRegistrationScreenState
                   ),
                 ],
                 const SizedBox(height: 16),
-                Row(
-                  children: [
-                    const Text(
-                      "반경",
-                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: EnsomColors.inkMuted),
-                    ),
-                    const Spacer(),
-                    Text(
-                      "${radiusM.round()}m",
-                      style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: EnsomColors.ink),
-                    ),
-                  ],
-                ),
-                SliderTheme(
-                  data: SliderTheme.of(context).copyWith(
-                    activeTrackColor: EnsomColors.cta,
-                    inactiveTrackColor: EnsomColors.surface2,
-                    thumbColor: EnsomColors.cta,
-                    overlayColor: EnsomColors.cta.withValues(alpha: .12),
-                    trackHeight: 3,
-                  ),
-                  child: Slider(
-                    value: radiusM,
-                    min: 100,
-                    max: 2000,
-                    divisions: 19,
-                    onChanged: (v) => setState(() => radiusM = v),
-                  ),
-                ),
                 if (lat != null && lng != null) ...[
-                  const SizedBox(height: 4),
                   Text(
                     "선택된 위치: ${lat!.toStringAsFixed(4)}, ${lng!.toStringAsFixed(4)}",
                     style: const TextStyle(fontSize: 11, color: EnsomColors.inkFaint),
                   ),
+                  const SizedBox(height: 10),
                 ],
-                const SizedBox(height: 14),
                 EnsomPillButton(
                   label: locating ? "위치 확인 중..." : "현재 위치 사용",
                   variant: EnsomPillVariant.secondary,
@@ -301,6 +284,17 @@ class _PlaceRow extends StatelessWidget {
   final PlaceCacheEntry entry;
   final VoidCallback onDelete;
 
+  String _placeTypeLabel(String placeType) {
+    switch (placeType) {
+      case "home":
+        return "집";
+      case "work":
+        return "직장";
+      default:
+        return "기타";
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -325,12 +319,12 @@ class _PlaceRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  entry.label,
+                  entry.placeName,
                   style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, letterSpacing: -.2, color: EnsomColors.ink),
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  "반경 ${entry.radiusM}m",
+                  _placeTypeLabel(entry.placeType),
                   style: const TextStyle(fontSize: 11, color: EnsomColors.inkFaint),
                 ),
               ],

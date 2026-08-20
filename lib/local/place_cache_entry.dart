@@ -11,7 +11,7 @@ class PlaceCacheEntry extends HiveObject {
   String placeId;
 
   @HiveField(2)
-  String label;
+  String placeName;
 
   @HiveField(3)
   double lat;
@@ -19,15 +19,15 @@ class PlaceCacheEntry extends HiveObject {
   @HiveField(4)
   double lng;
 
-  @HiveField(5)
-  int radiusM;
+  @HiveField(6)
+  String placeType;
 
   PlaceCacheEntry({
     required this.userId,
     required this.placeId,
-    required this.label,
+    required this.placeName,
     required this.lat,
     required this.lng,
-    required this.radiusM,
+    required this.placeType,
   });
 }
