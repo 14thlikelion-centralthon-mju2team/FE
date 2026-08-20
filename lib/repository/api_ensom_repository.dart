@@ -355,8 +355,20 @@ class ApiEnsomRepository implements EnsomRepository {
     String planId, {
     DateTime? prepStartAt,
     String? originPlaceId,
-  }) =>
-      throw UnimplementedError("계획 수동 수정 UI는 M1 이후 범위");
+  }) async {
+    // API v5.0 §9.5 PATCH /plans/{planId}.
+    // 사용자 직접 수정은 서버가 새 리비전을 만든다(revisionNo 증가).
+    // 시각은 오프셋 포함 ISO-8601 필수(Z만 오는 값은 서버가 422) — TR-02.
+    final json = await _client.patch<Map<String, dynamic>>(
+      "/plans/$planId",
+      body: {
+        if (prepStartAt != null)
+          "prepStartAt": prepStartAt.toIso8601String(),
+        if (originPlaceId != null) "originPlaceId": originPlaceId,
+      },
+    );
+    return Plan.fromJson(json);
+  }
 
   @override
   Future<List<AppNotification>> fetchTodayNotifications() async {

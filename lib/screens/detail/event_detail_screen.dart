@@ -9,6 +9,7 @@ import "../../providers/auth_providers.dart";
 import "../../repository/providers.dart";
 import "../../theme/ensom_colors.dart";
 import "../../widgets/permission_degraded_banner.dart";
+import "../../widgets/plan_edit_sheet.dart";
 import "../../widgets/prep_item_add_sheet.dart";
 import "../../widgets/route_change_sheet.dart";
 
@@ -377,12 +378,30 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
   void _onMenuAction(String action) {
     switch (action) {
       case "edit":
-        // TODO: CAL-04 수정 모드로 이동
+        _editPlan();
         break;
       case "delete":
         _showDeleteConfirm();
         break;
     }
+  }
+
+  Future<void> _editPlan() async {
+    final plan = _plan;
+    if (plan == null) {
+      // 계획이 없는 일정(장소 미지정 등)은 수정할 시각 계획이 없다.
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("이 일정은 아직 이동 계획이 없어요.")),
+      );
+      return;
+    }
+    final changed = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => PlanEditSheet(plan: plan),
+    );
+    // PATCH는 새 리비전을 만들므로 최신 계획으로 다시 로드한다.
+    if (changed == true) _loadDetail();
   }
 
   void _showDeleteConfirm() {
