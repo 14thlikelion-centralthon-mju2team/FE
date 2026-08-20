@@ -47,8 +47,9 @@ class ApiEnsomRepository implements EnsomRepository {
   // -- 계획 --------------------------------------------------------
   @override
   Future<Plan> fetchLatestPlan(String eventId) async {
-    final json = await _client
-        .get<Map<String, dynamic>>("/events/$eventId/plans/latest");
+    final json = await _client.get<Map<String, dynamic>>(
+      "/events/$eventId/plans/latest",
+    );
     return Plan.fromJson(json);
   }
 
@@ -70,8 +71,7 @@ class ApiEnsomRepository implements EnsomRepository {
   // -- 경로 --------------------------------------------------------
   @override
   Future<List<RouteOption>> fetchRouteOptions(String planId) async {
-    final json =
-        await _client.get<List<dynamic>>("/plans/$planId/routes");
+    final json = await _client.get<List<dynamic>>("/plans/$planId/routes");
     return json
         .map((e) => RouteOption.fromJson(e as Map<String, dynamic>))
         .toList();
@@ -107,7 +107,9 @@ class ApiEnsomRepository implements EnsomRepository {
           "destLat": destLat,
           "destLng": destLng,
           "destName": destName,
-          "anchorMode": anchorMode == EventAnchor.departAt ? "depart_at" : "arrive_by",
+          "anchorMode": anchorMode == EventAnchor.departAt
+              ? "depart_at"
+              : "arrive_by",
           "at": at.toIso8601String(),
         },
       );
@@ -145,10 +147,7 @@ class ApiEnsomRepository implements EnsomRepository {
   }) async {
     await _client.post<Map<String, dynamic>>(
       "/plans/$planId/prep-items/$planPrepItemId/resolve",
-      body: {
-        "completionStatus": status.name,
-        "clientEventId": clientEventId,
-      },
+      body: {"completionStatus": status.name, "clientEventId": clientEventId},
     );
   }
 
@@ -161,10 +160,7 @@ class ApiEnsomRepository implements EnsomRepository {
   }) async {
     await _client.post<Map<String, dynamic>>(
       "/plans/$planId/wellness-actions/$wellnessActionId/resolve",
-      body: {
-        "completionStatus": status.name,
-        "clientEventId": clientEventId,
-      },
+      body: {"completionStatus": status.name, "clientEventId": clientEventId},
     );
   }
 
@@ -178,10 +174,7 @@ class ApiEnsomRepository implements EnsomRepository {
     // 현재 값을 먼저 읽고 변경분을 merge해서 전송한다.
     final current = await _client.get<Map<String, dynamic>>("/me/settings");
     final merged = {...current, ...patch};
-    await _client.patch<Map<String, dynamic>>(
-      "/me/settings",
-      body: merged,
-    );
+    await _client.patch<Map<String, dynamic>>("/me/settings", body: merged);
   }
 
   // ================================================================
@@ -277,10 +270,7 @@ class ApiEnsomRepository implements EnsomRepository {
   }) async {
     final json = await _client.get<List<dynamic>>(
       "/events",
-      query: {
-        "from": from.toIso8601String(),
-        "to": to.toIso8601String(),
-      },
+      query: {"from": from.toIso8601String(), "to": to.toIso8601String()},
     );
     return json.map((e) => Event.fromJson(e as Map<String, dynamic>)).toList();
   }
@@ -304,15 +294,20 @@ class ApiEnsomRepository implements EnsomRepository {
         "startsAt": ej["startsAt"],
         "endsAt": ej["endsAt"],
         "locationState": ej["locationState"],
-        if (event.destinationName != null) "destinationName": event.destinationName,
-        if (event.destinationLat != null) "destinationLat": event.destinationLat,
-        if (event.destinationLng != null) "destinationLng": event.destinationLng,
+        if (event.destinationName != null)
+          "destinationName": event.destinationName,
+        if (event.destinationLat != null)
+          "destinationLat": event.destinationLat,
+        if (event.destinationLng != null)
+          "destinationLng": event.destinationLng,
         "sourceType": ej["sourceType"],
         "anchorMode": ej["anchor"],
         if (originPlaceId != null) "originPlaceId": originPlaceId,
-        if (selectedRouteOptionId != null) "selectedRouteOptionId": selectedRouteOptionId,
+        if (selectedRouteOptionId != null)
+          "selectedRouteOptionId": selectedRouteOptionId,
         if (event.displayLabel != null) "displayLabel": event.displayLabel,
-        if (writeToCalendarSourceId != null) "writeToCalendarSourceId": writeToCalendarSourceId,
+        if (writeToCalendarSourceId != null)
+          "writeToCalendarSourceId": writeToCalendarSourceId,
       },
     );
     return Event.fromJson(json);
@@ -359,7 +354,12 @@ class ApiEnsomRepository implements EnsomRepository {
     final json = await _client.patch<Map<String, dynamic>>(
       "/plans/$planId",
       body: {
-        if (prepStartAt != null) "prepStartAt": prepStartAt.toIso8601String(),
+        // BE PlanPatchRequest.prepStartAt은 java.time.Instant다. Jackson의
+        // Instant 역직렬화는 UTC(Z) 또는 오프셋이 붙은 값을 요구하고, Dart 로컬
+        // DateTime의 toIso8601String()은 오프셋/Z가 없어 파싱이 400으로 실패한다.
+        // toUtc()로 변환해 Z가 붙은 순간값(instant)으로 보낸다.
+        if (prepStartAt != null)
+          "prepStartAt": prepStartAt.toUtc().toIso8601String(),
         if (originPlaceId != null) "originPlaceId": originPlaceId,
       },
     );
@@ -399,8 +399,10 @@ class ApiEnsomRepository implements EnsomRepository {
   @override
   Future<DailyWellnessSummary?> fetchDailySummary(String date) async {
     try {
-      final json = await _client
-          .get<Map<String, dynamic>>("/summary/daily", query: {"date": date});
+      final json = await _client.get<Map<String, dynamic>>(
+        "/summary/daily",
+        query: {"date": date},
+      );
       return DailyWellnessSummary.fromJson(json);
     } on ApiException catch (e) {
       // 관리 일정 0건이면 카드를 만들지 않는다 (숫자를 지어내지 않음)
@@ -487,15 +489,18 @@ class ApiEnsomRepository implements EnsomRepository {
   // TODO: BE 배포 후 활성화 — 현재 API v5.0에 미포함
   @override
   Future<EnvironmentData> getEnvironment() async {
-    final json =
-        await _client.get<Map<String, dynamic>>("/environment/current");
+    final json = await _client.get<Map<String, dynamic>>(
+      "/environment/current",
+    );
     return EnvironmentData.fromJson(json);
   }
 
   // -- 도착 결과·사후 평가 (REPORT-01, §14) -----------------------------
   @override
   Future<EventExecution> fetchExecution(String eventId) async {
-    final json = await _client.get<Map<String, dynamic>>("/events/$eventId/execution");
+    final json = await _client.get<Map<String, dynamic>>(
+      "/events/$eventId/execution",
+    );
     return EventExecution.fromJson(json);
   }
 
