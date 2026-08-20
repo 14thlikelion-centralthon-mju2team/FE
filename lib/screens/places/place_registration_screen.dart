@@ -145,7 +145,7 @@ class _PlaceRegistrationScreenState
             TextButton(
               onPressed: () {
                 ref.read(secureStorageProvider).setOnboardingStep("calendar");
-                context.go("/onboarding/priming/calendar");
+                context.go("/onboarding/priming/notification");
               },
               child: const Text("완료"),
             ),

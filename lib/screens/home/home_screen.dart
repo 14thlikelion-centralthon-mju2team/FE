@@ -25,12 +25,7 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   int? _lastScheduledRevision;
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _maybeShowCoachmark());
-  }
+  bool _coachmarkChecked = false;
 
   Future<void> _maybeShowCoachmark() async {
     final shouldShow = await CoachmarkService.instance.shouldShowCoachmark();
@@ -155,6 +150,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           final controller = ref.read(
             planControllerProvider(event.eventId).notifier,
           );
+
+          // 코치마크: 데이터 로딩 완료 + 일정 있을 때만 1회 표시
+          if (!_coachmarkChecked) {
+            _coachmarkChecked = true;
+            WidgetsBinding.instance.addPostFrameCallback((_) => _maybeShowCoachmark());
+          }
 
           return planState.when(
             loading: () => const Center(child: CircularProgressIndicator()),

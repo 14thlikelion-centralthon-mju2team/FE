@@ -15,15 +15,17 @@ class PermissionService {
     return status;
   }
 
-  /// 위치 권한 요청.
-  /// whenInUse가 허용되면 이어서 always를 요청한다.
+  /// 위치 권한 요청 (whenInUse만).
+  /// 온보딩·프라이밍에서 사용한다. always는 별도로 요청한다.
   Future<PermissionStatus> requestLocation() async {
     final status = await Permission.location.request();
-    if (status.isGranted) {
-      // whenInUse가 허용되었으면 always 요청 시도
-      final alwaysStatus = await Permission.locationAlways.request();
-      return alwaysStatus;
-    }
+    return status;
+  }
+
+  /// 항상 위치 권한 요청 (always).
+  /// 명세대로 자동 출발·도착 확인 기능 활성화 시 별도 화면에서 요청.
+  Future<PermissionStatus> requestLocationAlways() async {
+    final status = await Permission.locationAlways.request();
     return status;
   }
 
@@ -31,8 +33,7 @@ class PermissionService {
   Future<bool> isAllGranted() async {
     final notification = await Permission.notification.isGranted;
     final location = await Permission.location.isGranted;
-    final locationAlways = await Permission.locationAlways.isGranted;
-    return notification && location && locationAlways;
+    return notification && location;
   }
 
   /// 권한이 거부되었을 때 사유 안내 다이얼로그를 표시한다.

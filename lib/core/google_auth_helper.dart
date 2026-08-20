@@ -4,13 +4,23 @@ import "app_config.dart";
 /// 구글 로그인 중앙 헬퍼.
 ///
 /// - 로그인용(idToken 반환)과 캘린더 연동용(serverAuthCode 반환)을 분리.
+/// - 로그인에는 email 스코프만 요청해 동의 화면을 최소화한다.
+/// - 캘린더 연동 시에만 calendar.readonly 스코프를 추가로 요청한다.
 /// - 항상 finally에서 signOut()을 호출해 다음 시도에서 계정 선택기가 노출되도록 한다.
 /// - kGoogleServerClientId가 비어 있으면 예외를 던진다.
 class GoogleAuthHelper {
   GoogleAuthHelper._();
   static final instance = GoogleAuthHelper._();
 
-  final _googleSignIn = GoogleSignIn(
+  /// 로그인 전용 — email 스코프만 요청.
+  final _loginSignIn = GoogleSignIn(
+    serverClientId:
+        kGoogleServerClientId.isEmpty ? null : kGoogleServerClientId,
+    scopes: const ["email"],
+  );
+
+  /// 캘린더 연동 전용 — email + calendar.readonly 스코프 요청.
+  final _calendarSignIn = GoogleSignIn(
     serverClientId:
         kGoogleServerClientId.isEmpty ? null : kGoogleServerClientId,
     scopes: const [
@@ -24,7 +34,7 @@ class GoogleAuthHelper {
   Future<String?> signInForLogin() async {
     _ensureClientId();
     try {
-      final account = await _googleSignIn.signIn();
+      final account = await _loginSignIn.signIn();
       if (account == null) return null;
 
       final auth = await account.authentication;
@@ -34,7 +44,7 @@ class GoogleAuthHelper {
       }
       return idToken;
     } finally {
-      await _googleSignIn.signOut();
+      await _loginSignIn.signOut();
     }
   }
 
@@ -43,7 +53,7 @@ class GoogleAuthHelper {
   Future<String?> signInForCalendar() async {
     _ensureClientId();
     try {
-      final account = await _googleSignIn.signIn();
+      final account = await _calendarSignIn.signIn();
       if (account == null) return null;
 
       final authCode = account.serverAuthCode;
@@ -52,7 +62,7 @@ class GoogleAuthHelper {
       }
       return authCode;
     } finally {
-      await _googleSignIn.signOut();
+      await _calendarSignIn.signOut();
     }
   }
 

@@ -1,3 +1,4 @@
+import "dart:convert";
 import "dart:io" show Platform;
 
 import "package:firebase_messaging/firebase_messaging.dart";
@@ -203,11 +204,19 @@ class FcmService {
         ? _fnv1a32(dedupKeyStr)
         : DateTime.now().millisecondsSinceEpoch & 0x7FFFFFFF;
 
+    // 탭 시 라우팅에 필요한 메타데이터를 payload로 전달
+    final payloadData = <String, String>{
+      for (final entry in data.entries)
+        if ({"notification_id", "plan_id", "type"}.contains(entry.key))
+          entry.key: entry.value.toString(),
+    };
+
     await _localPlugin.show(
       id: notificationId,
       title: title,
       body: body,
       notificationDetails: details,
+      payload: jsonEncode(payloadData),
     );
   }
 
@@ -243,9 +252,13 @@ class FcmService {
   /// 알림 탭 시 딥링크 처리 — notificationTapHandler로 전달.
   void _onNotificationResponse(NotificationResponse response) {
     final payload = response.payload;
-    if (payload == null) return;
-    // payload에서 notification_id를 추출할 수 있으면 tap handler로 전달
-    _notificationTapHandler?.call({"notification_id": payload});
+    if (payload == null || payload.isEmpty) return;
+    try {
+      final data = Map<String, String>.from(jsonDecode(payload) as Map);
+      if (data['notification_id'] != null) _notificationTapHandler?.call(data);
+    } catch (_) {
+      // malformed payload — ignore
+    }
   }
 
   String _getPlatform() {

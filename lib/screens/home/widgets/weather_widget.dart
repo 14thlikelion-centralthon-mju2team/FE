@@ -25,7 +25,10 @@ class _WeatherWidgetState extends ConsumerState<WeatherWidget> {
     return envAsync.when(
       loading: () => const SizedBox.shrink(),
       error: (_, _) => const SizedBox.shrink(),
-      data: (data) => _buildCard(data),
+      data: (data) {
+        if (data == null) return const SizedBox.shrink();
+        return _buildCard(data);
+      },
     );
   }
 

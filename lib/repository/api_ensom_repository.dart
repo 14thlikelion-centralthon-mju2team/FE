@@ -476,6 +476,7 @@ class ApiEnsomRepository implements EnsomRepository {
   }
 
   // -- 환경 데이터 (날씨 + 대기질) ------------------------------------
+  // TODO: BE 배포 후 활성화 — 현재 API v5.0에 미포함
   @override
   Future<EnvironmentData> getEnvironment() async {
     final json =
