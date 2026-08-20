@@ -61,6 +61,7 @@ dependencies:
   path: ^1.9.1
   kakao_map_sdk: ^1.2.6
   firebase_core: ^4.13.0
+  shared_preferences: ^2.5.0
 
 # permission_handler_android 14.0.0(2026-07-31 배포)의 build.gradle.kts가
 # buildscript classpath에 Kotlin Gradle 플러그인만 넣어두고 plugins{}에서

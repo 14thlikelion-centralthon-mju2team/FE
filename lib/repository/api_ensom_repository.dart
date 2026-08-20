@@ -10,6 +10,7 @@ import "../models/daily_wellness_summary.dart";
 import "../models/prep_estimate.dart";
 import "../models/wellness_pref.dart";
 import "../models/execution.dart";
+import "../models/environment_data.dart";
 import "../network/api_client.dart";
 
 /// API v5.0 기준 실제 구현체. 이번 PR(M1)이 화면에서 실제로 쓰는
@@ -472,6 +473,14 @@ class ApiEnsomRepository implements EnsomRepository {
     // 실제로는 Google Sign-In에서 받은 serverAuthCode를 전달해야 하지만
     // 현재 FE에서 캘린더 연동 흐름(CAL-03)이 미구현이므로 호출만 정의.
     throw UnimplementedError("CAL-03 캘린더 연동 흐름 미구현 — authCode 필요");
+  }
+
+  // -- 환경 데이터 (날씨 + 대기질) ------------------------------------
+  @override
+  Future<EnvironmentData> getEnvironment() async {
+    final json =
+        await _client.get<Map<String, dynamic>>("/environment/current");
+    return EnvironmentData.fromJson(json);
   }
 
   // -- 도착 결과·사후 평가 (REPORT-01, §14) -----------------------------

@@ -11,22 +11,16 @@ part of 'prep_item.dart';
 
 // dart format off
 T _$identity<T>(T value) => value;
-
 /// @nodoc
 mixin _$PrepItem {
 
- String get id; String get label; PrepKind get kind; int get extraMin;// routine만 0보다 큰 값 허용 (ERD ck_prep_minutes)
- bool get sensitive;// 복용약 등. 잠금화면 lockAlias로 치환
- bool get fromChip;// 추천 칩 선택 vs 직접 입력
- bool get active;
+ String get id; String get label; PrepKind get kind; int get extraMin; bool get sensitive; bool get fromChip; bool get active;
 /// Create a copy of PrepItem
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
 @pragma('vm:prefer-inline')
 $PrepItemCopyWith<PrepItem> get copyWith => _$PrepItemCopyWithImpl<PrepItem>(this as PrepItem, _$identity);
 
-  /// Serializes this PrepItem to a JSON map.
-  Map<String, dynamic> toJson();
 
 
 @override
@@ -34,7 +28,7 @@ bool operator ==(Object other) {
   return identical(this, other) || (other.runtimeType == runtimeType&&other is PrepItem&&(identical(other.id, id) || other.id == id)&&(identical(other.label, label) || other.label == label)&&(identical(other.kind, kind) || other.kind == kind)&&(identical(other.extraMin, extraMin) || other.extraMin == extraMin)&&(identical(other.sensitive, sensitive) || other.sensitive == sensitive)&&(identical(other.fromChip, fromChip) || other.fromChip == fromChip)&&(identical(other.active, active) || other.active == active));
 }
 
-@JsonKey(includeFromJson: false, includeToJson: false)
+
 @override
 int get hashCode => Object.hash(runtimeType,id,label,kind,extraMin,sensitive,fromChip,active);
 
@@ -215,21 +209,18 @@ return $default(_that.id,_that.label,_that.kind,_that.extraMin,_that.sensitive,_
 }
 
 /// @nodoc
-@JsonSerializable()
+
 
 class _PrepItem extends PrepItem {
   const _PrepItem({required this.id, required this.label, required this.kind, this.extraMin = 0, this.sensitive = false, this.fromChip = false, this.active = true}): super._();
-  factory _PrepItem.fromJson(Map<String, dynamic> json) => PrepItem.fromJson(json) as _PrepItem;
+  
 
 @override final  String id;
 @override final  String label;
 @override final  PrepKind kind;
 @override@JsonKey() final  int extraMin;
-// routine만 0보다 큰 값 허용 (ERD ck_prep_minutes)
 @override@JsonKey() final  bool sensitive;
-// 복용약 등. 잠금화면 lockAlias로 치환
 @override@JsonKey() final  bool fromChip;
-// 추천 칩 선택 vs 직접 입력
 @override@JsonKey() final  bool active;
 
 /// Create a copy of PrepItem
@@ -238,25 +229,14 @@ class _PrepItem extends PrepItem {
 @pragma('vm:prefer-inline')
 _$PrepItemCopyWith<_PrepItem> get copyWith => __$PrepItemCopyWithImpl<_PrepItem>(this, _$identity);
 
-@override
-Map<String, dynamic> toJson() {
-  return {
-    'id': id,
-    'label': label,
-    'kind': kind.name,
-    'extraMin': extraMin,
-    'sensitive': sensitive,
-    'fromChip': fromChip,
-    'active': active,
-  };
-}
+
 
 @override
 bool operator ==(Object other) {
   return identical(this, other) || (other.runtimeType == runtimeType&&other is _PrepItem&&(identical(other.id, id) || other.id == id)&&(identical(other.label, label) || other.label == label)&&(identical(other.kind, kind) || other.kind == kind)&&(identical(other.extraMin, extraMin) || other.extraMin == extraMin)&&(identical(other.sensitive, sensitive) || other.sensitive == sensitive)&&(identical(other.fromChip, fromChip) || other.fromChip == fromChip)&&(identical(other.active, active) || other.active == active));
 }
 
-@JsonKey(includeFromJson: false, includeToJson: false)
+
 @override
 int get hashCode => Object.hash(runtimeType,id,label,kind,extraMin,sensitive,fromChip,active);
 
