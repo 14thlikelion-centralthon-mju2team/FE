@@ -457,7 +457,23 @@ Google serverAuthCode를 서버가 교환해 refresh token을 확보합니다.
 FE는 캘린더 연동 전용 GoogleSignIn 인스턴스(`calendar.readonly` scope)에서
 `serverAuthCode`를 획득해 전달합니다.
 
-### 7.1.1 DELETE /calendar/google
+### 7.1.1 GET /calendar/google/status
+
+```json
+// Response 200
+{
+  "data": {
+    "connected": true,
+    "externalAccountId": "user@gmail.com",
+    "connectedAt": "2026-08-10T09:00:00+09:00"
+  }
+}
+```
+
+- 미연결 상태는 `connected: false`이며 `externalAccountId`, `connectedAt`은 `null`입니다.
+- `CalendarSyncScreen`은 bootstrap permission을 연결 여부로 추정하지 않고 이 endpoint를 사용합니다.
+
+### 7.1.2 DELETE /calendar/google
 
 연결 해제. 서버는 저장된 refresh token을 즉시 폐기합니다.
 

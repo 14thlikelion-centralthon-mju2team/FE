@@ -19,7 +19,16 @@ import "../../theme/ensom_colors.dart";
 /// 경로 후보 조회, 캘린더 저장(일정 생성)까지가 이 화면의 범위다
 /// (PRD §21.2 "지도는 기본 경로 기능만" -- 환경 레이어 등은 넣지 않는다).
 class MapScreen extends ConsumerStatefulWidget {
-  const MapScreen({super.key});
+  const MapScreen({
+    super.key,
+    this.initialDestName,
+    this.initialDestLat,
+    this.initialDestLng,
+  });
+
+  final String? initialDestName;
+  final double? initialDestLat;
+  final double? initialDestLng;
 
   @override
   ConsumerState<MapScreen> createState() => _MapScreenState();
@@ -45,6 +54,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   @override
   void initState() {
     super.initState();
+    _applyInitialDestination();
     _loadBookmarks();
   }
 
@@ -53,7 +63,10 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       final api = ref.read(apiClientProvider);
       final data = await api.get<List<dynamic>>("/me/bookmarks");
       if (mounted) {
-        setState(() => _bookmarks = data.map((e) => e as Map<String, dynamic>).toList());
+        setState(
+          () =>
+              _bookmarks = data.map((e) => e as Map<String, dynamic>).toList(),
+        );
       }
     } on ApiException catch (_) {
       // 조용히 생략 — 칩 줄에 북마크가 안 보일 뿐 지도는 정상 동작한다.
@@ -108,6 +121,40 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     final lng = (selected["lng"] as num?)?.toDouble();
     if (lat == null || lng == null) return;
     _selectDestination(selected["placeName"]?.toString() ?? "북마크", lat, lng);
+  }
+
+  bool get _hasInitialDestination =>
+      widget.initialDestLat != null && widget.initialDestLng != null;
+
+  @override
+  void didUpdateWidget(covariant MapScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialDestName == widget.initialDestName &&
+        oldWidget.initialDestLat == widget.initialDestLat &&
+        oldWidget.initialDestLng == widget.initialDestLng) {
+      return;
+    }
+    setState(_applyInitialDestination);
+    _moveToInitialDestination();
+  }
+
+  void _applyInitialDestination() {
+    if (!_hasInitialDestination) return;
+    _destName = widget.initialDestName?.trim().isNotEmpty == true
+        ? widget.initialDestName
+        : "선택한 위치";
+    _destLat = widget.initialDestLat;
+    _destLng = widget.initialDestLng;
+  }
+
+  Future<void> _moveToInitialDestination() async {
+    if (!_hasInitialDestination) return;
+    await _controller?.moveCamera(
+      CameraUpdate.newCenterPosition(
+        LatLng(widget.initialDestLat!, widget.initialDestLng!),
+      ),
+      animation: const CameraAnimation(500),
+    );
   }
 
   Future<void> _moveToCurrentLocation() async {
@@ -256,6 +303,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         anchorMode: anchor.$1,
         at: anchor.$2,
       );
+      final routesFetchedAt = DateTime.now();
       if (!mounted) return;
 
       // 빈 결과 처리 — BE에 /routes/search가 없거나 경로를 찾지 못한 경우
@@ -269,16 +317,21 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       final selectedRoute = await _showRouteSheet(routes);
       if (selectedRoute == null) return;
 
-      await ref.read(mapDraftEventProvider.notifier).set(MapDraftEvent(
-            originLat: origin.latitude,
-            originLng: origin.longitude,
-            destName: _destName!,
-            destLat: _destLat!,
-            destLng: _destLng!,
-            selectedRoute: selectedRoute,
-            anchorMode: anchor.$1,
-            at: anchor.$2,
-          ));
+      await ref
+          .read(mapDraftEventProvider.notifier)
+          .set(
+            MapDraftEvent(
+              originLat: origin.latitude,
+              originLng: origin.longitude,
+              destName: _destName!,
+              destLat: _destLat!,
+              destLng: _destLng!,
+              selectedRoute: selectedRoute,
+              anchorMode: anchor.$1,
+              at: anchor.$2,
+              createdAt: routesFetchedAt,
+            ),
+          );
       if (!mounted) return;
       context.push("/events/create-from-map");
     } catch (e) {
@@ -420,14 +473,20 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       body: Stack(
         children: [
           KakaoMap(
-            option: const KakaoMapOption(
-              position: _fallbackPosition,
+            option: KakaoMapOption(
+              position: destSelected
+                  ? LatLng(_destLat!, _destLng!)
+                  : _fallbackPosition,
               zoomLevel: 16,
               mapType: MapType.normal,
             ),
             onMapReady: (controller) {
               _controller = controller;
-              _moveToCurrentLocation();
+              if (_hasInitialDestination) {
+                _moveToInitialDestination();
+              } else {
+                _moveToCurrentLocation();
+              }
             },
             onMapClick: (point, position) => _onMapTapped(position),
           ),
@@ -570,13 +629,15 @@ class _MapScreenState extends ConsumerState<MapScreen> {
               children: [
                 FloatingActionButton.small(
                   heroTag: "zoomIn",
-                  onPressed: () => _controller?.moveCamera(CameraUpdate.zoomIn()),
+                  onPressed: () =>
+                      _controller?.moveCamera(CameraUpdate.zoomIn()),
                   child: const Icon(Icons.add),
                 ),
                 const SizedBox(height: 8),
                 FloatingActionButton.small(
                   heroTag: "zoomOut",
-                  onPressed: () => _controller?.moveCamera(CameraUpdate.zoomOut()),
+                  onPressed: () =>
+                      _controller?.moveCamera(CameraUpdate.zoomOut()),
                   child: const Icon(Icons.remove),
                 ),
                 const SizedBox(height: 8),
@@ -630,7 +691,10 @@ class _MapChip extends StatelessWidget {
                 ],
                 Text(
                   label,
-                  style: const TextStyle(fontSize: 12.5, color: EnsomColors.ink),
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    color: EnsomColors.ink,
+                  ),
                 ),
               ],
             ),
