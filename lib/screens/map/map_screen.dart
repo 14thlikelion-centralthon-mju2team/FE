@@ -1,3 +1,4 @@
+import "package:flutter/foundation.dart" show kIsWeb;
 import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:geolocator/geolocator.dart";
@@ -570,24 +571,31 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     return Scaffold(
       body: Stack(
         children: [
-          KakaoMap(
-            option: KakaoMapOption(
-              position: destSelected
-                  ? LatLng(_destLat!, _destLng!)
-                  : _fallbackPosition,
-              zoomLevel: 16,
-              mapType: MapType.normal,
+          // kakao_map_sdk는 MethodChannel(네이티브 전용)이라 web에는 플러그인
+          // 핸들러가 없다. web에서 KakaoMap을 빌드하면 MissingPluginException으로
+          // 지도 화면이 크래시하므로, web에서는 지도 타일 대신 안내 플레이스홀더를
+          // 보여주고 검색·북마크·경로 저장 기능만 저하 동작하게 한다.
+          if (kIsWeb)
+            const _WebMapPlaceholder()
+          else
+            KakaoMap(
+              option: KakaoMapOption(
+                position: destSelected
+                    ? LatLng(_destLat!, _destLng!)
+                    : _fallbackPosition,
+                zoomLevel: 16,
+                mapType: MapType.normal,
+              ),
+              onMapReady: (controller) {
+                _controller = controller;
+                if (_hasInitialDestination) {
+                  _moveToInitialDestination();
+                } else {
+                  _moveToCurrentLocation();
+                }
+              },
+              onMapClick: (point, position) => _onMapTapped(position),
             ),
-            onMapReady: (controller) {
-              _controller = controller;
-              if (_hasInitialDestination) {
-                _moveToInitialDestination();
-              } else {
-                _moveToCurrentLocation();
-              }
-            },
-            onMapClick: (point, position) => _onMapTapped(position),
-          ),
           Positioned(
             top: 16,
             left: 16,
@@ -796,6 +804,49 @@ class _MapChip extends StatelessWidget {
                 ),
               ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+
+/// 웹 전용 지도 자리표시. kakao_map_sdk가 네이티브 전용이라 웹에서는
+/// 지도 타일을 렌더할 수 없다. 검색·북마크·경로 저장은 상단/하단 UI로
+/// 계속 동작하므로, 배경만 안내 문구로 대체한다.
+class _WebMapPlaceholder extends StatelessWidget {
+  const _WebMapPlaceholder();
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned.fill(
+      child: Container(
+        color: EnsomColors.surface2,
+        alignment: Alignment.center,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: const [
+              Icon(Icons.map_outlined, size: 44, color: EnsomColors.inkFaint),
+              SizedBox(height: 12),
+              Text(
+                "지도 미리보기는 앱에서 제공돼요",
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: EnsomColors.ink,
+                ),
+              ),
+              SizedBox(height: 6),
+              Text(
+                "웹에서는 목적지 검색과 경로 저장을 이용할 수 있어요.",
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 12, color: EnsomColors.inkFaint),
+              ),
+            ],
           ),
         ),
       ),
