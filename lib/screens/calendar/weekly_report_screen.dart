@@ -4,7 +4,18 @@ import "../../theme/ensom_colors.dart";
 
 /// CAL-06 주간 리포트 — v6 프로토타입 기준 redesign
 /// 디자인 기준: Ensom_프로토타입_v6_최종/06_공통·P1/ensom_p1_reports.html
-/// BE API 미정. 디자인 셸만 확보.
+///
+/// BE API 미정 — 디자인 셸만 확보한 상태다. 2026-08-21 BE 파트 확인:
+/// 공개 API는 `GET /summary/daily?date=`(일일 요약: eventCount·
+/// totalOutdoorMinutes·DWL 밴드)뿐이고, 이 화면에 필요한 정시/촉박/
+/// 이른도착 분포·준비시간 예측 오차 추이·웰니스 행동 완료율·주간 야외
+/// 노출 합계를 주는 주간 집계 엔드포인트(`/summary/weekly` 등)는 없다.
+/// 과거 주간 집계 작업(BE #159)은 CLOSED 상태이며 PostgreSQL 뷰·Spring
+/// 검증·공개 API가 전부 미완료로 남아있다. 완료율·도착 분류·예측
+/// 오차·주 경계 같은 정의를 FE가 임의로 정해 일일 데이터를 합산하면
+/// 그 계약을 보장할 수 없으므로, BE가 주간 집계 API 계약(응답 필드·
+/// 주 경계·분모 0 처리·데이터 부재 규칙)을 확정할 때까지 숫자·그래프를
+/// 지어내지 않고 이 상태를 유지한다.
 class WeeklyReportScreen extends StatelessWidget {
   const WeeklyReportScreen({super.key});
 
