@@ -124,7 +124,11 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
   @override
   Widget build(BuildContext context) {
     final eventsAsync = ref.watch(eventsInRangeProvider(_fetchRange));
-    final bootstrap = ref.watch(bootstrapProvider).value;
+    // Riverpod 3의 AsyncValue.value는 이전 데이터 없이 에러 상태면 그
+    // 자리에서 예외를 다시 던진다 — bootstrap 호출이 실패해도 화면
+    // 자체는 뜨게 hasValue로 먼저 가드한다.
+    final bootstrapAsync = ref.watch(bootstrapProvider);
+    final bootstrap = bootstrapAsync.hasValue ? bootstrapAsync.value : null;
     final calendarStatuses = bootstrap?.permissions.where(
       (permission) => permission.permissionType == "calendar",
     );
