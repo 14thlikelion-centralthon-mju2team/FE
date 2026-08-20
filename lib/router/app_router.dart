@@ -2,9 +2,9 @@ import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:go_router/go_router.dart";
 import "package:permission_handler/permission_handler.dart";
-import "placeholder_screen.dart";
 import "../core/permission_service.dart";
 import "../providers/auth_providers.dart";
+import "../providers/map_providers.dart";
 import "../screens/onboarding/auth_screen.dart";
 import "../screens/onboarding/consent_screen.dart";
 import "../screens/onboarding/email_verification_screen.dart";
@@ -42,9 +42,12 @@ import "../screens/map/bookmarks_screen.dart";
 /// GoRouter + Riverpod 연동.
 /// AuthState를 구독해서 인증 상태 변화 시 자동 리다이렉트.
 final appRouterProvider = Provider<GoRouter>((ref) {
-  final refreshNotifier = ValueNotifier(ref.read(authNotifierProvider));
-  ref.listen<AuthState>(authNotifierProvider, (_, next) {
-    refreshNotifier.value = next;
+  final refreshNotifier = ValueNotifier(0);
+  ref.listen<AuthState>(authNotifierProvider, (_, _) {
+    refreshNotifier.value++;
+  });
+  ref.listen<AsyncValue<MapDraftEvent?>>(mapDraftEventProvider, (_, _) {
+    refreshNotifier.value++;
   });
   ref.onDispose(refreshNotifier.dispose);
 
@@ -91,7 +94,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 
         case AuthStatus.onboarding:
           final isOnboardingFlow =
-              path.startsWith("/onboarding/") && !isAuthPage && !isConsentPage;
+              (path.startsWith("/onboarding/") &&
+                  !isAuthPage &&
+                  !isConsentPage) ||
+              (path == "/calendar/sync" &&
+                  state.uri.queryParameters["onboarding"] == "true");
           if (isOnboardingFlow) return null;
           // 저장된 온보딩 단계로 복원 — 앱 종료 후 재진입 시 진행 중
           // 단계부터 다시 시작한다.
@@ -121,9 +128,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           }
 
         case AuthStatus.authenticated:
-          // 인증 완료 — 온보딩/스플래시에 있으면 홈으로
-          if (path == "/splash" ||
-              path == "/onboarding/auth" ||
+          // cold start에서 유효한 지도 draft가 복원되면 사용자가 작성 중이던
+          // 일정 폼으로 이어간다. 복원 완료 전 null을 보고 홈으로 보내지 않는다.
+          if (path == "/splash") {
+            final draftState = ref.read(mapDraftEventProvider);
+            if (draftState.isLoading) return null;
+            if (draftState.hasValue && draftState.value != null) {
+              return "/events/create-from-map";
+            }
+            return "/home";
+          }
+          // 인증 완료 — 나머지 인증/온보딩 화면에서는 홈으로
+          if (path == "/onboarding/auth" ||
               isConsentPage ||
               path.startsWith("/onboarding/email-verification")) {
             return "/home";
@@ -180,20 +196,22 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (c, s) => PermissionPrimingScreen(
           type: PermissionPrimingType.notification,
           onAllow: () async {
-            final status =
-                await PermissionService.instance.requestNotification();
+            final status = await PermissionService.instance
+                .requestNotification();
             if (!c.mounted) return;
-            if (status.isGranted || status.isLimited) {
-              c.go("/onboarding/priming/location");
-            } else {
+            if (!status.isGranted && !status.isLimited) {
               await PermissionService.instance.showRationale(
                 c,
                 PermissionRationaleType.notification,
               );
-              if (c.mounted) c.go("/onboarding/priming/location");
             }
+            await ref.read(secureStorageProvider).setOnboardingStep("location");
+            if (c.mounted) c.go("/onboarding/priming/location");
           },
-          onSkip: () => c.go("/onboarding/priming/location"),
+          onSkip: () async {
+            await ref.read(secureStorageProvider).setOnboardingStep("location");
+            if (c.mounted) c.go("/onboarding/priming/location");
+          },
         ),
       ),
       GoRoute(
@@ -201,30 +219,34 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (c, s) => PermissionPrimingScreen(
           type: PermissionPrimingType.location,
           onAllow: () async {
-            final status =
-                await PermissionService.instance.requestLocation();
+            final status = await PermissionService.instance.requestLocation();
             if (!c.mounted) return;
-            if (status.isGranted) {
-              c.go("/onboarding/priming/calendar");
-            } else {
+            if (!status.isGranted) {
               await PermissionService.instance.showRationale(
                 c,
                 PermissionRationaleType.location,
               );
-              if (c.mounted) c.go("/onboarding/priming/calendar");
             }
+            await ref.read(secureStorageProvider).setOnboardingStep("calendar");
+            if (c.mounted) c.go("/onboarding/priming/calendar");
           },
-          onSkip: () => c.go("/onboarding/priming/calendar"),
+          onSkip: () async {
+            await ref.read(secureStorageProvider).setOnboardingStep("calendar");
+            if (c.mounted) c.go("/onboarding/priming/calendar");
+          },
         ),
       ),
       GoRoute(
         path: "/onboarding/priming/calendar",
         builder: (c, s) => PermissionPrimingScreen(
           type: PermissionPrimingType.calendar,
-          onAllow: () => c.push("/calendar/sync?onboarding=true"),
-          onSkip: () {
-            ref.read(secureStorageProvider).setOnboardingStep("wellness");
-            c.go("/onboarding/wellness");
+          onAllow: () async {
+            await ref.read(secureStorageProvider).setOnboardingStep("calendar");
+            if (c.mounted) c.push("/calendar/sync?onboarding=true");
+          },
+          onSkip: () async {
+            await ref.read(secureStorageProvider).setOnboardingStep("wellness");
+            if (c.mounted) c.go("/onboarding/wellness");
           },
         ),
       ),
@@ -348,7 +370,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           ),
           StatefulShellBranch(
             routes: [
-              GoRoute(path: "/map", builder: (c, s) => const MapScreen()),
+              GoRoute(
+                path: "/map",
+                builder: (c, s) => MapScreen(
+                  initialDestName: s.uri.queryParameters["destName"],
+                  initialDestLat: double.tryParse(
+                    s.uri.queryParameters["destLat"] ?? "",
+                  ),
+                  initialDestLng: double.tryParse(
+                    s.uri.queryParameters["destLng"] ?? "",
+                  ),
+                ),
+              ),
             ],
           ),
           StatefulShellBranch(

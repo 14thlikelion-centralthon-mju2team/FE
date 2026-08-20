@@ -42,7 +42,9 @@ class _EmailLoginScreenState extends ConsumerState<EmailLoginScreen> {
   }
 
   bool get _canSubmit =>
-      _emailController.text.trim().isNotEmpty && _passwordController.text.isNotEmpty && !_submitting;
+      _emailController.text.trim().isNotEmpty &&
+      _passwordController.text.isNotEmpty &&
+      !_submitting;
 
   Future<void> _submit() async {
     if (!_canSubmit) return;
@@ -51,7 +53,9 @@ class _EmailLoginScreenState extends ConsumerState<EmailLoginScreen> {
       _error = null;
     });
     try {
-      final installationId = await ref.read(secureStorageProvider).installationId;
+      final installationId = await ref
+          .read(secureStorageProvider)
+          .installationId;
       final authNotifier = ref.read(authNotifierProvider.notifier);
       await authNotifier.loginWithEmail(
         email: _emailController.text.trim(),
@@ -133,7 +137,9 @@ class _EmailLoginScreenState extends ConsumerState<EmailLoginScreen> {
                   Align(
                     alignment: Alignment.centerRight,
                     child: TextButton(
-                      onPressed: _submitting ? null : () => context.push("/onboarding/password-reset"),
+                      onPressed: _submitting
+                          ? null
+                          : () => context.push("/onboarding/password-reset"),
                       style: TextButton.styleFrom(
                         minimumSize: Size.zero,
                         padding: const EdgeInsets.symmetric(vertical: 4),
@@ -141,7 +147,10 @@ class _EmailLoginScreenState extends ConsumerState<EmailLoginScreen> {
                       ),
                       child: const Text(
                         "비밀번호를 잊으셨나요?",
-                        style: TextStyle(fontSize: 11.5, color: EnsomColors.inkMuted),
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          color: EnsomColors.inkMuted,
+                        ),
                       ),
                     ),
                   ),
@@ -166,12 +175,17 @@ class _EmailLoginScreenState extends ConsumerState<EmailLoginScreen> {
                         ? null
                         : () {
                             Navigator.of(context).pushReplacement(
-                              MaterialPageRoute(builder: (_) => const EmailSignupScreen()),
+                              MaterialPageRoute(
+                                builder: (_) => const EmailSignupScreen(),
+                              ),
                             );
                           },
                     child: const Text(
                       "계정이 없으신가요? 회원가입",
-                      style: TextStyle(fontSize: 11.5, color: EnsomColors.inkMuted),
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        color: EnsomColors.inkMuted,
+                      ),
                     ),
                   ),
                 ],

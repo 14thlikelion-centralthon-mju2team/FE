@@ -59,7 +59,11 @@ class _WeatherWidgetState extends ConsumerState<WeatherWidget> {
                     const SizedBox(width: 8),
                   ],
                   if (data.sky != null) ...[
-                    Icon(_skyIcon(data.sky!), size: 20, color: EnsomColors.inkMuted),
+                    Icon(
+                      _skyIcon(data.sky!),
+                      size: 20,
+                      color: EnsomColors.inkMuted,
+                    ),
                     const SizedBox(width: 4),
                     Text(
                       data.sky!,
@@ -91,8 +95,11 @@ class _WeatherWidgetState extends ConsumerState<WeatherWidget> {
                       _GradeBadge(label: "초미세", grade: data.pm25Grade!),
                     if (data.pm25Grade != null) const SizedBox(width: 12),
                     if (data.uvIndex != null) ...[
-                      const Icon(Icons.wb_sunny_outlined,
-                          size: 16, color: EnsomColors.inkMuted),
+                      const Icon(
+                        Icons.wb_sunny_outlined,
+                        size: 16,
+                        color: EnsomColors.inkMuted,
+                      ),
                       const SizedBox(width: 4),
                       Text(
                         "자외선 ${data.uvIndex}",
@@ -154,9 +161,9 @@ class _GradeBadge extends StatelessWidget {
   Color _gradeColor(String grade) {
     switch (grade) {
       case "좋음":
-        return EnsomColors.dataModerate;
-      case "보통":
         return EnsomColors.dataGood;
+      case "보통":
+        return EnsomColors.dataModerate;
       case "나쁨":
         return EnsomColors.dataWarning;
       case "매우나쁨":

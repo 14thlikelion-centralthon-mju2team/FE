@@ -28,7 +28,10 @@ class MapDraftEvent {
     required this.selectedRoute,
     required this.anchorMode,
     required this.at,
+    required this.createdAt,
   });
+
+  static const routeOptionTtl = Duration(minutes: 30);
 
   final double? originLat;
   final double? originLng;
@@ -39,64 +42,91 @@ class MapDraftEvent {
   final RouteOption selectedRoute;
   final EventAnchor anchorMode;
   final DateTime at;
+  final DateTime createdAt;
+
+  bool isExpiredAt(DateTime now) =>
+      !now.isBefore(createdAt.add(routeOptionTtl));
 
   Map<String, dynamic> toJson() => {
-        "originLat": originLat,
-        "originLng": originLng,
-        "originPlaceId": originPlaceId,
-        "destName": destName,
-        "destLat": destLat,
-        "destLng": destLng,
-        "selectedRoute": selectedRoute.toJson(),
-        "anchorMode": anchorMode.name,
-        "at": at.toIso8601String(),
-      };
+    "originLat": originLat,
+    "originLng": originLng,
+    "originPlaceId": originPlaceId,
+    "destName": destName,
+    "destLat": destLat,
+    "destLng": destLng,
+    "selectedRoute": selectedRoute.toJson(),
+    "anchorMode": anchorMode.name,
+    "at": at.toIso8601String(),
+    "createdAt": createdAt.toIso8601String(),
+  };
 
   factory MapDraftEvent.fromJson(Map<String, dynamic> json) => MapDraftEvent(
-        originLat: (json["originLat"] as num?)?.toDouble(),
-        originLng: (json["originLng"] as num?)?.toDouble(),
-        originPlaceId: json["originPlaceId"] as String?,
-        destName: json["destName"] as String,
-        destLat: (json["destLat"] as num).toDouble(),
-        destLng: (json["destLng"] as num).toDouble(),
-        selectedRoute:
-            RouteOption.fromJson(json["selectedRoute"] as Map<String, dynamic>),
-        anchorMode: EventAnchor.values.firstWhere(
-          (e) => e.name == json["anchorMode"],
-          orElse: () => EventAnchor.arriveBy,
-        ),
-        at: DateTime.parse(json["at"] as String),
-      );
+    originLat: (json["originLat"] as num?)?.toDouble(),
+    originLng: (json["originLng"] as num?)?.toDouble(),
+    originPlaceId: json["originPlaceId"] as String?,
+    destName: json["destName"] as String,
+    destLat: (json["destLat"] as num).toDouble(),
+    destLng: (json["destLng"] as num).toDouble(),
+    selectedRoute: RouteOption.fromJson(
+      json["selectedRoute"] as Map<String, dynamic>,
+    ),
+    anchorMode: EventAnchor.values.firstWhere(
+      (e) => e.name == json["anchorMode"],
+      orElse: () => EventAnchor.arriveBy,
+    ),
+    at: DateTime.parse(json["at"] as String),
+    // PR #57 이전 형식은 생성 시각이 없어 안전하게 만료 처리한다.
+    createdAt:
+        DateTime.tryParse(json["createdAt"] as String? ?? "") ??
+        DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+  );
 }
 
-/// Issue #55: cold start 시 데이터 유실 방지.
-/// StateProvider는 앱 kill 시 사라지므로, draft를 Hive에 영속화하는
-/// Notifier로 교체한다. 지도 → 일정 폼 이동 중 앱이 종료돼도
-/// 재시작 시 마지막 선택한 경로 draft를 복원한다.
-class MapDraftEventNotifier extends StateNotifier<MapDraftEvent?> {
-  MapDraftEventNotifier() : super(null) {
-    _restore();
+/// 지도 → 일정 폼 draft를 Hive에 영속화한다.
+/// 복원이 끝나기 전 mutation이 들어오면 복원 완료 뒤 순서대로 적용해
+/// 오래된 디스크 값이 새 메모리 상태를 덮어쓰지 못하게 한다.
+class MapDraftEventNotifier extends StateNotifier<AsyncValue<MapDraftEvent?>> {
+  MapDraftEventNotifier({DateTime Function()? now})
+    : _now = now ?? DateTime.now,
+      super(const AsyncValue.loading()) {
+    _restoreFuture = _restore();
   }
 
   static const _boxName = "map_draft";
   static const _key = "current";
 
+  final DateTime Function() _now;
+  late final Future<void> _restoreFuture;
+
   Future<void> _restore() async {
     try {
       final box = await Hive.openBox<String>(_boxName);
       final raw = box.get(_key);
-      if (raw != null) {
-        state = MapDraftEvent.fromJson(
-          jsonDecode(raw) as Map<String, dynamic>,
-        );
+      if (raw == null) {
+        state = const AsyncValue.data(null);
+        return;
       }
+
+      final draft = MapDraftEvent.fromJson(
+        jsonDecode(raw) as Map<String, dynamic>,
+      );
+      if (draft.isExpiredAt(_now())) {
+        // 만료된 routeOptionId는 디스크에서 제거하되, 현재 실행 중에는
+        // 목적지 정보를 유지해 EventFormScreen이 즉시 재검색을 안내한다.
+        await box.delete(_key);
+        state = AsyncValue.data(draft);
+        return;
+      }
+      state = AsyncValue.data(draft);
     } catch (_) {
-      // 복원 실패해도 앱 흐름은 막지 않는다
+      // 손상된/읽을 수 없는 draft 때문에 앱 진입을 막지 않는다.
+      state = const AsyncValue.data(null);
     }
   }
 
   Future<void> set(MapDraftEvent? draft) async {
-    state = draft;
+    await _restoreFuture;
+    state = AsyncValue.data(draft);
     try {
       final box = await Hive.openBox<String>(_boxName);
       if (draft == null) {
@@ -105,15 +135,15 @@ class MapDraftEventNotifier extends StateNotifier<MapDraftEvent?> {
         await box.put(_key, jsonEncode(draft.toJson()));
       }
     } catch (_) {
-      // 영속화 실패해도 in-memory state는 유지된다
+      // 영속화 실패해도 현재 세션의 in-memory state는 유지한다.
     }
   }
 
-  /// 일정 생성 완료 후 draft 소거
+  /// 일정 생성 완료, 로그아웃, 탈퇴 시 draft 소거.
   Future<void> clear() => set(null);
 }
 
 final mapDraftEventProvider =
-    StateNotifierProvider<MapDraftEventNotifier, MapDraftEvent?>(
-  (ref) => MapDraftEventNotifier(),
-);
+    StateNotifierProvider<MapDraftEventNotifier, AsyncValue<MapDraftEvent?>>(
+      (ref) => MapDraftEventNotifier(),
+    );

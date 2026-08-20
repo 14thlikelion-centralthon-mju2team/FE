@@ -19,7 +19,8 @@ class PasswordResetScreen extends ConsumerStatefulWidget {
   const PasswordResetScreen({super.key});
 
   @override
-  ConsumerState<PasswordResetScreen> createState() => _PasswordResetScreenState();
+  ConsumerState<PasswordResetScreen> createState() =>
+      _PasswordResetScreenState();
 }
 
 class _PasswordResetScreenState extends ConsumerState<PasswordResetScreen> {
@@ -51,7 +52,7 @@ class _PasswordResetScreenState extends ConsumerState<PasswordResetScreen> {
 
     try {
       final api = ref.read(apiClientProvider);
-      await api.post<Map<String, dynamic>>(
+      await api.postPublic<Map<String, dynamic>>(
         "/auth/password/reset-request",
         body: {"email": email},
       );
@@ -87,7 +88,10 @@ class _PasswordResetScreenState extends ConsumerState<PasswordResetScreen> {
     return Scaffold(
       backgroundColor: EnsomColors.canvas,
       appBar: const EnsomTopBar(title: "비밀번호 찾기"),
-      body: SafeArea(top: false, child: _sent ? _buildSentState() : _buildInputState()),
+      body: SafeArea(
+        top: false,
+        child: _sent ? _buildSentState() : _buildInputState(),
+      ),
     );
   }
 
@@ -100,12 +104,22 @@ class _PasswordResetScreenState extends ConsumerState<PasswordResetScreen> {
             children: [
               const Text(
                 "가입하신 이메일을\n입력해 주세요",
-                style: TextStyle(fontSize: 19, fontWeight: FontWeight.w700, letterSpacing: -.45, height: 1.35, color: EnsomColors.ink),
+                style: TextStyle(
+                  fontSize: 19,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -.45,
+                  height: 1.35,
+                  color: EnsomColors.ink,
+                ),
               ),
               const SizedBox(height: 8),
               const Text(
                 "비밀번호를 재설정할 수 있는 링크를 보내드릴게요.",
-                style: TextStyle(fontSize: 12.5, color: EnsomColors.inkMuted, height: 1.5),
+                style: TextStyle(
+                  fontSize: 12.5,
+                  color: EnsomColors.inkMuted,
+                  height: 1.5,
+                ),
               ),
               const SizedBox(height: 22),
               EnsomTextField(
@@ -130,7 +144,9 @@ class _PasswordResetScreenState extends ConsumerState<PasswordResetScreen> {
           ),
           child: EnsomPillButton(
             label: _submitting ? "보내는 중..." : "재설정 메일 보내기",
-            onPressed: (_emailCtrl.text.trim().isNotEmpty && !_submitting) ? _requestReset : null,
+            onPressed: (_emailCtrl.text.trim().isNotEmpty && !_submitting)
+                ? _requestReset
+                : null,
           ),
         ),
       ],
@@ -148,25 +164,44 @@ class _PasswordResetScreenState extends ConsumerState<PasswordResetScreen> {
                 width: 64,
                 height: 64,
                 margin: const EdgeInsets.symmetric(horizontal: 0),
-                decoration: const BoxDecoration(color: EnsomColors.surface2, shape: BoxShape.circle),
+                decoration: const BoxDecoration(
+                  color: EnsomColors.surface2,
+                  shape: BoxShape.circle,
+                ),
                 alignment: Alignment.center,
-                child: const Icon(Icons.mark_email_read_outlined, size: 26, color: EnsomColors.ink),
+                child: const Icon(
+                  Icons.mark_email_read_outlined,
+                  size: 26,
+                  color: EnsomColors.ink,
+                ),
               ),
               const SizedBox(height: 16),
               const Text(
                 "메일을 보냈어요",
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 19, fontWeight: FontWeight.w700, letterSpacing: -.45, color: EnsomColors.ink),
+                style: TextStyle(
+                  fontSize: 19,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -.45,
+                  color: EnsomColors.ink,
+                ),
               ),
               const SizedBox(height: 8),
               RichText(
                 textAlign: TextAlign.center,
                 text: TextSpan(
-                  style: const TextStyle(fontSize: 12.5, color: EnsomColors.inkMuted, height: 1.65),
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    color: EnsomColors.inkMuted,
+                    height: 1.65,
+                  ),
                   children: [
                     TextSpan(
                       text: _emailCtrl.text.trim(),
-                      style: const TextStyle(fontWeight: FontWeight.w700, color: EnsomColors.ink),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: EnsomColors.ink,
+                      ),
                     ),
                     const TextSpan(text: " 로 재설정 링크를 보냈어요.\n링크는 30분간 유효해요."),
                   ],
@@ -178,7 +213,11 @@ class _PasswordResetScreenState extends ConsumerState<PasswordResetScreen> {
                   onPressed: () => setState(() => _sent = false),
                   child: const Text(
                     "다시 보내기",
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, decoration: TextDecoration.underline),
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      decoration: TextDecoration.underline,
+                    ),
                   ),
                 ),
               ),
