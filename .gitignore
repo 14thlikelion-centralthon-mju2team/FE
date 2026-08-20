@@ -52,3 +52,7 @@ lib/firebase_options.dart
 
 # Firebase Hosting 배포 캐시
 .firebase/
+
+# 배포 시크릿 메모 — OpenAI/OAuth/JWT/SMTP 키와 인프라 계정 비밀번호가
+# 평문으로 들어있어 Git에 절대 기록하지 않는다.
+docs/env.md
