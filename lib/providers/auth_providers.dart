@@ -65,7 +65,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
     required this.secureStorage,
     required this.apiClient,
     required this.clearMapDraft,
-  }) : super(AuthState.initial) {
+    void Function()? disposeFcm,
+  }) : _disposeFcm = disposeFcm ?? FcmService.instance.dispose,
+       super(AuthState.initial) {
     _checkExistingSession();
   }
 
@@ -73,6 +75,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
   final SecureStorageService secureStorage;
   final ApiClient apiClient;
   final Future<void> Function() clearMapDraft;
+  final void Function() _disposeFcm;
+  Future<void>? _terminalAuthExpiryFuture;
 
   /// 앱 시작 시 기존 세션을 서버에서 검증한다.
   Future<void> _checkExistingSession() async {
@@ -113,8 +117,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         state = const AuthState(status: AuthStatus.emailVerificationRequired);
         return;
       }
-      await clearMapDraft();
-      state = const AuthState(status: AuthStatus.unauthenticated);
+      await onTerminalAuthExpired();
     } catch (_) {
       state = const AuthState(
         status: AuthStatus.sessionCheckFailed,
@@ -214,14 +217,27 @@ class AuthNotifier extends StateNotifier<AuthState> {
     );
   }
 
+  /// 실행 중 401 후 refresh token이 거부된 terminal 만료 처리.
+  /// 동시 API 요청에서 중복 신호가 와도 동일 Future를 공유한다.
+  Future<void> onTerminalAuthExpired() {
+    return _terminalAuthExpiryFuture ??= _expireTerminalSession();
+  }
+
+  Future<void> _expireTerminalSession() async {
+    await Future.wait([secureStorage.clearSession(), clearMapDraft()]);
+    _disposeFcm();
+    state = const AuthState(status: AuthStatus.unauthenticated);
+  }
+
   /// 로그아웃
   Future<void> logout() async {
     await Future.wait([authService.logout(), clearMapDraft()]);
-    FcmService.instance.dispose();
+    _disposeFcm();
     state = const AuthState(status: AuthStatus.unauthenticated);
   }
 
   void _handleLoginResult(LoginResult result, {String? email}) {
+    _terminalAuthExpiryFuture = null;
     if (result.emailVerificationRequired) {
       state = AuthState(
         status: AuthStatus.emailVerificationRequired,
@@ -258,10 +274,13 @@ final authNotifierProvider = StateNotifierProvider<AuthNotifier, AuthState>((
   final authService = ref.watch(authServiceProvider);
   final secureStorage = ref.watch(secureStorageProvider);
   final apiClient = ref.watch(apiClientProvider);
-  return AuthNotifier(
+  final notifier = AuthNotifier(
     authService: authService,
     secureStorage: secureStorage,
     apiClient: apiClient,
     clearMapDraft: () => ref.read(mapDraftEventProvider.notifier).clear(),
   );
+  apiClient.setAuthExpiredHandler(notifier.onTerminalAuthExpired);
+  ref.onDispose(() => apiClient.setAuthExpiredHandler(null));
+  return notifier;
 });
