@@ -1,8 +1,8 @@
 import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:go_router/go_router.dart";
-import "package:google_sign_in/google_sign_in.dart";
 import "../../core/app_config.dart";
+import "../../core/google_auth_helper.dart";
 import "../../network/api_client.dart";
 import "../../providers/auth_providers.dart";
 import "../../theme/ensom_colors.dart";
@@ -23,35 +23,16 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   bool _submitting = false;
   String? _error;
 
-  // Google Sign-In 설정. serverClientId는 백엔드가 토큰을 검증할 때
-  // 사용하는 OAuth 클라이언트 ID(Web 타입) — --dart-define=GOOGLE_SERVER_CLIENT_ID로 주입.
-  static final _googleSignIn = GoogleSignIn(
-    serverClientId: kGoogleServerClientId.isEmpty
-        ? null
-        : kGoogleServerClientId,
-    scopes: ["email", "https://www.googleapis.com/auth/calendar.readonly"],
-  );
-
   Future<void> _handleGoogleLogin() async {
     setState(() {
       _submitting = true;
       _error = null;
     });
     try {
-      final googleUser = await _googleSignIn.signIn();
-      if (googleUser == null) {
+      final idToken = await GoogleAuthHelper.instance.signInForLogin();
+      if (idToken == null) {
         // 사용자가 취소
         setState(() => _submitting = false);
-        return;
-      }
-
-      final googleAuth = await googleUser.authentication;
-      final idToken = googleAuth.idToken;
-      if (idToken == null) {
-        setState(() {
-          _error = "Google 인증 정보를 가져오지 못했어요.";
-          _submitting = false;
-        });
         return;
       }
 

@@ -9,6 +9,7 @@ import "../models/daily_wellness_summary.dart";
 import "../models/prep_estimate.dart";
 import "../models/wellness_pref.dart";
 import "../models/execution.dart";
+import "../models/environment_data.dart";
 
 class MockEnsomRepository implements EnsomRepository {
   // -- 일정 --------------------------------------------------------
@@ -517,6 +518,19 @@ class MockEnsomRepository implements EnsomRepository {
   @override
   Future<void> syncCalendar() async {
     await Future.delayed(const Duration(milliseconds: 400));
+  }
+
+  // -- 환경 데이터 ---------------------------------------------------
+  @override
+  Future<EnvironmentData> getEnvironment() async {
+    await Future.delayed(const Duration(milliseconds: 200));
+    return const EnvironmentData(
+      temperature: 28,
+      sky: "맑음",
+      pm10Grade: "보통",
+      pm25Grade: "좋음",
+      uvIndex: 6,
+    );
   }
 
   // -- 계정 --------------------------------------------------------

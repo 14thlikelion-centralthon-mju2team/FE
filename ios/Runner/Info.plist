@@ -76,6 +76,9 @@
 	<array>
 		<string>location</string>
 		<string>fetch</string>
+		<string>remote-notification</string>
 	</array>
+	<key>NSCalendarsUsageDescription</key>
+	<string>일정을 자동으로 가져와 준비 계획을 세우기 위해 캘린더 접근이 필요해요</string>
 </dict>
 </plist>

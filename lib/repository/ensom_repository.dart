@@ -8,6 +8,7 @@ import "../models/daily_wellness_summary.dart";
 import "../models/prep_estimate.dart";
 import "../models/wellness_pref.dart";
 import "../models/execution.dart";
+import "../models/environment_data.dart";
 
 /// API v5.0 기준. submitAction(단건) -> submitActions(배치)로 개명,
 /// resolveChecklistItem/resolveWellnessAction 분리(§12.2, 서로 다른
@@ -136,6 +137,9 @@ abstract class EnsomRepository {
 
   // 캘린더 연동 (CAL-02)
   Future<void> syncCalendar();
+
+  // 환경 데이터 (날씨 + 대기질)
+  Future<EnvironmentData> getEnvironment();
 
   // 계정 (AUTH-04, DATA-01)
   // 로그아웃은 AuthNotifier.logout()(lib/providers/auth_providers.dart)이

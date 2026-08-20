@@ -2,16 +2,19 @@ import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:go_router/go_router.dart";
 import "package:uuid/uuid.dart";
+import "../../core/coachmark_service.dart";
 import "../../core/local_notification_service.dart";
 import "../../models/action_log.dart";
 import "../../models/plan.dart";
 import "../../providers/home_providers.dart";
 import "../../providers/offline_queue_providers.dart";
 import "../../repository/providers.dart";
+import "../../widgets/coachmark_overlay.dart";
 import "../../widgets/permission_degraded_banner.dart";
-import "../../theme/ensom_colors.dart";
 import "widgets/arrival_result_card.dart";
+import "widgets/home_empty_state.dart";
 import "widgets/plan_card.dart";
+import "widgets/weather_widget.dart";
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -22,6 +25,27 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   int? _lastScheduledRevision;
+  bool _coachmarkChecked = false;
+
+  Future<void> _maybeShowCoachmark() async {
+    final shouldShow = await CoachmarkService.instance.shouldShowCoachmark();
+    if (!shouldShow || !mounted) return;
+    _showCoachmarkOverlay();
+  }
+
+  void _showCoachmarkOverlay() {
+    final overlay = Overlay.of(context);
+    late OverlayEntry entry;
+    entry = OverlayEntry(
+      builder: (_) => CoachmarkOverlay(
+        onDismiss: () {
+          entry.remove();
+          CoachmarkService.instance.markCoachmarkShown();
+        },
+      ),
+    );
+    overlay.insert(entry);
+  }
 
   Future<void> _enqueueAndMaybeRefresh(
     String eventId,
@@ -112,22 +136,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ),
         data: (event) {
           if (event == null) {
-            return const Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.event_available,
-                    size: 48,
-                    color: EnsomColors.inkMuted,
-                  ),
-                  SizedBox(height: 12),
-                  Text(
-                    "다가오는 일정이 없어요.",
-                    style: TextStyle(color: EnsomColors.inkMuted),
-                  ),
-                ],
-              ),
+            return ListView(
+              padding: const EdgeInsets.all(16),
+              children: const [
+                WeatherWidget(),
+                SizedBox(height: 16),
+                HomeEmptyState(),
+              ],
             );
           }
 
@@ -135,6 +150,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           final controller = ref.read(
             planControllerProvider(event.eventId).notifier,
           );
+
+          // 코치마크: 데이터 로딩 완료 + 일정 있을 때만 1회 표시
+          if (!_coachmarkChecked) {
+            _coachmarkChecked = true;
+            WidgetsBinding.instance.addPostFrameCallback((_) => _maybeShowCoachmark());
+          }
 
           return planState.when(
             loading: () => const Center(child: CircularProgressIndicator()),
@@ -156,6 +177,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               return ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
+                  const WeatherWidget(),
+                  const SizedBox(height: 12),
                   const PermissionDegradedBanner(
                     type: DegradedPermissionType.notification,
                   ),

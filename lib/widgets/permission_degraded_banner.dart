@@ -88,10 +88,13 @@ class _PermissionDegradedBannerState extends State<PermissionDegradedBanner>
 
     final status = await permission.status;
     if (!mounted) return;
+    final isDenied =
+        status.isDenied || status.isPermanentlyDenied || status.isRestricted;
     setState(() {
       _loading = false;
-      _denied =
-          status.isDenied || status.isPermanentlyDenied || status.isRestricted;
+      _denied = isDenied;
+      // 설정에서 돌아온 뒤 권한이 허용되었으면 배너 자동 닫기
+      if (!isDenied) _dismissed = true;
     });
   }
 

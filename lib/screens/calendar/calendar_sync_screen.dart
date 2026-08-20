@@ -1,8 +1,8 @@
 import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:go_router/go_router.dart";
-import "package:google_sign_in/google_sign_in.dart";
 import "../../core/app_config.dart";
+import "../../core/google_auth_helper.dart";
 import "../../network/api_client.dart";
 import "../../providers/auth_providers.dart";
 import "../../providers/bootstrap_provider.dart";
@@ -20,16 +20,6 @@ class CalendarSyncScreen extends ConsumerStatefulWidget {
 }
 
 class _CalendarSyncScreenState extends ConsumerState<CalendarSyncScreen> {
-  static final _googleSignIn = GoogleSignIn(
-    serverClientId: kGoogleServerClientId.isEmpty
-        ? null
-        : kGoogleServerClientId,
-    scopes: const [
-      "email",
-      "https://www.googleapis.com/auth/calendar.readonly",
-    ],
-  );
-
   bool _connected = false;
   bool _loading = true;
   String? _error;
@@ -72,13 +62,8 @@ class _CalendarSyncScreenState extends ConsumerState<CalendarSyncScreen> {
     });
 
     try {
-      final account = await _googleSignIn.signIn();
-      if (account == null) return;
-
-      final authCode = account.serverAuthCode;
-      if (authCode == null || authCode.isEmpty) {
-        throw StateError("Google serverAuthCode가 비어 있습니다.");
-      }
+      final authCode = await GoogleAuthHelper.instance.signInForCalendar();
+      if (authCode == null) return;
 
       await ref
           .read(apiClientProvider)
@@ -109,7 +94,6 @@ class _CalendarSyncScreenState extends ConsumerState<CalendarSyncScreen> {
       if (!mounted) return;
       setState(() => _error = "Google 인증 정보를 가져오지 못했어요. 다시 시도해주세요.");
     } finally {
-      await _googleSignIn.signOut();
       if (mounted) setState(() => _loading = false);
     }
   }
