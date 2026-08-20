@@ -85,6 +85,19 @@ class PlanController extends StateNotifier<AsyncValue<Plan>> {
     state = AsyncValue.data(updated);
   }
 
+  /// PLAN-04. 사용자 직접 수정은 새 리비전을 만든다 (docs/API.md §9.5).
+  Future<void> updatePlan({DateTime? prepStartAt, String? originPlaceId}) async {
+    final plan = state.value;
+    if (plan == null) return;
+    final updated = await repo.updatePlan(
+      plan.planId,
+      prepStartAt: prepStartAt,
+      originPlaceId: originPlaceId,
+    );
+    previousPlan = plan;
+    state = AsyncValue.data(updated);
+  }
+
   /// 낙관적 갱신. 실제 전송은 오프라인 큐(enqueueResolve)를 경유한다.
   /// clientEventId는 큐 내부에서 1회 발급·DB 영속 저장되므로
   /// 네트워크 유실 후 재시도에서도 동일 ID가 재사용된다 (TR-03).

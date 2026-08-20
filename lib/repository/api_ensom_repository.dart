@@ -355,8 +355,16 @@ class ApiEnsomRepository implements EnsomRepository {
     String planId, {
     DateTime? prepStartAt,
     String? originPlaceId,
-  }) =>
-      throw UnimplementedError("계획 수동 수정 UI는 M1 이후 범위");
+  }) async {
+    final json = await _client.patch<Map<String, dynamic>>(
+      "/plans/$planId",
+      body: {
+        if (prepStartAt != null) "prepStartAt": prepStartAt.toIso8601String(),
+        if (originPlaceId != null) "originPlaceId": originPlaceId,
+      },
+    );
+    return Plan.fromJson(json);
+  }
 
   @override
   Future<List<AppNotification>> fetchTodayNotifications() async {

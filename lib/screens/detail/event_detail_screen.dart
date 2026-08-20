@@ -10,6 +10,7 @@ import "../../theme/ensom_colors.dart";
 import "../../widgets/ensom/ensom_error_banner.dart";
 import "../../widgets/ensom/ensom_pill_button.dart";
 import "../../widgets/permission_degraded_banner.dart";
+import "../../widgets/plan_edit_sheet.dart";
 import "../../widgets/prep_item_add_sheet.dart";
 import "../../widgets/route_change_sheet.dart";
 import "../home/widgets/arrival_result_card.dart";
@@ -28,9 +29,9 @@ import "../home/widgets/wellness_actions_section.dart";
 /// 호출 경로를 새로 만들지 않는다.
 ///
 /// 결과(종료 후 사후평가) 섹션은 `ArrivalResultCard`를 그대로 재사용한다
-/// (홈 카드와 동일 위젯). 하단 "준비 시작" 액션바와 "계획 수정"은 여전히
-/// 넣지 않았다 — "계획 수정"은 기존에 TODO로 남아있던 미구현 기능이라
-/// 눌러도 아무 일도 안 하는 버튼을 만들지 않기 위함이다.
+/// (홈 카드와 동일 위젯). "계획 수정" 메뉴는 `PlanEditSheet`로 연결했다
+/// (PLAN-04, 준비 시작 시각만 — 출발지 선택은 §PlanEditSheet 문서 참고).
+/// 하단 "준비 시작" 액션바는 여전히 넣지 않았다.
 class EventDetailScreen extends ConsumerWidget {
   const EventDetailScreen({super.key, required this.eventId});
 
@@ -88,12 +89,30 @@ class EventDetailScreen extends ConsumerWidget {
   void _onMenuAction(BuildContext context, WidgetRef ref, String action) {
     switch (action) {
       case "edit":
-        // TODO: CAL-04 수정 모드로 이동
+        _openPlanEditSheet(context, ref);
         break;
       case "delete":
         _showDeleteConfirm(context, ref);
         break;
     }
+  }
+
+  Future<void> _openPlanEditSheet(BuildContext context, WidgetRef ref) async {
+    final plan = ref.read(planControllerProvider(eventId)).value;
+    if (plan == null) return;
+    final saved = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: EnsomColors.canvas,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+      ),
+      builder: (_) => PlanEditSheet(
+        eventId: eventId,
+        initialPrepStartAt: plan.prepStartAt,
+      ),
+    );
+    if (saved == true) ref.invalidate(planControllerProvider(eventId));
   }
 
   void _showDeleteConfirm(BuildContext context, WidgetRef ref) {
