@@ -64,5 +64,28 @@ void main() {
       expect(received, 0);
       await events.close();
     });
+
+    test(
+      "dispose does not wait for an installer that never completes",
+      () async {
+        final lifecycle = AsyncSessionLifecycle(
+          cancellationTimeout: const Duration(milliseconds: 20),
+        );
+        final installStarted = Completer<void>();
+        final neverInstalled = Completer<List<StreamSubscription<dynamic>>>();
+
+        final initializing = lifecycle.initialize((generation, isCurrent) {
+          installStarted.complete();
+          return neverInstalled.future;
+        });
+        unawaited(initializing);
+        await installStarted.future;
+
+        await lifecycle.dispose().timeout(const Duration(milliseconds: 200));
+
+        expect(lifecycle.activeSubscriptionCount, 0);
+        expect(lifecycle.generation, 2);
+      },
+    );
   });
 }

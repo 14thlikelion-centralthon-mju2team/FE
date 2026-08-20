@@ -129,13 +129,13 @@ class ApiClient {
   }
 
   Future<void> saveSession({
+    required int expectedGeneration,
     required String accessToken,
     required String refreshToken,
     required String userId,
   }) {
-    final generation = _sessionGeneration;
     return _serializeSessionMutation(() async {
-      if (!isCurrentSessionGeneration(generation)) return;
+      if (!isCurrentSessionGeneration(expectedGeneration)) return;
       await _secureStorage.saveSession(
         accessToken: accessToken,
         refreshToken: refreshToken,
@@ -144,8 +144,11 @@ class ApiClient {
     });
   }
 
-  Future<void> clearSession() {
-    return _serializeSessionMutation(_secureStorage.clearSession);
+  Future<void> clearSession({required int expectedGeneration}) {
+    return _serializeSessionMutation(() async {
+      if (!isCurrentSessionGeneration(expectedGeneration)) return;
+      await _secureStorage.clearSession();
+    });
   }
 
   Future<_SessionSnapshot> _captureSession() async {

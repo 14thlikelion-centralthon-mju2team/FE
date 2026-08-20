@@ -92,21 +92,29 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   /// 앱 시작 시 기존 세션을 서버에서 검증한다.
   Future<void> _checkExistingSession() async {
+    final checkGeneration = apiClient.sessionGeneration;
     state = const AuthState(status: AuthStatus.unknown);
     final hasToken = await secureStorage.hasSession;
+    if (!apiClient.isCurrentSessionGeneration(checkGeneration)) return;
     if (!hasToken) {
       await clearMapDraft();
-      state = const AuthState(status: AuthStatus.unauthenticated);
+      if (apiClient.isCurrentSessionGeneration(checkGeneration)) {
+        state = const AuthState(status: AuthStatus.unauthenticated);
+      }
       return;
     }
 
+    final bootstrapGeneration = apiClient.sessionGeneration;
     try {
       // refresh가 필요하면 ApiClient가 처리한다. 세션 검사 네트워크 실패와
       // 인증 실패를 구분하기 위해 실제 인증 필요 API를 호출한다.
       await apiClient.get<Map<String, dynamic>>("/me/bootstrap");
+      if (!apiClient.isCurrentSessionGeneration(bootstrapGeneration)) return;
       final isOnboardingDone = await secureStorage.onboardingCompleted;
+      if (!apiClient.isCurrentSessionGeneration(bootstrapGeneration)) return;
       if (!isOnboardingDone) {
         final step = await secureStorage.onboardingStep;
+        if (!apiClient.isCurrentSessionGeneration(bootstrapGeneration)) return;
         state = AuthState(
           status: AuthStatus.onboarding,
           onboardingRequired: true,
@@ -118,6 +126,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
       state = const AuthState(status: AuthStatus.authenticated);
       _syncFcm();
     } on ApiException catch (e) {
+      if (!apiClient.isCurrentSessionGeneration(bootstrapGeneration) ||
+          e.code == "STALE_SESSION") {
+        return;
+      }
       if (e.isNetworkError || e.retryable) {
         state = const AuthState(
           status: AuthStatus.sessionCheckFailed,
@@ -132,8 +144,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
       if (e.isAuthExpired && state.status == AuthStatus.unauthenticated) {
         return;
       }
-      await onTerminalAuthExpired(apiClient.sessionGeneration);
+      await onTerminalAuthExpired(bootstrapGeneration);
     } catch (_) {
+      if (!apiClient.isCurrentSessionGeneration(bootstrapGeneration)) return;
       state = const AuthState(
         status: AuthStatus.sessionCheckFailed,
         errorMessage: "세션을 확인하지 못했어요. 잠시 후 다시 시도해주세요.",
@@ -155,10 +168,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }());
   }
 
-  void _beginLoginTransition() {
-    apiClient.beginSessionTransition();
+  int _beginLoginTransition() {
+    final generation = apiClient.beginSessionTransition();
     _terminalSourceGeneration = null;
     _terminalAuthExpiryFuture = null;
+    return generation;
   }
 
   /// 이메일 가입 성공 — BE는 token을 발급하지 않고 인증 메일을 보낸다.
@@ -185,13 +199,18 @@ class AuthNotifier extends StateNotifier<AuthState> {
     required String password,
     String? installationId,
   }) async {
-    _beginLoginTransition();
+    final loginGeneration = _beginLoginTransition();
     final result = await authService.loginWithEmail(
       email: email,
       password: password,
+      expectedGeneration: loginGeneration,
       installationId: installationId,
     );
-    _handleLoginResult(result, email: email);
+    _handleLoginResult(
+      result,
+      expectedGeneration: loginGeneration,
+      email: email,
+    );
   }
 
   /// Google 로그인 성공
@@ -199,12 +218,13 @@ class AuthNotifier extends StateNotifier<AuthState> {
     required String idToken,
     required String installationId,
   }) async {
-    _beginLoginTransition();
+    final loginGeneration = _beginLoginTransition();
     final result = await authService.loginWithGoogle(
       idToken: idToken,
       installationId: installationId,
+      expectedGeneration: loginGeneration,
     );
-    _handleLoginResult(result);
+    _handleLoginResult(result, expectedGeneration: loginGeneration);
   }
 
   /// 약관 동의 완료 후 신규 사용자는 온보딩을 이어가고, 약관 개정에
@@ -269,7 +289,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   Future<void> _expireTerminalSession(int cleanupGeneration) async {
     await Future.wait([
-      _bestEffort(apiClient.clearSession),
+      _bestEffort(
+        () => apiClient.clearSession(expectedGeneration: cleanupGeneration),
+      ),
       _bestEffort(clearMapDraft),
       _bestEffort(_disposeFcm),
     ]);
@@ -290,7 +312,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<void> logout() async {
     final logoutGeneration = apiClient.beginSessionTransition();
     await Future.wait([
-      _bestEffort(authService.logout),
+      _bestEffort(
+        () => authService.logout(expectedGeneration: logoutGeneration),
+      ),
       _bestEffort(clearMapDraft),
       _bestEffort(_disposeFcm),
     ]);
@@ -299,7 +323,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  void _handleLoginResult(LoginResult result, {String? email}) {
+  void _handleLoginResult(
+    LoginResult result, {
+    required int expectedGeneration,
+    String? email,
+  }) {
+    if (!apiClient.isCurrentSessionGeneration(expectedGeneration)) return;
     _terminalAuthExpiryFuture = null;
     if (result.emailVerificationRequired) {
       state = AuthState(

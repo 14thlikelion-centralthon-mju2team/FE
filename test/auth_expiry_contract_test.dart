@@ -1,5 +1,8 @@
 import "dart:async";
+import "dart:convert";
 import "dart:io";
+
+import "package:ensom/core/async_session_lifecycle.dart";
 
 import "package:ensom/core/auth_service.dart";
 import "package:ensom/core/secure_storage_service.dart";
@@ -145,6 +148,36 @@ void main() {
       expect(harness.fcmDisposeCount, 1);
       expect(harness.notifier.state.status, AuthStatus.unauthenticated);
     });
+
+    test(
+      "terminal transition does not wait for a stuck FCM installer",
+      () async {
+        final lifecycle = AsyncSessionLifecycle(
+          cancellationTimeout: const Duration(milliseconds: 20),
+        );
+        final installStarted = Completer<void>();
+        final neverInstalled = Completer<List<StreamSubscription<dynamic>>>();
+        final initializing = lifecycle.initialize((generation, isCurrent) {
+          installStarted.complete();
+          return neverInstalled.future;
+        });
+        unawaited(initializing);
+        await installStarted.future;
+
+        final harness = await _createHarness(
+          MockClient((request) async => http.Response("{}", 401)),
+          fcmDisposer: lifecycle.dispose,
+        );
+        addTearDown(harness.dispose);
+
+        await harness.notifier
+            .onTerminalAuthExpired(harness.apiClient.sessionGeneration)
+            .timeout(const Duration(milliseconds: 200));
+
+        expect(harness.fcmDisposeCount, 1);
+        expect(harness.notifier.state.status, AuthStatus.unauthenticated);
+      },
+    );
   });
 
   group("session generation boundaries", () {
@@ -212,8 +245,9 @@ void main() {
         );
         await requestStarted.future;
 
-        client.beginSessionTransition();
+        final loginGeneration = client.beginSessionTransition();
         await client.saveSession(
+          expectedGeneration: loginGeneration,
           accessToken: "access-b",
           refreshToken: "refresh-b",
           userId: "user-b",
@@ -237,6 +271,172 @@ void main() {
         expect(storage.userIdValue, "user-b");
       },
     );
+
+    test(
+      "later-started login wins when responses arrive out of order",
+      () async {
+        final storage = _MemorySecureStorage();
+        final loginAStarted = Completer<void>();
+        final loginBStarted = Completer<void>();
+        final loginAResponse = Completer<http.Response>();
+        final loginBResponse = Completer<http.Response>();
+        final apiClient = ApiClient(
+          baseUrl: "https://api.ensom.test/v1",
+          secureStorage: storage,
+          httpClient: MockClient((request) {
+            final body = jsonDecode(request.body) as Map<String, dynamic>;
+            final email = body["email"] as String;
+            if (email == "a@example.com") {
+              loginAStarted.complete();
+              return loginAResponse.future;
+            }
+            loginBStarted.complete();
+            return loginBResponse.future;
+          }),
+        );
+        final initialDraftClear = Completer<void>();
+        final notifier = AuthNotifier(
+          authService: AuthService(apiClient: apiClient),
+          secureStorage: storage,
+          apiClient: apiClient,
+          clearMapDraft: () async {
+            if (!initialDraftClear.isCompleted) initialDraftClear.complete();
+          },
+          initializeFcm: (_, _) async {},
+          disposeFcm: () async {},
+        );
+        addTearDown(notifier.dispose);
+        await initialDraftClear.future;
+
+        final loginA = notifier.loginWithEmail(
+          email: "a@example.com",
+          password: "password-a",
+        );
+        await loginAStarted.future;
+        final loginB = notifier.loginWithEmail(
+          email: "b@example.com",
+          password: "password-b",
+        );
+        await loginBStarted.future;
+
+        loginBResponse.complete(_loginResponse("b"));
+        await loginB;
+        loginAResponse.complete(_loginResponse("a"));
+        await loginA;
+
+        expect(storage.accessTokenValue, "access-b");
+        expect(storage.refreshTokenValue, "refresh-b");
+        expect(storage.userIdValue, "user-b");
+        expect(notifier.state.status, AuthStatus.authenticated);
+        expect(notifier.state.userId, "user-b");
+      },
+    );
+
+    test("a delayed logout cannot clear a newer login session", () async {
+      final storage = _MemorySecureStorage();
+      final logoutStarted = Completer<void>();
+      final logoutResponse = Completer<http.Response>();
+      final apiClient = ApiClient(
+        baseUrl: "https://api.ensom.test/v1",
+        secureStorage: storage,
+        httpClient: MockClient((request) async {
+          if (request.url.path.endsWith("/auth/logout")) {
+            logoutStarted.complete();
+            return logoutResponse.future;
+          }
+          if (request.url.path.endsWith("/auth/email/login")) {
+            final body = jsonDecode(request.body) as Map<String, dynamic>;
+            final owner = (body["email"] as String).startsWith("a") ? "a" : "b";
+            return _loginResponse(owner);
+          }
+          return http.Response("{}", 200);
+        }),
+      );
+      final initialDraftClear = Completer<void>();
+      final notifier = AuthNotifier(
+        authService: AuthService(apiClient: apiClient),
+        secureStorage: storage,
+        apiClient: apiClient,
+        clearMapDraft: () async {
+          if (!initialDraftClear.isCompleted) initialDraftClear.complete();
+        },
+        initializeFcm: (_, _) async {},
+        disposeFcm: () async {},
+      );
+      addTearDown(notifier.dispose);
+      await initialDraftClear.future;
+
+      await notifier.loginWithEmail(
+        email: "a@example.com",
+        password: "password-a",
+      );
+      final logout = notifier.logout();
+      await logoutStarted.future;
+
+      await notifier.loginWithEmail(
+        email: "b@example.com",
+        password: "password-b",
+      );
+      logoutResponse.complete(http.Response('{"data":{}}', 200));
+      await logout;
+
+      expect(storage.accessTokenValue, "access-b");
+      expect(storage.refreshTokenValue, "refresh-b");
+      expect(storage.userIdValue, "user-b");
+      expect(notifier.state.status, AuthStatus.authenticated);
+      expect(notifier.state.userId, "user-b");
+    });
+
+    test("a stale bootstrap cannot expire a newer login session", () async {
+      final storage = _MemorySecureStorage()
+        ..accessTokenValue = "access-a"
+        ..refreshTokenValue = "refresh-a"
+        ..userIdValue = "user-a";
+      final bootstrapStarted = Completer<void>();
+      final bootstrapResponse = Completer<http.Response>();
+      final apiClient = ApiClient(
+        baseUrl: "https://api.ensom.test/v1",
+        secureStorage: storage,
+        httpClient: MockClient((request) async {
+          if (request.url.path.endsWith("/me/bootstrap")) {
+            bootstrapStarted.complete();
+            return bootstrapResponse.future;
+          }
+          if (request.url.path.endsWith("/auth/email/login")) {
+            return _loginResponse("b");
+          }
+          return http.Response("{}", 200);
+        }),
+      );
+      var draftClearCount = 0;
+      final notifier = AuthNotifier(
+        authService: AuthService(apiClient: apiClient),
+        secureStorage: storage,
+        apiClient: apiClient,
+        clearMapDraft: () async => draftClearCount++,
+        initializeFcm: (_, _) async {},
+        disposeFcm: () async {},
+      );
+      addTearDown(notifier.dispose);
+      apiClient.setAuthExpiredHandler(notifier.onTerminalAuthExpired);
+      addTearDown(() => apiClient.setAuthExpiredHandler(null));
+      await bootstrapStarted.future;
+
+      await notifier.loginWithEmail(
+        email: "b@example.com",
+        password: "password-b",
+      );
+      bootstrapResponse.complete(http.Response("{}", 401));
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+
+      expect(storage.accessTokenValue, "access-b");
+      expect(storage.refreshTokenValue, "refresh-b");
+      expect(storage.userIdValue, "user-b");
+      expect(storage.clearSessionCount, 0);
+      expect(draftClearCount, 0);
+      expect(notifier.state.status, AuthStatus.authenticated);
+      expect(notifier.state.userId, "user-b");
+    });
 
     test(
       "terminal expiry disposes FCM and relogin initializes it again",
@@ -295,10 +495,29 @@ void main() {
   });
 }
 
+http.Response _loginResponse(String owner) => http.Response(
+  jsonEncode({
+    "data": {
+      "accessToken": "access-$owner",
+      "refreshToken": "refresh-$owner",
+      "user": {
+        "userId": "user-$owner",
+        "nickname": "tester-$owner",
+        "timezone": "Asia/Seoul",
+        "isNew": false,
+      },
+      "emailVerificationRequired": false,
+      "consentRequired": <String>[],
+    },
+  }),
+  200,
+);
+
 Future<_Harness> _createHarness(
   MockClient httpClient, {
   bool failSessionCleanup = false,
   bool failDraftCleanup = false,
+  Future<void> Function()? fcmDisposer,
 }) async {
   final storage = _MemorySecureStorage();
   final apiClient = ApiClient(
@@ -322,6 +541,7 @@ Future<_Harness> _createHarness(
     },
     disposeFcm: () async {
       fcmDisposeCount++;
+      await fcmDisposer?.call();
     },
   );
 
@@ -382,6 +602,7 @@ class _AuthenticatedAuthService extends AuthService {
   Future<LoginResult> loginWithEmail({
     required String email,
     required String password,
+    required int expectedGeneration,
     String? installationId,
   }) async {
     return const LoginResult(
@@ -402,6 +623,7 @@ class _ConsentAuthService extends AuthService {
   Future<LoginResult> loginWithEmail({
     required String email,
     required String password,
+    required int expectedGeneration,
     String? installationId,
   }) async {
     return const LoginResult(

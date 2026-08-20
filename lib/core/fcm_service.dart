@@ -122,12 +122,18 @@ class FcmService {
           }),
         ];
 
-        try {
-          final initial = await _messaging.getInitialMessage();
-          if (initial != null && isCurrent()) _handleNotificationTap(initial);
-        } catch (_) {
-          // 초기 메시지 조회 실패와 실시간 stream 구독 수명주기는 분리한다.
-        }
+        // 초기 메시지 조회는 stream 설치 완료를 막지 않는다. plugin 호출이
+        // 끝나지 않아도 lifecycle은 구독을 즉시 추적하고 dispose할 수 있다.
+        unawaited(() async {
+          try {
+            final initial = await _messaging.getInitialMessage();
+            if (initial != null && isCurrent()) {
+              _handleNotificationTap(initial);
+            }
+          } catch (_) {
+            // 초기 메시지 조회 실패는 실시간 stream 수명주기와 분리한다.
+          }
+        }());
         return subscriptions;
       } catch (_) {
         // Firebase 미설정 환경 — FCM 비활성, 로컬 알림 폴백만 동작

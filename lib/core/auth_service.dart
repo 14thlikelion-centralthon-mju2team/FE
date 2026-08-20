@@ -57,6 +57,7 @@ class AuthService {
   Future<LoginResult> loginWithEmail({
     required String email,
     required String password,
+    required int expectedGeneration,
     String? installationId,
   }) async {
     try {
@@ -68,7 +69,7 @@ class AuthService {
           if (installationId != null) "installationId": installationId,
         },
       );
-      return _handleLoginResponse(data);
+      return _handleLoginResponse(data, expectedGeneration);
     } on ApiException {
       rethrow;
     } on SocketException {
@@ -87,13 +88,14 @@ class AuthService {
   Future<LoginResult> loginWithGoogle({
     required String idToken,
     required String installationId,
+    required int expectedGeneration,
   }) async {
     try {
       final data = await _client.postPublic<Map<String, dynamic>>(
         "/auth/google",
         body: {"idToken": idToken, "installationId": installationId},
       );
-      return _handleLoginResponse(data);
+      return _handleLoginResponse(data, expectedGeneration);
     } on ApiException {
       rethrow;
     } on SocketException {
@@ -134,24 +136,28 @@ class AuthService {
   }
 
   // ─── 로그아웃 (§2.6) ──────────────────────────────────────────
-  Future<void> logout() async {
+  Future<void> logout({required int expectedGeneration}) async {
     try {
       await _client.post<Map<String, dynamic>>("/auth/logout");
     } catch (_) {
-      // 로그아웃 서버 호출 실패해도 로컬은 소거한다
+      // 로그아웃 서버 호출 실패해도 현재 로그아웃 세대의 로컬 세션은 소거한다.
     } finally {
-      await _client.clearSession();
+      await _client.clearSession(expectedGeneration: expectedGeneration);
     }
   }
 
   // ─── 내부 ─────────────────────────────────────────────────────
-  Future<LoginResult> _handleLoginResponse(Map<String, dynamic> data) async {
+  Future<LoginResult> _handleLoginResponse(
+    Map<String, dynamic> data,
+    int expectedGeneration,
+  ) async {
     final accessToken = data["accessToken"] as String;
     final refreshToken = data["refreshToken"] as String;
     final user = data["user"] as Map<String, dynamic>;
     final userId = user["userId"] as String;
 
     await _client.saveSession(
+      expectedGeneration: expectedGeneration,
       accessToken: accessToken,
       refreshToken: refreshToken,
       userId: userId,
