@@ -2,17 +2,24 @@ import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "../../network/api_client.dart";
 import "../../providers/auth_providers.dart";
+import "../../providers/bootstrap_provider.dart";
 import "../../theme/ensom_colors.dart";
 import "../../widgets/ensom/ensom_pill_button.dart";
 import "../../widgets/ensom/ensom_top_bar.dart";
 
 /// PRF-08 개인화
-/// BE: GET /me/personalization, DELETE /me/personalization, POST /me/personalization/revert
+/// BE: GET /me/personalization, DELETE /me/personalization,
+///     POST /me/personalization/revert (API.md §15)
 ///
-/// ensom_profile.html "6. 개인화" 화면의 비교 카드(cmp) 반영. 목업의
-/// "최근 보정 이력" 되돌리기 리스트는 넣지 않았다 — /me/personalization
-/// 응답에 이력 배열이 없고(initialPrepMinutes/currentPrepMinutes 두
-/// 값만 옴) 되돌릴 개별 항목이 없어서다.
+/// ensom_profile.html "6. 개인화" 화면의 비교 카드(cmp) + 되돌리기를
+/// 반영한다. 목업은 되돌리기 가능한 보정 "이력"을 여러 줄로 보여주지만,
+/// 실제 API는 scopeType별 현재 추정값 하나만 주고(MVP는 global 하나
+/// 뿐) revert도 "직전 보정 하나"만 되돌리는 단일 액션이다(§15 "직전
+/// 보정 되돌리기") — 그래서 목업처럼 여러 줄 + 줄마다 되돌리기 버튼을
+/// 만들지 않고, 현재값 카드 + 되돌리기 버튼 하나로 구성했다.
+/// "처음 입력한 준비 시간"은 이 API가 아니라 /me/settings의
+/// initialPrepMinutes(부트스트랩에 이미 있음)에서 가져온다 — 개인화
+/// 추정값과 시드값은 서로 다른 저장소다.
 class PersonalizationScreen extends ConsumerStatefulWidget {
   const PersonalizationScreen({super.key});
 
@@ -21,10 +28,35 @@ class PersonalizationScreen extends ConsumerStatefulWidget {
       _PersonalizationScreenState();
 }
 
+class _Estimate {
+  const _Estimate({
+    required this.scopeType,
+    required this.estimatedMinutes,
+    required this.sampleCount,
+    required this.adjustmentReason,
+    required this.validFrom,
+  });
+
+  final String scopeType;
+  final int estimatedMinutes;
+  final int? sampleCount;
+  final String? adjustmentReason;
+  final String? validFrom;
+
+  factory _Estimate.fromJson(Map<String, dynamic> json) => _Estimate(
+        scopeType: json["scopeType"] as String? ?? "global",
+        estimatedMinutes: json["estimatedMinutes"] as int? ?? 0,
+        sampleCount: json["sampleCount"] as int?,
+        adjustmentReason: json["adjustmentReason"] as String?,
+        validFrom: json["validFrom"] as String?,
+      );
+}
+
 class _PersonalizationScreenState extends ConsumerState<PersonalizationScreen> {
   bool _loading = true;
-  Map<String, dynamic>? _data;
+  _Estimate? _global;
   String? _error;
+  bool _busy = false;
 
   @override
   void initState() {
@@ -39,10 +71,16 @@ class _PersonalizationScreenState extends ConsumerState<PersonalizationScreen> {
     });
     try {
       final api = ref.read(apiClientProvider);
-      final data = await api.get<Map<String, dynamic>>("/me/personalization");
+      final res = await api.get<Map<String, dynamic>>("/me/personalization");
+      final data = res["data"] as Map<String, dynamic>? ?? res;
+      final estimates = (data["estimates"] as List<dynamic>? ?? [])
+          .cast<Map<String, dynamic>>()
+          .map(_Estimate.fromJson)
+          .toList();
+      final globalMatches = estimates.where((e) => e.scopeType == "global");
       if (mounted) {
         setState(() {
-          _data = data;
+          _global = globalMatches.isEmpty ? null : globalMatches.first;
           _loading = false;
         });
       }
@@ -52,6 +90,39 @@ class _PersonalizationScreenState extends ConsumerState<PersonalizationScreen> {
           _error = e.message;
           _loading = false;
         });
+      }
+    }
+  }
+
+  Future<void> _revert() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("직전 보정을 되돌릴까요?"),
+        content: const Text("되돌리면 이 보정에 쓰인 기록은 이후 학습에서 제외돼요."),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text("취소")),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: EnsomColors.caution),
+            child: const Text("되돌리기"),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    setState(() => _busy = true);
+    try {
+      final api = ref.read(apiClientProvider);
+      await api.post("/me/personalization/revert");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("직전 보정을 되돌렸어요.")));
+      }
+      await _load();
+    } on ApiException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+        setState(() => _busy = false);
       }
     }
   }
@@ -78,8 +149,8 @@ class _PersonalizationScreenState extends ConsumerState<PersonalizationScreen> {
       await api.delete("/me/personalization");
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("개인화가 초기화됐어요.")));
-        _load();
       }
+      await _load();
     } on ApiException catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
@@ -89,6 +160,8 @@ class _PersonalizationScreenState extends ConsumerState<PersonalizationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final initialPrepMinutes = ref.watch(bootstrapProvider).value?.settings.initialPrepMinutes;
+
     return Scaffold(
       backgroundColor: EnsomColors.canvas,
       appBar: const EnsomTopBar(title: "개인화"),
@@ -101,32 +174,72 @@ class _PersonalizationScreenState extends ConsumerState<PersonalizationScreen> {
                 : ListView(
                     padding: const EdgeInsets.fromLTRB(18, 8, 18, 24),
                     children: [
-                      if (_data != null)
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: EnsomColors.surface1,
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(color: EnsomColors.hairline),
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: _CompareBox(
+                                label: "처음 입력한 준비 시간",
+                                value: initialPrepMinutes != null ? "$initialPrepMinutes분" : "미설정",
+                              ),
+                            ),
+                            const Icon(Icons.arrow_forward, size: 16, color: EnsomColors.inkFaint),
+                            Expanded(
+                              child: _CompareBox(
+                                label: "최근 학습된 준비 시간",
+                                value: _global != null ? "${_global!.estimatedMinutes}분" : "없음",
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (_global?.adjustmentReason != null) ...[
+                        const SizedBox(height: 14),
+                        const Text(
+                          "최근 보정",
+                          style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: EnsomColors.inkFaint, letterSpacing: .4),
+                        ),
+                        const SizedBox(height: 8),
                         Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: EnsomColors.surface1,
-                            borderRadius: BorderRadius.circular(18),
-                            border: Border.all(color: EnsomColors.hairline),
-                          ),
+                          padding: const EdgeInsets.all(15),
+                          decoration: BoxDecoration(color: EnsomColors.surface2, borderRadius: BorderRadius.circular(18)),
                           child: Row(
                             children: [
                               Expanded(
-                                child: _CompareBox(
-                                  label: "처음 입력한 준비 시간",
-                                  value: "${_data!["initialPrepMinutes"] ?? "미설정"}분",
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      _global!.adjustmentReason!,
+                                      style: const TextStyle(fontSize: 12.5, color: EnsomColors.ink, height: 1.5),
+                                    ),
+                                    if (_global!.sampleCount != null) ...[
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        "최근 ${_global!.sampleCount}회 기록 기준",
+                                        style: const TextStyle(fontSize: 10.5, color: EnsomColors.inkFaint),
+                                      ),
+                                    ],
+                                  ],
                                 ),
                               ),
-                              const Icon(Icons.arrow_forward, size: 16, color: EnsomColors.inkFaint),
-                              Expanded(
-                                child: _CompareBox(
-                                  label: "최근 학습된 준비 시간",
-                                  value: "${_data!["currentPrepMinutes"] ?? "없음"}분",
+                              TextButton(
+                                onPressed: _busy ? null : _revert,
+                                child: const Text(
+                                  "되돌리기",
+                                  style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: EnsomColors.inkMuted, decoration: TextDecoration.underline),
                                 ),
                               ),
                             ],
                           ),
                         ),
+                      ],
                       const SizedBox(height: 22),
                       EnsomPillButton(label: "개인화 초기화", variant: EnsomPillVariant.secondary, onPressed: _reset),
                     ],
