@@ -29,6 +29,7 @@ class MapDraftEvent {
     required this.anchorMode,
     required this.at,
     required this.createdAt,
+    this.label,
   });
 
   static const routeOptionTtl = Duration(minutes: 30);
@@ -43,6 +44,9 @@ class MapDraftEvent {
   final EventAnchor anchorMode;
   final DateTime at;
   final DateTime createdAt;
+  /// S-45 간단 저장 시트에서 사용자가 입력하다 만 일정 이름.
+  /// "자세히 편집"으로 넘어갈 때 입력값을 잃지 않게 프리필한다.
+  final String? label;
 
   bool isExpiredAt(DateTime now) =>
       !now.isBefore(createdAt.add(routeOptionTtl));
@@ -58,6 +62,7 @@ class MapDraftEvent {
     "anchorMode": anchorMode.name,
     "at": at.toIso8601String(),
     "createdAt": createdAt.toIso8601String(),
+    "label": label,
   };
 
   factory MapDraftEvent.fromJson(Map<String, dynamic> json) => MapDraftEvent(
@@ -79,6 +84,7 @@ class MapDraftEvent {
     createdAt:
         DateTime.tryParse(json["createdAt"] as String? ?? "") ??
         DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+    label: json["label"] as String?,
   );
 }
 
