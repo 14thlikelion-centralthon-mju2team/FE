@@ -78,6 +78,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
         _notice = e.code == "NETWORK_ERROR" ? _AuthNotice.network : _AuthNotice.provider;
       });
     } catch (e) {
+      debugPrint("[google-login] 실패: $e");
       setState(() => _notice = _AuthNotice.provider);
     } finally {
       if (mounted) setState(() => _submitting = false);
