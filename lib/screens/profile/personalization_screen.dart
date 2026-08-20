@@ -3,9 +3,16 @@ import "package:flutter_riverpod/flutter_riverpod.dart";
 import "../../network/api_client.dart";
 import "../../providers/auth_providers.dart";
 import "../../theme/ensom_colors.dart";
+import "../../widgets/ensom/ensom_pill_button.dart";
+import "../../widgets/ensom/ensom_top_bar.dart";
 
 /// PRF-08 개인화
 /// BE: GET /me/personalization, DELETE /me/personalization, POST /me/personalization/revert
+///
+/// ensom_profile.html "6. 개인화" 화면의 비교 카드(cmp) 반영. 목업의
+/// "최근 보정 이력" 되돌리기 리스트는 넣지 않았다 — /me/personalization
+/// 응답에 이력 배열이 없고(initialPrepMinutes/currentPrepMinutes 두
+/// 값만 옴) 되돌릴 개별 항목이 없어서다.
 class PersonalizationScreen extends ConsumerStatefulWidget {
   const PersonalizationScreen({super.key});
 
@@ -54,12 +61,9 @@ class _PersonalizationScreenState extends ConsumerState<PersonalizationScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text("개인화를 초기화할까요?"),
-        content: const Text("학습된 준비 시간 보정이 초기화돼요.\n행동 기록은 유지됩니다."),
+        content: const Text("학습된 준비 시간이 초기값으로 돌아가요.\n행동 기록은 유지돼요."),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text("취소"),
-          ),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text("취소")),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: TextButton.styleFrom(foregroundColor: EnsomColors.caution),
@@ -73,16 +77,12 @@ class _PersonalizationScreenState extends ConsumerState<PersonalizationScreen> {
       final api = ref.read(apiClientProvider);
       await api.delete("/me/personalization");
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text("개인화가 초기화됐어요.")));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("개인화가 초기화됐어요.")));
         _load();
       }
     } on ApiException catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(e.message)));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
       }
     }
   }
@@ -90,48 +90,73 @@ class _PersonalizationScreenState extends ConsumerState<PersonalizationScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("개인화")),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _error != null
-          ? Center(child: Text(_error!))
-          : ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                if (_data != null) ...[
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            "준비 시간 보정",
-                            style: Theme.of(context).textTheme.titleMedium,
+      backgroundColor: EnsomColors.canvas,
+      appBar: const EnsomTopBar(title: "개인화"),
+      body: SafeArea(
+        top: false,
+        child: _loading
+            ? const Center(child: CircularProgressIndicator())
+            : _error != null
+                ? Center(child: Text(_error!, style: const TextStyle(color: EnsomColors.inkMuted)))
+                : ListView(
+                    padding: const EdgeInsets.fromLTRB(18, 8, 18, 24),
+                    children: [
+                      if (_data != null)
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: EnsomColors.surface1,
+                            borderRadius: BorderRadius.circular(18),
+                            border: Border.all(color: EnsomColors.hairline),
                           ),
-                          const SizedBox(height: 8),
-                          Text(
-                            "초기 설정: ${_data!["initialPrepMinutes"] ?? "미설정"}분",
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: _CompareBox(
+                                  label: "처음 입력한 준비 시간",
+                                  value: "${_data!["initialPrepMinutes"] ?? "미설정"}분",
+                                ),
+                              ),
+                              const Icon(Icons.arrow_forward, size: 16, color: EnsomColors.inkFaint),
+                              Expanded(
+                                child: _CompareBox(
+                                  label: "최근 학습된 준비 시간",
+                                  value: "${_data!["currentPrepMinutes"] ?? "없음"}분",
+                                ),
+                              ),
+                            ],
                           ),
-                          Text(
-                            "현재 학습값: ${_data!["currentPrepMinutes"] ?? "없음"}분",
-                          ),
-                        ],
-                      ),
-                    ),
+                        ),
+                      const SizedBox(height: 22),
+                      EnsomPillButton(label: "개인화 초기화", variant: EnsomPillVariant.secondary, onPressed: _reset),
+                    ],
                   ),
-                ],
-                const SizedBox(height: 24),
-                OutlinedButton.icon(
-                  onPressed: _reset,
-                  icon: const Icon(Icons.restart_alt),
-                  label: const Text("개인화 초기화"),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: EnsomColors.caution,
-                  ),
-                ),
-              ],
-            ),
+      ),
+    );
+  }
+}
+
+class _CompareBox extends StatelessWidget {
+  const _CompareBox({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Text(
+          label,
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontSize: 10, color: EnsomColors.inkFaint),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700, letterSpacing: -.4, color: EnsomColors.ink),
+        ),
+      ],
     );
   }
 }
