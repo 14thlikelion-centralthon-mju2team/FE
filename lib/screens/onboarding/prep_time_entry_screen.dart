@@ -23,16 +23,26 @@ import "../../widgets/ensom/ensom_pill_button.dart";
 ///   1. PATCH /me/settings { initialPrepMinutes } — §4.1
 ///   2. POST /prep-items (선택된 빠른 추가 + 직접 입력 + 시간 루틴) — §6.1
 class PrepTimeEntryScreen extends ConsumerStatefulWidget {
-  const PrepTimeEntryScreen({super.key});
+  const PrepTimeEntryScreen({super.key, this.isOnboarding = true});
+
+  /// 온보딩 흐름(ONB-03)인지, 설정의 준비 시간 편집(/profile/prep)인지 구분한다.
+  /// 온보딩이면 저장 후 다음 단계(places)로 진행하고, 설정 편집이면 저장 후
+  /// 이전 화면으로 pop한다(온보딩 마커를 되감지 않는다).
+  final bool isOnboarding;
 
   @override
-  ConsumerState<PrepTimeEntryScreen> createState() => _PrepTimeEntryScreenState();
+  ConsumerState<PrepTimeEntryScreen> createState() =>
+      _PrepTimeEntryScreenState();
 }
 
 // ─── 빠른 추가 항목 (carry/consume/purchase) ────────────────────────
 
 class _QuickAddItem {
-  _QuickAddItem({required this.label, required this.kind, this.sensitive = false});
+  _QuickAddItem({
+    required this.label,
+    required this.kind,
+    this.sensitive = false,
+  });
 
   final String label;
   final PrepKind kind;
@@ -88,6 +98,12 @@ class _PrepTimeEntryScreenState extends ConsumerState<PrepTimeEntryScreen> {
   bool _customItemFieldOpen = false;
   bool _customRoutineFieldOpen = false;
 
+  // 직접 추가로 "확정"된 커스텀 항목들. "추가" 버튼이 여기에 append하고,
+  // 요약·제출은 컨트롤러의 임시 텍스트가 아니라 이 리스트만 읽는다.
+  // 그래서 필드를 접거나 여러 개를 추가해도 화면과 제출이 일치한다.
+  final List<String> _customItems = [];
+  final List<_RoutineItem> _customRoutines = [];
+
   bool _submitting = false;
   String? _error;
 
@@ -112,6 +128,38 @@ class _PrepTimeEntryScreenState extends ConsumerState<PrepTimeEntryScreen> {
       _unknownSelected = true;
       _selectedPreset = null;
     });
+  }
+
+  // ── 커스텀 항목 확정 ──────────────────────────────────────────────
+
+  void _addCustomItem() {
+    final text = _customItemController.text.trim();
+    if (text.isEmpty) return;
+    setState(() {
+      _customItems.add(text);
+      _customItemController.clear();
+    });
+  }
+
+  void _removeCustomItem(int index) {
+    setState(() => _customItems.removeAt(index));
+  }
+
+  void _addCustomRoutine() {
+    final text = _customRoutineController.text.trim();
+    if (text.isEmpty) return;
+    setState(() {
+      _customRoutines.add(
+        _RoutineItem(label: text, minutes: _customRoutineMinutes)
+          ..selected = true,
+      );
+      _customRoutineController.clear();
+      _customRoutineMinutes = 10;
+    });
+  }
+
+  void _removeCustomRoutine(int index) {
+    setState(() => _customRoutines.removeAt(index));
   }
 
   // ── 제출 ──────────────────────────────────────────────────────────
@@ -140,7 +188,13 @@ class _PrepTimeEntryScreenState extends ConsumerState<PrepTimeEntryScreen> {
       // 선택된 빠른 추가 항목
       for (final item in _quickItems.where((i) => i.selected)) {
         itemsToCreate.add(
-          PrepItem(id: "", label: item.label, kind: item.kind, sensitive: item.sensitive, fromChip: true),
+          PrepItem(
+            id: "",
+            label: item.label,
+            kind: item.kind,
+            sensitive: item.sensitive,
+            fromChip: true,
+          ),
         );
       }
 
@@ -157,21 +211,21 @@ class _PrepTimeEntryScreenState extends ConsumerState<PrepTimeEntryScreen> {
         );
       }
 
-      // 직접 입력한 일반 항목
-      final customText = _customItemController.text.trim();
-      if (customText.isNotEmpty) {
-        itemsToCreate.add(PrepItem(id: "", label: customText, kind: PrepKind.carry, fromChip: false));
+      // 직접 입력해 확정한 일반 항목들(여러 개 가능)
+      for (final label in _customItems) {
+        itemsToCreate.add(
+          PrepItem(id: "", label: label, kind: PrepKind.carry, fromChip: false),
+        );
       }
 
-      // 직접 입력한 루틴
-      final customRoutineText = _customRoutineController.text.trim();
-      if (customRoutineText.isNotEmpty) {
+      // 직접 입력해 확정한 루틴들(여러 개 가능)
+      for (final routine in _customRoutines) {
         itemsToCreate.add(
           PrepItem(
             id: "",
-            label: customRoutineText,
+            label: routine.label,
             kind: PrepKind.routine,
-            extraMin: _customRoutineMinutes,
+            extraMin: routine.minutes,
             fromChip: false,
           ),
         );
@@ -201,14 +255,24 @@ class _PrepTimeEntryScreenState extends ConsumerState<PrepTimeEntryScreen> {
         // 부분 실패 — 안내 후 진행 허용
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text("$successCount개 저장됨 · $failCount개 실패 — 설정에서 다시 추가할 수 있어요."),
+            content: Text(
+              "$successCount개 저장됨 · $failCount개 실패 — 설정에서 다시 추가할 수 있어요.",
+            ),
             duration: const Duration(seconds: 4),
           ),
         );
       }
 
-      ref.read(secureStorageProvider).setOnboardingStep("places");
-      context.go("/onboarding/places");
+      if (!mounted) return;
+
+      // 온보딩이면 다음 단계로 진행, 설정 편집이면 온보딩 마커를 건드리지
+      // 않고 이전 화면으로 돌아간다(완료된 온보딩이 되감기지 않도록).
+      if (widget.isOnboarding) {
+        ref.read(secureStorageProvider).setOnboardingStep("places");
+        context.go("/onboarding/places");
+      } else {
+        context.pop();
+      }
     } on ApiException catch (e) {
       // settings PATCH 자체가 실패한 경우
       setState(() {
@@ -227,8 +291,12 @@ class _PrepTimeEntryScreenState extends ConsumerState<PrepTimeEntryScreen> {
 
   void _skip() {
     // 맞춤 항목은 선택 사항 — 건너뛰어도 온보딩 완료를 막지 않음 (PRD §11.3)
-    ref.read(secureStorageProvider).setOnboardingStep("places");
-    context.go("/onboarding/places");
+    if (widget.isOnboarding) {
+      ref.read(secureStorageProvider).setOnboardingStep("places");
+      context.go("/onboarding/places");
+    } else {
+      context.pop();
+    }
   }
 
   // ── UI ────────────────────────────────────────────────────────────
@@ -244,19 +312,44 @@ class _PrepTimeEntryScreenState extends ConsumerState<PrepTimeEntryScreen> {
               padding: const EdgeInsets.fromLTRB(18, 8, 8, 0),
               child: Row(
                 children: [
+                  // 설정 편집(/profile/prep) 진입 시 뒤로가기 제공 — dev의
+                  // AppBar back 버튼이 수제 헤더로 바뀌며 사라진 탈출구 복원.
+                  if (!widget.isOnboarding)
+                    IconButton(
+                      onPressed: _submitting ? null : () => context.pop(),
+                      icon: const Icon(
+                        Icons.arrow_back,
+                        color: EnsomColors.ink,
+                      ),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(
+                        minWidth: 40,
+                        minHeight: 40,
+                      ),
+                      tooltip: "뒤로",
+                    ),
                   const Expanded(
                     child: Text(
                       "준비 시간",
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: -.2, color: EnsomColors.ink),
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -.2,
+                        color: EnsomColors.ink,
+                      ),
                     ),
                   ),
-                  TextButton(
-                    onPressed: _submitting ? null : _skip,
-                    child: const Text(
-                      "나중에 설정할게요",
-                      style: TextStyle(fontSize: 12, color: EnsomColors.inkMuted),
+                  if (widget.isOnboarding)
+                    TextButton(
+                      onPressed: _submitting ? null : _skip,
+                      child: const Text(
+                        "나중에 설정할게요",
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: EnsomColors.inkMuted,
+                        ),
+                      ),
                     ),
-                  ),
                 ],
               ),
             ),
@@ -265,7 +358,10 @@ class _PrepTimeEntryScreenState extends ConsumerState<PrepTimeEntryScreen> {
                 padding: const EdgeInsets.fromLTRB(18, 10, 18, 16),
                 children: [
                   // ── 섹션 1: 준비 시간 ─────────────────────────────────
-                  const _SectionLabel("평소 외출 준비에 얼마나 걸리나요?", "정확하지 않아도 괜찮아요. 실제 기록을 바탕으로 계속 조정할게요."),
+                  const _SectionLabel(
+                    "평소 외출 준비에 얼마나 걸리나요?",
+                    "정확하지 않아도 괜찮아요. 실제 기록을 바탕으로 계속 조정할게요.",
+                  ),
                   const SizedBox(height: 14),
                   Wrap(
                     spacing: 7,
@@ -277,14 +373,21 @@ class _PrepTimeEntryScreenState extends ConsumerState<PrepTimeEntryScreen> {
                           selected: _selectedPreset == minutes,
                           onTap: () => _selectPreset(minutes),
                         ),
-                      EnsomChip(label: "잘 모르겠어요", selected: _unknownSelected, onTap: _selectUnknown),
+                      EnsomChip(
+                        label: "잘 모르겠어요",
+                        selected: _unknownSelected,
+                        onTap: _selectUnknown,
+                      ),
                     ],
                   ),
 
                   const SizedBox(height: 32),
 
                   // ── 섹션 2: 빠른 추가 (챙기기/사용/구매) ──────────────
-                  const _SectionLabel("외출 전에 자주 챙기는 것이 있나요?", "선택한 항목은 준비 체크리스트에 자동 반영됩니다."),
+                  const _SectionLabel(
+                    "외출 전에 자주 챙기는 것이 있나요?",
+                    "선택한 항목은 준비 체크리스트에 자동 반영됩니다.",
+                  ),
                   const SizedBox(height: 14),
                   Wrap(
                     spacing: 7,
@@ -294,13 +397,21 @@ class _PrepTimeEntryScreenState extends ConsumerState<PrepTimeEntryScreen> {
                         EnsomChip(
                           label: item.label,
                           selected: item.selected,
-                          onTap: () => setState(() => item.selected = !item.selected),
+                          onTap: () =>
+                              setState(() => item.selected = !item.selected),
                         ),
                       EnsomChip(
                         label: "+ 직접 추가",
                         selected: false,
                         dashed: true,
-                        onTap: () => setState(() => _customItemFieldOpen = !_customItemFieldOpen),
+                        onTap: () => setState(() {
+                          _customItemFieldOpen = !_customItemFieldOpen;
+                          // 접으면 = 취소로 간주. 남은 텍스트가 제출되지 않도록
+                          // 컨트롤러를 비운다.
+                          if (!_customItemFieldOpen) {
+                            _customItemController.clear();
+                          }
+                        }),
                       ),
                     ],
                   ),
@@ -309,20 +420,38 @@ class _PrepTimeEntryScreenState extends ConsumerState<PrepTimeEntryScreen> {
                     _InlineAddField(
                       controller: _customItemController,
                       hintText: "예: 지갑, 이어폰",
-                      onSubmit: () => setState(() {}),
+                      onSubmit: _addCustomItem,
+                    ),
+                  ],
+                  if (_customItems.isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 7,
+                      runSpacing: 8,
+                      children: [
+                        for (var i = 0; i < _customItems.length; i++)
+                          _RemovableChip(
+                            label: _customItems[i],
+                            onRemove: () => _removeCustomItem(i),
+                          ),
+                      ],
                     ),
                   ],
 
                   const SizedBox(height: 32),
 
                   // ── 섹션 3: 시간 소요 루틴 (timed_routine) ────────────
-                  const _SectionLabel("시간이 필요한 루틴이 있나요?", "선택한 루틴 시간이 준비 시작 시각에 반영됩니다."),
+                  const _SectionLabel(
+                    "시간이 필요한 루틴이 있나요?",
+                    "선택한 루틴 시간이 준비 시작 시각에 반영됩니다.",
+                  ),
                   const SizedBox(height: 12),
                   for (final routine in _routineItems)
                     _RoutineRow(
                       routine: routine,
                       onToggle: (v) => setState(() => routine.selected = v),
-                      onMinutesChanged: (m) => setState(() => routine.minutes = m),
+                      onMinutesChanged: (m) =>
+                          setState(() => routine.minutes = m),
                     ),
                   const SizedBox(height: 6),
                   if (!_customRoutineFieldOpen)
@@ -332,22 +461,44 @@ class _PrepTimeEntryScreenState extends ConsumerState<PrepTimeEntryScreen> {
                         label: "+ 직접 추가",
                         selected: false,
                         dashed: true,
-                        onTap: () => setState(() => _customRoutineFieldOpen = true),
+                        onTap: () =>
+                            setState(() => _customRoutineFieldOpen = true),
                       ),
                     )
                   else
                     _InlineRoutineAddField(
                       controller: _customRoutineController,
                       minutes: _customRoutineMinutes,
-                      onMinutesChanged: (m) => setState(() => _customRoutineMinutes = m),
+                      onMinutesChanged: (m) =>
+                          setState(() => _customRoutineMinutes = m),
+                      onAdd: _addCustomRoutine,
+                      onClose: () => setState(() {
+                        _customRoutineFieldOpen = false;
+                        _customRoutineController.clear();
+                        _customRoutineMinutes = 10;
+                      }),
                     ),
+                  if (_customRoutines.isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 7,
+                      runSpacing: 8,
+                      children: [
+                        for (var i = 0; i < _customRoutines.length; i++)
+                          _RemovableChip(
+                            label:
+                                "${_customRoutines[i].label} · ${_customRoutines[i].minutes}분",
+                            onRemove: () => _removeCustomRoutine(i),
+                          ),
+                      ],
+                    ),
+                  ],
 
                   // ── 합산 미리보기 ─────────────────────────────────────
                   _RoutineSummary(
                     prepMinutes: _selectedPreset,
                     routineItems: _routineItems,
-                    customRoutineLabel: _customRoutineController.text.trim(),
-                    customRoutineMinutes: _customRoutineMinutes,
+                    customRoutines: _customRoutines,
                   ),
 
                   // ── 에러 메시지 ───────────────────────────────────────
@@ -360,7 +511,9 @@ class _PrepTimeEntryScreenState extends ConsumerState<PrepTimeEntryScreen> {
 
                   // ── 제출 버튼 ─────────────────────────────────────────
                   EnsomPillButton(
-                    label: _submitting ? "저장 중..." : "다음으로",
+                    label: _submitting
+                        ? "저장 중..."
+                        : (widget.isOnboarding ? "다음으로" : "저장"),
                     onPressed: (_canSubmit && !_submitting) ? _submit : null,
                   ),
                 ],
@@ -386,21 +539,35 @@ class _SectionLabel extends StatelessWidget {
       children: [
         Text(
           title,
-          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, letterSpacing: -.2, color: EnsomColors.ink),
+          style: const TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -.2,
+            color: EnsomColors.ink,
+          ),
         ),
         const SizedBox(height: 6),
         Text(
           subtitle,
-          style: const TextStyle(fontSize: 12.5, color: EnsomColors.inkMuted, height: 1.6),
+          style: const TextStyle(
+            fontSize: 12.5,
+            color: EnsomColors.inkMuted,
+            height: 1.6,
+          ),
         ),
       ],
     );
   }
 }
 
-/// 목업 `.chip` — 미선택 surface2, 선택 cta 배경.
+/// 빠른 추가 입력 필드 — 텍스트 + "추가" 버튼. 버튼은 실제로 커스텀 항목을
+/// 확정(append)한다.
 class _InlineAddField extends StatelessWidget {
-  const _InlineAddField({required this.controller, required this.hintText, required this.onSubmit});
+  const _InlineAddField({
+    required this.controller,
+    required this.hintText,
+    required this.onSubmit,
+  });
 
   final TextEditingController controller;
   final String hintText;
@@ -441,7 +608,14 @@ class _InlineAddField extends StatelessWidget {
             borderRadius: BorderRadius.circular(12),
             child: const Padding(
               padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Text("추가", style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white)),
+              child: Text(
+                "추가",
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                ),
+              ),
             ),
           ),
         ),
@@ -451,37 +625,124 @@ class _InlineAddField extends StatelessWidget {
 }
 
 class _InlineRoutineAddField extends StatelessWidget {
-  const _InlineRoutineAddField({required this.controller, required this.minutes, required this.onMinutesChanged});
+  const _InlineRoutineAddField({
+    required this.controller,
+    required this.minutes,
+    required this.onMinutesChanged,
+    required this.onAdd,
+    required this.onClose,
+  });
 
   final TextEditingController controller;
   final int minutes;
   final ValueChanged<int> onMinutesChanged;
+  final VoidCallback onAdd;
+  final VoidCallback onClose;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 6),
-      decoration: BoxDecoration(
-        color: EnsomColors.surface1,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: EnsomColors.hairline, width: 1.4),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: TextField(
-              controller: controller,
-              style: const TextStyle(fontSize: 13, color: EnsomColors.ink),
-              decoration: const InputDecoration(
-                border: InputBorder.none,
-                hintText: "예: 스트레칭",
-                isCollapsed: true,
-                hintStyle: TextStyle(color: EnsomColors.inkFaint),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 6),
+          decoration: BoxDecoration(
+            color: EnsomColors.surface1,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: EnsomColors.hairline, width: 1.4),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: controller,
+                  onSubmitted: (_) => onAdd(),
+                  style: const TextStyle(fontSize: 13, color: EnsomColors.ink),
+                  decoration: const InputDecoration(
+                    border: InputBorder.none,
+                    hintText: "예: 스트레칭",
+                    isCollapsed: true,
+                    hintStyle: TextStyle(color: EnsomColors.inkFaint),
+                  ),
+                ),
+              ),
+              _MinuteStepper(minutes: minutes, onChanged: onMinutesChanged),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            TextButton(
+              onPressed: onClose,
+              child: const Text(
+                "닫기",
+                style: TextStyle(fontSize: 12, color: EnsomColors.inkMuted),
               ),
             ),
-          ),
-          _MinuteStepper(minutes: minutes, onChanged: onMinutesChanged),
-        ],
+            const Spacer(),
+            Material(
+              color: EnsomColors.cta,
+              borderRadius: BorderRadius.circular(12),
+              child: InkWell(
+                onTap: onAdd,
+                borderRadius: BorderRadius.circular(12),
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  child: Text(
+                    "추가",
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+/// 확정된 커스텀 항목을 보여주고 삭제(×)할 수 있는 칩.
+class _RemovableChip extends StatelessWidget {
+  const _RemovableChip({required this.label, required this.onRemove});
+
+  final String label;
+  final VoidCallback onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: EnsomColors.cta,
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.only(left: 13, right: 6, top: 7, bottom: 7),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              label,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(width: 4),
+            InkWell(
+              onTap: onRemove,
+              customBorder: const CircleBorder(),
+              child: const Padding(
+                padding: EdgeInsets.all(2),
+                child: Icon(Icons.close, size: 14, color: Colors.white),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -498,16 +759,26 @@ class _MinuteStepper extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        _StepperButton(icon: Icons.remove, onTap: minutes > 5 ? () => onChanged(minutes - 5) : null),
+        _StepperButton(
+          icon: Icons.remove,
+          onTap: minutes > 5 ? () => onChanged(minutes - 5) : null,
+        ),
         SizedBox(
           width: 38,
           child: Text(
             "$minutes분",
             textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: EnsomColors.ink),
+            style: const TextStyle(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w700,
+              color: EnsomColors.ink,
+            ),
           ),
         ),
-        _StepperButton(icon: Icons.add, onTap: minutes < 60 ? () => onChanged(minutes + 5) : null),
+        _StepperButton(
+          icon: Icons.add,
+          onTap: minutes < 60 ? () => onChanged(minutes + 5) : null,
+        ),
       ],
     );
   }
@@ -525,12 +796,18 @@ class _StepperButton extends StatelessWidget {
       color: EnsomColors.surface2,
       shape: const CircleBorder(),
       child: InkWell(
-        onTap: onTap,
+        // onTap이 null이어도 빈 콜백을 주어 제스처를 흡수한다. 상/하한에서
+        // 버튼을 눌러도 조상(있다면)으로 탭이 전달되지 않는다.
+        onTap: onTap ?? () {},
         customBorder: const CircleBorder(),
         child: SizedBox(
           width: 26,
           height: 26,
-          child: Icon(icon, size: 14, color: onTap == null ? EnsomColors.inkFaint : EnsomColors.ink),
+          child: Icon(
+            icon,
+            size: 14,
+            color: onTap == null ? EnsomColors.inkFaint : EnsomColors.ink,
+          ),
         ),
       ),
     );
@@ -540,7 +817,11 @@ class _StepperButton extends StatelessWidget {
 // ─── 루틴 항목 행 ────────────────────────────────────────────────────
 
 class _RoutineRow extends StatelessWidget {
-  const _RoutineRow({required this.routine, required this.onToggle, required this.onMinutesChanged});
+  const _RoutineRow({
+    required this.routine,
+    required this.onToggle,
+    required this.onMinutesChanged,
+  });
 
   final _RoutineItem routine;
   final ValueChanged<bool> onToggle;
@@ -550,25 +831,41 @@ class _RoutineRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
-      child: InkWell(
-        onTap: () => onToggle(!routine.selected),
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 2),
-          child: Row(
-            children: [
-              _RoutineCheckbox(checked: routine.selected),
-              const SizedBox(width: 11),
-              Expanded(
-                child: Text(
-                  routine.label,
-                  style: const TextStyle(fontSize: 13.5, color: EnsomColors.ink),
+      child: Row(
+        children: [
+          // 토글 InkWell은 체크박스+라벨 영역까지만. 스테퍼는 이 밖에 두어
+          // 분 라벨·비활성 버튼 탭이 조상 InkWell로 전달돼 체크가 풀리는 것을
+          // 막는다.
+          Expanded(
+            child: InkWell(
+              onTap: () => onToggle(!routine.selected),
+              borderRadius: BorderRadius.circular(12),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 2),
+                child: Row(
+                  children: [
+                    _RoutineCheckbox(checked: routine.selected),
+                    const SizedBox(width: 11),
+                    Expanded(
+                      child: Text(
+                        routine.label,
+                        style: const TextStyle(
+                          fontSize: 13.5,
+                          color: EnsomColors.ink,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              if (routine.selected) _MinuteStepper(minutes: routine.minutes, onChanged: onMinutesChanged),
-            ],
+            ),
           ),
-        ),
+          if (routine.selected)
+            _MinuteStepper(
+              minutes: routine.minutes,
+              onChanged: onMinutesChanged,
+            ),
+        ],
       ),
     );
   }
@@ -588,9 +885,14 @@ class _RoutineCheckbox extends StatelessWidget {
       decoration: BoxDecoration(
         color: checked ? EnsomColors.cta : Colors.white,
         borderRadius: BorderRadius.circular(7),
-        border: Border.all(color: checked ? EnsomColors.cta : EnsomColors.hairline, width: 1.6),
+        border: Border.all(
+          color: checked ? EnsomColors.cta : EnsomColors.hairline,
+          width: 1.6,
+        ),
       ),
-      child: checked ? const Icon(Icons.check, size: 13, color: Colors.white) : null,
+      child: checked
+          ? const Icon(Icons.check, size: 13, color: Colors.white)
+          : null,
     );
   }
 }
@@ -601,21 +903,19 @@ class _RoutineSummary extends StatelessWidget {
   const _RoutineSummary({
     required this.prepMinutes,
     required this.routineItems,
-    required this.customRoutineLabel,
-    required this.customRoutineMinutes,
+    required this.customRoutines,
   });
 
   final int? prepMinutes;
   final List<_RoutineItem> routineItems;
-  final String customRoutineLabel;
-  final int customRoutineMinutes;
+  final List<_RoutineItem> customRoutines;
 
   @override
   Widget build(BuildContext context) {
     final selectedRoutines = routineItems.where((r) => r.selected);
     final routineTotal =
         selectedRoutines.fold<int>(0, (sum, r) => sum + r.minutes) +
-        (customRoutineLabel.isNotEmpty ? customRoutineMinutes : 0);
+        customRoutines.fold<int>(0, (sum, r) => sum + r.minutes);
 
     if (prepMinutes == null && routineTotal == 0) {
       return const SizedBox.shrink();
@@ -626,34 +926,64 @@ class _RoutineSummary extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(top: 24),
       padding: const EdgeInsets.all(15),
-      decoration: BoxDecoration(color: EnsomColors.surface2, borderRadius: BorderRadius.circular(16)),
+      decoration: BoxDecoration(
+        color: EnsomColors.surface2,
+        borderRadius: BorderRadius.circular(16),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
             "예상 준비 시간 미리보기",
-            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: EnsomColors.ink),
+            style: TextStyle(
+              fontWeight: FontWeight.w700,
+              fontSize: 13,
+              color: EnsomColors.ink,
+            ),
           ),
           const SizedBox(height: 9),
           if (prepMinutes != null)
-            Text("기본 준비: $prepMinutes분", style: const TextStyle(fontSize: 12.5, color: EnsomColors.inkMuted)),
+            Text(
+              "기본 준비: $prepMinutes분",
+              style: const TextStyle(
+                fontSize: 12.5,
+                color: EnsomColors.inkMuted,
+              ),
+            ),
           if (routineTotal > 0) ...[
-            Text("루틴 합산: $routineTotal분", style: const TextStyle(fontSize: 12.5, color: EnsomColors.inkMuted)),
+            Text(
+              "루틴 합산: $routineTotal분",
+              style: const TextStyle(
+                fontSize: 12.5,
+                color: EnsomColors.inkMuted,
+              ),
+            ),
             for (final r in selectedRoutines)
               Text(
                 "  · ${r.label}: ${r.minutes}분",
-                style: const TextStyle(fontSize: 11.5, color: EnsomColors.inkFaint),
+                style: const TextStyle(
+                  fontSize: 11.5,
+                  color: EnsomColors.inkFaint,
+                ),
               ),
-            if (customRoutineLabel.isNotEmpty)
+            for (final r in customRoutines)
               Text(
-                "  · $customRoutineLabel: $customRoutineMinutes분",
-                style: const TextStyle(fontSize: 11.5, color: EnsomColors.inkFaint),
+                "  · ${r.label}: ${r.minutes}분",
+                style: const TextStyle(
+                  fontSize: 11.5,
+                  color: EnsomColors.inkFaint,
+                ),
               ),
           ],
           const Divider(height: 20, color: EnsomColors.hairline),
           Text(
             "총 약 $totalMin분",
-            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16, letterSpacing: -.3, color: EnsomColors.ink),
+            style: const TextStyle(
+              fontWeight: FontWeight.w700,
+              fontSize: 16,
+              letterSpacing: -.3,
+              color: EnsomColors.ink,
+            ),
           ),
           const SizedBox(height: 5),
           const Text(
