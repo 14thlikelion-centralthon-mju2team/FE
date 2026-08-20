@@ -6,10 +6,18 @@ import "../../network/kakao_local_search_service.dart";
 import "../../providers/map_providers.dart";
 import "../../repository/providers.dart";
 import "../../theme/ensom_colors.dart";
+import "../../widgets/ensom/ensom_chip.dart";
+import "../../widgets/ensom/ensom_pill_button.dart";
+import "../../widgets/ensom/ensom_text_field.dart";
+import "../../widgets/ensom/ensom_top_bar.dart";
 import "../search/place_search_screen.dart";
 
 /// S-10 일정 생성 폼.
 /// 캘린더의 빈 폼과 S-08R에서 넘어온 지도 프리필을 하나의 화면으로 처리한다.
+///
+/// ensom_onboarding_flow.html STEP 5("첫 일정을 만들어 볼까요?")의
+/// 필드/값행(vrow)/칩 시각 언어를 반영한다. 전용 목업 파일은 없어서
+/// 온보딩 흐름 안의 같은 폼 패턴을 재사용했다.
 class EventFormScreen extends ConsumerStatefulWidget {
   const EventFormScreen({super.key, this.fromMap = false});
 
@@ -77,13 +85,7 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen> {
     if (time == null) return;
 
     setState(() {
-      _startsAt = DateTime(
-        date.year,
-        date.month,
-        date.day,
-        time.hour,
-        time.minute,
-      );
+      _startsAt = DateTime(date.year, date.month, date.day, time.hour, time.minute);
     });
   }
 
@@ -92,37 +94,41 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen> {
 
     final answer = await showModalBottomSheet<LocationState>(
       context: context,
+      backgroundColor: EnsomColors.canvas,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+      ),
       builder: (sheetContext) => SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.fromLTRB(22, 22, 22, 18),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text(
+              const Text(
                 "이 일정에 장소가 필요한가요?",
-                style: Theme.of(context).textTheme.titleMedium,
+                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, letterSpacing: -.3, color: EnsomColors.ink),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 7),
               const Text(
                 "한 번 답하면 같은 일정에 다시 묻지 않아요.",
-                style: TextStyle(color: EnsomColors.inkMuted),
+                style: TextStyle(fontSize: 12.5, color: EnsomColors.inkMuted),
               ),
               const SizedBox(height: 20),
-              FilledButton(
-                onPressed: () =>
-                    Navigator.pop(sheetContext, LocationState.requiredMissing),
-                child: const Text("네, 장소가 있어요"),
+              EnsomPillButton(
+                label: "네, 장소가 있어요",
+                onPressed: () => Navigator.pop(sheetContext, LocationState.requiredMissing),
               ),
-              OutlinedButton(
-                onPressed: () =>
-                    Navigator.pop(sheetContext, LocationState.notRequired),
-                child: const Text("아니요, 온라인·재택이에요"),
+              const SizedBox(height: 8),
+              EnsomPillButton(
+                label: "아니요, 온라인·재택이에요",
+                variant: EnsomPillVariant.secondary,
+                onPressed: () => Navigator.pop(sheetContext, LocationState.notRequired),
               ),
-              TextButton(
-                onPressed: () =>
-                    Navigator.pop(sheetContext, LocationState.undecided),
-                child: const Text("잘 모르겠어요"),
+              EnsomPillButton(
+                label: "잘 모르겠어요",
+                variant: EnsomPillVariant.text,
+                onPressed: () => Navigator.pop(sheetContext, LocationState.undecided),
               ),
             ],
           ),
@@ -147,8 +153,7 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen> {
     if (label.isEmpty || _saving) return;
 
     if (!await _confirmClassificationIfNeeded()) return;
-    if (_locationState == LocationState.requiredMissing &&
-        _destinationName == null) {
+    if (_locationState == LocationState.requiredMissing && _destinationName == null) {
       await _pickDestination();
       if (_destinationName == null) return;
     }
@@ -175,32 +180,24 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen> {
 
     setState(() => _saving = true);
     try {
-      final endsAt = draft?.anchorMode == EventAnchor.arriveBy
-          ? draft!.at
-          : _startsAt.add(const Duration(hours: 1));
+      final endsAt = draft?.anchorMode == EventAnchor.arriveBy ? draft!.at : _startsAt.add(const Duration(hours: 1));
       final event = Event(
         eventId: "",
         displayLabel: label,
         displayName: label,
         startsAt: _startsAt,
         endsAt: endsAt,
-        locationState:
-            _locationState == LocationState.requiredMissing &&
-                _destinationName != null
+        locationState: _locationState == LocationState.requiredMissing && _destinationName != null
             ? LocationState.requiredResolved
             : _locationState,
         destinationName: _destinationName,
         destinationLat: _destinationLat,
         destinationLng: _destinationLng,
         anchor: draft?.anchorMode ?? EventAnchor.arriveBy,
-        sourceType: draft == null
-            ? EventSourceType.internal
-            : EventSourceType.mapSearch,
+        sourceType: draft == null ? EventSourceType.internal : EventSourceType.mapSearch,
       );
 
-      final created = await ref
-          .read(ensomRepositoryProvider)
-          .createEvent(
+      final created = await ref.read(ensomRepositoryProvider).createEvent(
             event,
             originPlaceId: draft?.originPlaceId,
             selectedRouteOptionId: draft?.selectedRoute.routeOptionId,
@@ -212,10 +209,7 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen> {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("일정을 저장했어요."),
-          duration: Duration(seconds: 2),
-        ),
+        const SnackBar(content: Text("일정을 저장했어요."), duration: Duration(seconds: 2)),
       );
       context.pushReplacement("/events/${created.eventId}");
     } catch (_) {
@@ -229,35 +223,34 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen> {
   }
 
   Widget _buildMapPrefill(MapDraftEvent draft) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              draft.destName,
-              style: const TextStyle(fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              "${draft.selectedRoute.totalMinutes}분 · 도보 ${draft.selectedRoute.walkMinutes}분 · 환승 ${draft.selectedRoute.transferCount}회",
-              style: const TextStyle(color: EnsomColors.inkMuted),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              draft.anchorMode == EventAnchor.arriveBy
-                  ? "도착 ${_formatDateTime(draft.at)}"
-                  : "출발 ${_formatDateTime(draft.at)}",
-              style: const TextStyle(color: EnsomColors.inkMuted),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              "지도에서 선택한 장소·시각·경로가 적용됐어요.",
-              style: TextStyle(fontSize: 12, color: EnsomColors.limeInk),
-            ),
-          ],
-        ),
+    return Container(
+      padding: const EdgeInsets.all(15),
+      decoration: BoxDecoration(color: EnsomColors.lime, borderRadius: BorderRadius.circular(18)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            draft.destName,
+            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, letterSpacing: -.3, color: EnsomColors.ink),
+          ),
+          const SizedBox(height: 5),
+          Text(
+            "${draft.selectedRoute.totalMinutes}분 · 도보 ${draft.selectedRoute.walkMinutes}분 · 환승 ${draft.selectedRoute.transferCount}회",
+            style: TextStyle(fontSize: 12, color: EnsomColors.ink.withValues(alpha: .72)),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            draft.anchorMode == EventAnchor.arriveBy
+                ? "도착 ${_formatDateTime(draft.at)}"
+                : "출발 ${_formatDateTime(draft.at)}",
+            style: TextStyle(fontSize: 12, color: EnsomColors.ink.withValues(alpha: .72)),
+          ),
+          const SizedBox(height: 9),
+          Text(
+            "지도에서 선택한 장소·시각·경로가 적용됐어요.",
+            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: EnsomColors.limeInk),
+          ),
+        ],
       ),
     );
   }
@@ -271,10 +264,7 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen> {
     if (widget.fromMap) {
       final draftState = ref.watch(mapDraftEventProvider);
       if (draftState.isLoading) {
-        return Scaffold(
-          appBar: AppBar(title: const Text("일정 만들기")),
-          body: const Center(child: CircularProgressIndicator()),
-        );
+        return const _LoadingScaffold();
       }
       if (draftState.hasValue && draftState.value != null) {
         _applyMapDraft(draftState.value!);
@@ -284,21 +274,27 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen> {
     final draft = _mapDraft;
     if (widget.fromMap && draft != null && draft.isExpiredAt(DateTime.now())) {
       return Scaffold(
-        appBar: AppBar(title: const Text("일정 만들기")),
+        backgroundColor: EnsomColors.canvas,
+        appBar: const EnsomTopBar(title: "일정 만들기"),
         body: Center(
           child: Padding(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(26),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 const Text(
                   "선택한 경로가 만료됐어요.",
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, letterSpacing: -.3, color: EnsomColors.ink),
                 ),
                 const SizedBox(height: 8),
-                Text("${draft.destName} 경로를 다시 검색해주세요."),
+                Text(
+                  "${draft.destName} 경로를 다시 검색해주세요.",
+                  style: const TextStyle(fontSize: 12.5, color: EnsomColors.inkMuted),
+                ),
                 const SizedBox(height: 20),
-                FilledButton(
+                EnsomPillButton(
+                  label: "경로 다시 검색",
+                  expand: false,
                   onPressed: () async {
                     await ref.read(mapDraftEventProvider.notifier).clear();
                     if (!context.mounted) return;
@@ -313,7 +309,6 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen> {
                       ).toString(),
                     );
                   },
-                  child: const Text("경로 다시 검색"),
                 ),
               ],
             ),
@@ -322,85 +317,178 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen> {
       );
     }
     if (widget.fromMap && draft == null) {
-      return Scaffold(
-        appBar: AppBar(title: const Text("일정 만들기")),
-        body: const Center(child: Text("선택한 경로 정보를 찾을 수 없어요.")),
+      return const Scaffold(
+        backgroundColor: EnsomColors.canvas,
+        appBar: EnsomTopBar(title: "일정 만들기"),
+        body: Center(
+          child: Text("선택한 경로 정보를 찾을 수 없어요.", style: TextStyle(color: EnsomColors.inkMuted)),
+        ),
       );
     }
 
+    final canSave = !_saving && _labelController.text.trim().isNotEmpty;
+
     return Scaffold(
-      appBar: AppBar(title: const Text("일정 만들기")),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          if (draft != null) ...[
-            _buildMapPrefill(draft),
-            const SizedBox(height: 16),
-          ],
-          TextField(
-            controller: _labelController,
-            decoration: const InputDecoration(labelText: "일정명"),
-            onChanged: (_) => setState(() {}),
-          ),
-          if (draft == null) ...[
-            const SizedBox(height: 16),
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text("시각"),
-              subtitle: Text(_formatDateTime(_startsAt)),
-              trailing: const Icon(Icons.edit_calendar),
-              onTap: _pickTime,
-            ),
-            const SizedBox(height: 8),
-            SegmentedButton<LocationState>(
-              segments: const [
-                ButtonSegment(
-                  value: LocationState.requiredMissing,
-                  label: Text("장소 필요"),
-                ),
-                ButtonSegment(
-                  value: LocationState.notRequired,
-                  label: Text("장소 불필요"),
-                ),
-                ButtonSegment(
-                  value: LocationState.undecided,
-                  label: Text("미정"),
-                ),
-              ],
-              selected: {_locationState},
-              onSelectionChanged: (selection) {
-                setState(() {
-                  _locationState = selection.first;
-                  if (_locationState != LocationState.requiredMissing) {
-                    _destinationName = null;
-                    _destinationLat = null;
-                    _destinationLng = null;
-                  }
-                });
-              },
-            ),
-            if (_locationState == LocationState.requiredMissing) ...[
-              const SizedBox(height: 12),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.place_outlined),
-                title: Text(_destinationName ?? "목적지 검색"),
-                subtitle: _destinationName == null
-                    ? const Text("탭해서 장소를 선택하세요")
-                    : null,
-                trailing: const Icon(Icons.search),
-                onTap: _pickDestination,
+      backgroundColor: EnsomColors.canvas,
+      appBar: const EnsomTopBar(title: "일정 만들기"),
+      body: SafeArea(
+        top: false,
+        child: Column(
+          children: [
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(18, 8, 18, 16),
+                children: [
+                  if (draft != null) ...[
+                    _buildMapPrefill(draft),
+                    const SizedBox(height: 18),
+                  ],
+                  EnsomTextField(
+                    label: "일정 이름",
+                    controller: _labelController,
+                    onChanged: (_) => setState(() {}),
+                  ),
+                  if (draft == null) ...[
+                    const SizedBox(height: 16),
+                    const Text(
+                      "시작 시각",
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: EnsomColors.inkMuted),
+                    ),
+                    const SizedBox(height: 6),
+                    _ValueRow(value: _formatDateTime(_startsAt), onTap: _pickTime),
+                    const SizedBox(height: 16),
+                    const Text(
+                      "장소",
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: EnsomColors.inkMuted),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 7,
+                      runSpacing: 8,
+                      children: [
+                        EnsomChip(
+                          label: "장소 필요",
+                          selected: _locationState == LocationState.requiredMissing,
+                          onTap: () => setState(() {
+                            _locationState = LocationState.requiredMissing;
+                          }),
+                        ),
+                        EnsomChip(
+                          label: "장소 불필요",
+                          selected: _locationState == LocationState.notRequired,
+                          onTap: () => setState(() {
+                            _locationState = LocationState.notRequired;
+                            _destinationName = null;
+                            _destinationLat = null;
+                            _destinationLng = null;
+                          }),
+                        ),
+                        EnsomChip(
+                          label: "미정",
+                          selected: _locationState == LocationState.undecided,
+                          onTap: () => setState(() {
+                            _locationState = LocationState.undecided;
+                            _destinationName = null;
+                            _destinationLat = null;
+                            _destinationLng = null;
+                          }),
+                        ),
+                      ],
+                    ),
+                    if (_locationState == LocationState.requiredMissing) ...[
+                      const SizedBox(height: 10),
+                      _ValueRow(
+                        value: _destinationName ?? "목적지 검색",
+                        hint: _destinationName == null,
+                        leading: Icons.place_outlined,
+                        trailing: Icons.search,
+                        onTap: _pickDestination,
+                      ),
+                    ],
+                  ],
+                ],
               ),
-            ],
+            ),
+            Container(
+              padding: const EdgeInsets.fromLTRB(18, 12, 18, 18),
+              decoration: const BoxDecoration(
+                color: EnsomColors.surface1,
+                border: Border(top: BorderSide(color: EnsomColors.hairline)),
+              ),
+              child: EnsomPillButton(
+                label: _saving ? "저장 중..." : "저장",
+                onPressed: canSave ? _save : null,
+              ),
+            ),
           ],
-          const SizedBox(height: 24),
-          FilledButton(
-            onPressed: _saving || _labelController.text.trim().isEmpty
-                ? null
-                : _save,
-            child: Text(_saving ? "저장 중..." : "저장"),
-          ),
-        ],
+        ),
+      ),
+    );
+  }
+}
+
+class _LoadingScaffold extends StatelessWidget {
+  const _LoadingScaffold();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(
+      backgroundColor: EnsomColors.canvas,
+      appBar: EnsomTopBar(title: "일정 만들기"),
+      body: Center(child: CircularProgressIndicator()),
+    );
+  }
+}
+
+/// 목업 `.vrow` — hairline 테두리(1.4px), radius 12의 값 표시 행.
+class _ValueRow extends StatelessWidget {
+  const _ValueRow({
+    required this.value,
+    required this.onTap,
+    this.hint = false,
+    this.leading,
+    this.trailing = Icons.chevron_right,
+  });
+
+  final String value;
+  final bool hint;
+  final VoidCallback onTap;
+  final IconData? leading;
+  final IconData trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        height: 46,
+        padding: const EdgeInsets.symmetric(horizontal: 13),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: EnsomColors.hairline, width: 1.4),
+        ),
+        child: Row(
+          children: [
+            if (leading != null) ...[
+              Icon(leading, size: 16, color: EnsomColors.inkFaint),
+              const SizedBox(width: 9),
+            ],
+            Expanded(
+              child: Text(
+                value,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: hint ? FontWeight.w500 : FontWeight.w600,
+                  color: hint ? EnsomColors.inkFaint : EnsomColors.ink,
+                ),
+              ),
+            ),
+            Icon(trailing, size: 16, color: EnsomColors.inkFaint),
+          ],
+        ),
       ),
     );
   }
