@@ -271,11 +271,12 @@ class FcmService {
     _foregroundMessageController = handler;
   }
 
-  /// 로그아웃/terminal expiry 시 세션 구독을 모두 취소한다.
+  /// 로그아웃/terminal expiry 시 세션 구독과 FCM installation token을 정리한다.
+  /// token 삭제로 Dart stream 밖에서 OS가 표시하는 이전 계정 push도 차단한다.
   /// router tap handler는 앱 수명 callback이므로 재로그인 복구를 위해 유지한다.
   Future<void> dispose() async {
     _foregroundMessageController = null;
-    await _sessionLifecycle.dispose();
+    await _sessionLifecycle.dispose(deviceCleanup: _messaging.deleteToken);
   }
 
   /// 알림 탭 시 딥링크 처리 — notificationTapHandler로 전달.

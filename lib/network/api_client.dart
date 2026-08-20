@@ -141,6 +141,11 @@ class ApiClient {
         refreshToken: refreshToken,
         userId: userId,
       );
+      if (!isCurrentSessionGeneration(expectedGeneration)) {
+        // 다음 session mutation이 실행되기 전에 방금 기록한 stale 세션을
+        // rollback한다. 이후 세대의 save는 queue에서 이 clear 뒤에 실행된다.
+        await _secureStorage.clearSession();
+      }
     });
   }
 
@@ -151,23 +156,25 @@ class ApiClient {
     });
   }
 
-  Future<_SessionSnapshot> _captureSession() async {
-    while (true) {
-      final generation = _sessionGeneration;
-      final values = await Future.wait<String?>([
-        _secureStorage.accessToken,
-        _secureStorage.refreshToken,
-        _secureStorage.userId,
-      ]);
-      if (isCurrentSessionGeneration(generation)) {
-        return _SessionSnapshot(
-          generation: generation,
-          accessToken: values[0],
-          refreshToken: values[1],
-          userId: values[2],
-        );
-      }
+  Future<_SessionSnapshot> _captureSession({int? expectedGeneration}) async {
+    final generation = expectedGeneration ?? _sessionGeneration;
+    if (!isCurrentSessionGeneration(generation)) {
+      throw _staleSessionException();
     }
+    final values = await Future.wait<String?>([
+      _secureStorage.accessToken,
+      _secureStorage.refreshToken,
+      _secureStorage.userId,
+    ]);
+    if (!isCurrentSessionGeneration(generation)) {
+      throw _staleSessionException();
+    }
+    return _SessionSnapshot(
+      generation: generation,
+      accessToken: values[0],
+      refreshToken: values[1],
+      userId: values[2],
+    );
   }
 
   Map<String, String> _readHeaders(String? accessToken) => {
@@ -361,6 +368,10 @@ class ApiClient {
           return const _RefreshOutcome(_RefreshStatus.stale);
         }
         await _secureStorage.updateAccessToken(accessToken);
+        if (!isCurrentSessionGeneration(session.generation)) {
+          await _secureStorage.clearSession();
+          return const _RefreshOutcome(_RefreshStatus.stale);
+        }
         return _RefreshOutcome(_RefreshStatus.success, accessToken);
       });
     } catch (_) {
@@ -388,9 +399,12 @@ class ApiClient {
     String path, {
     Map<String, dynamic>? body,
     bool requiresAuth = true,
+    int? expectedGeneration,
   }) async {
     final idempotencyKey = _uuid.v4();
-    final session = requiresAuth ? await _captureSession() : null;
+    final session = requiresAuth
+        ? await _captureSession(expectedGeneration: expectedGeneration)
+        : null;
     return _handle<T>(
       (accessToken) => _http.post(
         _uri(path),

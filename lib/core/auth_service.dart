@@ -138,7 +138,10 @@ class AuthService {
   // ─── 로그아웃 (§2.6) ──────────────────────────────────────────
   Future<void> logout({required int expectedGeneration}) async {
     try {
-      await _client.post<Map<String, dynamic>>("/auth/logout");
+      await _client.post<Map<String, dynamic>>(
+        "/auth/logout",
+        expectedGeneration: expectedGeneration,
+      );
     } catch (_) {
       // 로그아웃 서버 호출 실패해도 현재 로그아웃 세대의 로컬 세션은 소거한다.
     } finally {

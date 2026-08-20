@@ -77,7 +77,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
            )),
        _disposeFcm = disposeFcm ?? FcmService.instance.dispose,
        super(AuthState.initial) {
-    _checkExistingSession();
+    _sessionCheckCompletion = _checkExistingSession();
   }
 
   final AuthService authService;
@@ -89,6 +89,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
   final Future<void> Function() _disposeFcm;
   int? _terminalSourceGeneration;
   Future<void>? _terminalAuthExpiryFuture;
+  Future<void> _sessionCheckCompletion = Future<void>.value();
+
+  /// 생성자 또는 retry가 시작한 최신 bootstrap 검사의 실제 완료 Future.
+  Future<void> get sessionCheckCompletion => _sessionCheckCompletion;
 
   /// 앱 시작 시 기존 세션을 서버에서 검증한다.
   Future<void> _checkExistingSession() async {
@@ -154,7 +158,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  Future<void> retrySessionCheck() => _checkExistingSession();
+  Future<void> retrySessionCheck() {
+    final completion = _checkExistingSession();
+    _sessionCheckCompletion = completion;
+    return completion;
+  }
 
   /// main.dart가 Firebase.initializeApp() + 백그라운드 핸들러 등록까지는
   /// 이미 해 뒀다. 로그인 이후 단계(권한 요청, 토큰 획득, POST
