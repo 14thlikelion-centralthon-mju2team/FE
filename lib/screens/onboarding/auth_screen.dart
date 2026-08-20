@@ -33,6 +33,9 @@ class AuthScreen extends ConsumerStatefulWidget {
 class _AuthScreenState extends ConsumerState<AuthScreen> {
   bool _submitting = false;
   _AuthNotice _notice = _AuthNotice.none;
+  // TODO(임시 진단용): 원인 파악되면 제거. 배너에 실제 예외 메시지를
+  // 노출해 개발자 도구 없이도 원인을 알 수 있게 한다.
+  String? _debugErrorDetail;
 
   Future<void> _handleGoogleLogin() async {
     setState(() {
@@ -74,12 +77,17 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
           context.go("/home");
       }
     } on ApiException catch (e) {
+      debugPrint("[google-login] 실패(ApiException): ${e.code} ${e.message}");
       setState(() {
         _notice = e.code == "NETWORK_ERROR" ? _AuthNotice.network : _AuthNotice.provider;
+        _debugErrorDetail = "${e.code}: ${e.message}";
       });
-    } catch (e) {
-      debugPrint("[google-login] 실패: $e");
-      setState(() => _notice = _AuthNotice.provider);
+    } catch (e, st) {
+      debugPrint("[google-login] 실패: $e\n$st");
+      setState(() {
+        _notice = _AuthNotice.provider;
+        _debugErrorDetail = e.toString();
+      });
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
@@ -153,7 +161,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                 _ErrorBanner(
                   caution: true,
                   title: "Google 로그인에 문제가 생겼어요",
-                  subtitle: "잠시 후 다시 시도하거나 다른 방법으로 로그인해 주세요",
+                  subtitle: _debugErrorDetail == null
+                      ? "잠시 후 다시 시도하거나 다른 방법으로 로그인해 주세요"
+                      : "(임시 진단) $_debugErrorDetail",
                   onRetry: _submitting ? null : _handleGoogleLogin,
                 ),
               if (_notice != _AuthNotice.none) const SizedBox(height: 4),
