@@ -39,6 +39,21 @@ class GoogleAuthHelper {
   Stream<GoogleSignInAccount?> get onLoginUserChanged =>
       _loginSignIn.onCurrentUserChanged;
 
+  /// google_web_button.dart의 renderButton()은 내부적으로
+  /// GoogleSignInPlugin.initialized(GIS 스크립트 로드 + initWithParams)가
+  /// 끝나야 실제 버튼을 그린다 — 그 전엔 "Getting ready" 텍스트만
+  /// 보인다. 이 초기화는 GoogleSignIn의 signIn류 메서드를 한 번이라도
+  /// 호출해야 트리거되는데, 웹은 signIn()을 안 쓰기로 했으므로
+  /// signInSilently()로 대신 트리거한다(이전에 로그인한 적 있으면
+  /// 조용히 재인증까지 겸함). 실패해도 무시 — 버튼은 여전히 뜬다.
+  Future<void> ensureWebLoginReady() async {
+    try {
+      await _loginSignIn.signInSilently();
+    } catch (_) {
+      // 초기 세션 없음/네트워크 문제 — 버튼을 못 그릴 이유는 아니다.
+    }
+  }
+
   /// 로그인용 — idToken을 반환한다.
   /// 사용자가 취소하면 null, 인증 실패 시 예외.
   Future<String?> signInForLogin() async {
