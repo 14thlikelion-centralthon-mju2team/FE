@@ -146,10 +146,15 @@ class _PlaceRegistrationScreenState
       final placeId = const Uuid().v4();
       final placeType = _placeTypeForLabel(label);
       // BE POST /places는 address 필수(@NotBlank, DB not null). 역지오코딩으로
-      // 얻은 주소를 우선 쓰고, 실패했으면 좌표 문자열로 폴백해 400을 막는다.
+      // 얻은 주소를 쓰고, 실패했으면 좌표가 아닌 상수 문자열로 폴백한다.
+      //
+      // 폴백에 좌표를 넣지 않는 이유: USER_PLACE.lat/lng는 앱 레벨 AES-GCM으로
+      // 암호화 저장하는데(ERD USER_PLACE, PRD §13, TRD §14.3) address는 평문
+      // text 컬럼이다. 여기에 좌표를 쓰면 암호화를 우회해 위치가 평문으로 남는다.
+      // 카카오 REST 키 미주입 빌드에서는 모든 등록이 이 폴백을 타므로 특히 중요.
       final address = (resolvedAddress != null && resolvedAddress!.isNotEmpty)
           ? resolvedAddress!
-          : "위도 ${lat!.toStringAsFixed(6)}, 경도 ${lng!.toStringAsFixed(6)}";
+          : "주소 미확인";
       final place = Place(
         placeId: placeId,
         placeType: placeType,
