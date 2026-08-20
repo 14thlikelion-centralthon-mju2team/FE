@@ -48,12 +48,21 @@ class EventDetailScreen extends ConsumerWidget {
     await ref.read(planControllerProvider(eventId).notifier).retry();
   }
 
-  Future<void> _resolveChecklistItem(BuildContext context, WidgetRef ref, ChecklistItem item, bool completed) async {
+  Future<void> _resolveChecklistItem(
+    BuildContext context,
+    WidgetRef ref,
+    ChecklistItem item,
+    bool completed,
+  ) async {
     try {
-      await ref.read(planControllerProvider(eventId).notifier).toggleChecklistItem(item, completed);
+      await ref
+          .read(planControllerProvider(eventId).notifier)
+          .toggleChecklistItem(item, completed);
     } catch (_) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("처리하지 못했어요. 다시 시도해주세요.")));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("처리하지 못했어요. 다시 시도해주세요.")));
     }
   }
 
@@ -64,10 +73,14 @@ class EventDetailScreen extends ConsumerWidget {
     WellnessActionCompletionStatus status,
   ) async {
     try {
-      await ref.read(planControllerProvider(eventId).notifier).resolveWellnessAction(action, status);
+      await ref
+          .read(planControllerProvider(eventId).notifier)
+          .resolveWellnessAction(action, status);
     } catch (_) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("처리하지 못했어요. 다시 시도해주세요.")));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("처리하지 못했어요. 다시 시도해주세요.")));
     }
   }
 
@@ -89,7 +102,10 @@ class EventDetailScreen extends ConsumerWidget {
         title: const Text("이 일정을 삭제할까요?"),
         content: const Text("예약된 알림도 함께 취소돼요."),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("취소")),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text("취소"),
+          ),
           TextButton(
             onPressed: () {
               Navigator.pop(ctx);
@@ -108,12 +124,16 @@ class EventDetailScreen extends ConsumerWidget {
       final apiClient = ref.read(apiClientProvider);
       await apiClient.delete("/events/$eventId");
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("삭제했어요.")));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text("삭제했어요.")));
         context.pop();
       }
     } on ApiException catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
       }
     }
   }
@@ -130,7 +150,11 @@ class EventDetailScreen extends ConsumerWidget {
         elevation: 0,
         title: Text(
           eventAsync.value?.displayName ?? "일정 상세",
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: EnsomColors.ink),
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+            color: EnsomColors.ink,
+          ),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
@@ -142,7 +166,10 @@ class EventDetailScreen extends ConsumerWidget {
               const PopupMenuItem(value: "edit", child: Text("계획 수정")),
               const PopupMenuItem(
                 value: "delete",
-                child: Text("일정 삭제", style: TextStyle(color: EnsomColors.caution)),
+                child: Text(
+                  "일정 삭제",
+                  style: TextStyle(color: EnsomColors.caution),
+                ),
               ),
             ],
           ),
@@ -156,7 +183,9 @@ class EventDetailScreen extends ConsumerWidget {
           child: ListView(
             padding: const EdgeInsets.fromLTRB(18, 4, 18, 24),
             children: [
-              const PermissionDegradedBanner(type: DegradedPermissionType.location),
+              const PermissionDegradedBanner(
+                type: DegradedPermissionType.location,
+              ),
               _Header(event: event),
               const SizedBox(height: 18),
               Consumer(
@@ -172,25 +201,41 @@ class EventDetailScreen extends ConsumerWidget {
                         return const Padding(
                           padding: EdgeInsets.symmetric(vertical: 32),
                           child: Center(
-                            child: Text("이 일정은 이동 계획이 없어요.", style: TextStyle(color: EnsomColors.inkMuted)),
+                            child: Text(
+                              "이 일정은 이동 계획이 없어요.",
+                              style: TextStyle(color: EnsomColors.inkMuted),
+                            ),
                           ),
                         );
                       }
                       return Padding(
                         padding: const EdgeInsets.symmetric(vertical: 16),
-                        child: EnsomErrorBanner(title: "계획을 불러오지 못했어요", subtitle: err.toString()),
+                        child: EnsomErrorBanner(
+                          title: "계획을 불러오지 못했어요",
+                          subtitle: err.toString(),
+                        ),
                       );
                     },
                     data: (plan) => Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _TimePlanPanel(plan: plan, isTerminal: _terminalStatuses.contains(plan.eventStatus)),
+                        _TimePlanPanel(
+                          plan: plan,
+                          isTerminal: _terminalStatuses.contains(
+                            plan.eventStatus,
+                          ),
+                        ),
                         const SizedBox(height: 20),
                         _BreakdownCard(breakdown: plan.breakdown),
                         const SizedBox(height: 18),
                         ChecklistSection(
                           checklist: plan.checklist,
-                          onToggle: (item, completed) => _resolveChecklistItem(context, ref, item, completed),
+                          onToggle: (item, completed) => _resolveChecklistItem(
+                            context,
+                            ref,
+                            item,
+                            completed,
+                          ),
                         ),
                         Align(
                           alignment: Alignment.centerLeft,
@@ -201,17 +246,27 @@ class EventDetailScreen extends ConsumerWidget {
                                 isScrollControlled: true,
                                 builder: (_) => const PrepItemAddSheet(),
                               );
-                              if (added == true) ref.invalidate(planControllerProvider(eventId));
+                              if (added == true)
+                                ref.invalidate(planControllerProvider(eventId));
                             },
                             icon: const Icon(Icons.add, size: 16),
-                            label: const Text("준비 항목 추가", style: TextStyle(fontSize: 12)),
+                            label: const Text(
+                              "준비 항목 추가",
+                              style: TextStyle(fontSize: 12),
+                            ),
                           ),
                         ),
                         if (plan.wellnessActions.isNotEmpty) ...[
                           const SizedBox(height: 18),
                           WellnessActionsSection(
                             actions: plan.wellnessActions,
-                            onResolve: (action, status) => _resolveWellnessAction(context, ref, action, status),
+                            onResolve: (action, status) =>
+                                _resolveWellnessAction(
+                                  context,
+                                  ref,
+                                  action,
+                                  status,
+                                ),
                           ),
                         ],
                         if (plan.selectedRouteOptionId != null) ...[
@@ -242,7 +297,10 @@ class _ErrorState extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Text("불러오지 못했어요.", style: TextStyle(color: EnsomColors.inkMuted)),
+          const Text(
+            "불러오지 못했어요.",
+            style: TextStyle(color: EnsomColors.inkMuted),
+          ),
           const SizedBox(height: 14),
           EnsomPillButton(label: "다시 시도", expand: false, onPressed: onRetry),
         ],
@@ -273,7 +331,13 @@ class _Header extends StatelessWidget {
       children: [
         Text(
           event.displayName,
-          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700, letterSpacing: -.6, height: 1.2, color: EnsomColors.ink),
+          style: const TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -.6,
+            height: 1.2,
+            color: EnsomColors.ink,
+          ),
         ),
         const SizedBox(height: 9),
         Wrap(
@@ -283,9 +347,14 @@ class _Header extends StatelessWidget {
           children: [
             if (status != null && _statusLabels[status] != null)
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 5,
+                ),
                 decoration: BoxDecoration(
-                  color: status == EventLifecycleStatus.closed || status == EventLifecycleStatus.arrived
+                  color:
+                      status == EventLifecycleStatus.closed ||
+                          status == EventLifecycleStatus.arrived
                       ? EnsomColors.cta
                       : EnsomColors.surface2,
                   borderRadius: BorderRadius.circular(999),
@@ -295,25 +364,40 @@ class _Header extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 10.5,
                     fontWeight: FontWeight.w700,
-                    color: status == EventLifecycleStatus.closed || status == EventLifecycleStatus.arrived
+                    color:
+                        status == EventLifecycleStatus.closed ||
+                            status == EventLifecycleStatus.arrived
                         ? Colors.white
                         : EnsomColors.inkMuted,
                   ),
                 ),
               ),
-            Text(_formatMeta(event), style: const TextStyle(fontSize: 12.5, color: EnsomColors.inkMuted)),
+            Text(
+              _formatMeta(event),
+              style: const TextStyle(
+                fontSize: 12.5,
+                color: EnsomColors.inkMuted,
+              ),
+            ),
           ],
         ),
         if (event.destinationName != null) ...[
           const SizedBox(height: 6),
           Row(
             children: [
-              const Icon(Icons.place_outlined, size: 14, color: EnsomColors.inkFaint),
+              const Icon(
+                Icons.place_outlined,
+                size: 14,
+                color: EnsomColors.inkFaint,
+              ),
               const SizedBox(width: 5),
               Expanded(
                 child: Text(
                   event.destinationName!,
-                  style: const TextStyle(fontSize: 12.5, color: EnsomColors.inkMuted),
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    color: EnsomColors.inkMuted,
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -382,7 +466,13 @@ class _TimePlanPanel extends StatelessWidget {
         return "이 일정은 취소됐어요";
       case EventLifecycleStatus.unresolved:
         return "도착 여부를 확인하지 못했어요";
-      default:
+      // 아래 진행 중 상태는 terminal이 아니므로 이 함수가 호출되지 않는다.
+      // default 대신 명시적으로 나열해, enum에 값이 추가되면 컴파일러가
+      // 이 switch를 잡도록 하고 조용한 빈 문자열 반환을 방지한다.
+      case EventLifecycleStatus.planned:
+      case EventLifecycleStatus.notified:
+      case EventLifecycleStatus.preparing:
+      case EventLifecycleStatus.enroute:
         return "";
     }
   }
@@ -395,25 +485,38 @@ class _TimePlanPanel extends StatelessWidget {
     return (elapsed / total).clamp(0.0, 1.0);
   }
 
-  static final _timeFmt = _HHmm();
+  static final _timeFmt = _TimeFormatter();
 
   @override
   Widget build(BuildContext context) {
     final active = _activeIndex;
     return Container(
       padding: const EdgeInsets.fromLTRB(18, 20, 18, 18),
-      decoration: BoxDecoration(color: EnsomColors.panel, borderRadius: BorderRadius.circular(28)),
+      decoration: BoxDecoration(
+        color: EnsomColors.panel,
+        borderRadius: BorderRadius.circular(28),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             "시간 계획",
-            style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, letterSpacing: .9, color: Colors.white.withValues(alpha: .4)),
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              letterSpacing: .9,
+              color: Colors.white.withValues(alpha: .4),
+            ),
           ),
           const SizedBox(height: 9),
           RichText(
             text: TextSpan(
-              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Colors.white, letterSpacing: -.2),
+              style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
+                letterSpacing: -.2,
+              ),
               children: [TextSpan(text: _headline)],
             ),
           ),
@@ -421,11 +524,19 @@ class _TimePlanPanel extends StatelessWidget {
             const SizedBox(height: 8),
             Row(
               children: [
-                const Icon(Icons.warning_amber_rounded, size: 14, color: EnsomColors.caution),
+                const Icon(
+                  Icons.warning_amber_rounded,
+                  size: 14,
+                  color: EnsomColors.caution,
+                ),
                 const SizedBox(width: 6),
                 const Text(
                   "시간이 충분하지 않을 수 있어요",
-                  style: TextStyle(fontSize: 11.5, color: EnsomColors.caution, fontWeight: FontWeight.w600),
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    color: EnsomColors.caution,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ],
             ),
@@ -435,10 +546,22 @@ class _TimePlanPanel extends StatelessWidget {
             child: Stack(
               alignment: Alignment.centerLeft,
               children: [
-                Container(height: 2, decoration: BoxDecoration(color: Colors.white.withValues(alpha: .14), borderRadius: BorderRadius.circular(2))),
+                Container(
+                  height: 2,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: .14),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
                 FractionallySizedBox(
                   widthFactor: _fillFraction,
-                  child: Container(height: 2, decoration: BoxDecoration(color: EnsomColors.lime, borderRadius: BorderRadius.circular(2))),
+                  child: Container(
+                    height: 2,
+                    decoration: BoxDecoration(
+                      color: EnsomColors.lime,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
                 ),
                 for (var i = 0; i < 3; i++)
                   Align(
@@ -450,9 +573,21 @@ class _TimePlanPanel extends StatelessWidget {
           ),
           Row(
             children: [
-              _TimeCol(label: "준비 시작", time: plan.prepStartAt, active: active == 0),
-              _TimeCol(label: "출발", time: plan.recommendedDepartAt, active: active == 1),
-              _TimeCol(label: "도착", time: plan.targetArriveAt, active: active == 2),
+              _TimeCol(
+                label: "준비 시작",
+                time: plan.prepStartAt,
+                active: active == 0,
+              ),
+              _TimeCol(
+                label: "출발",
+                time: plan.recommendedDepartAt,
+                active: active == 1,
+              ),
+              _TimeCol(
+                label: "도착",
+                time: plan.targetArriveAt,
+                active: active == 2,
+              ),
             ],
           ),
         ],
@@ -474,14 +609,26 @@ class _Node extends StatelessWidget {
       decoration: BoxDecoration(
         color: active ? EnsomColors.lime : Colors.white.withValues(alpha: .28),
         shape: BoxShape.circle,
-        boxShadow: active ? [BoxShadow(color: EnsomColors.lime.withValues(alpha: .16), blurRadius: 0, spreadRadius: 4)] : null,
+        boxShadow: active
+            ? [
+                BoxShadow(
+                  color: EnsomColors.lime.withValues(alpha: .16),
+                  blurRadius: 0,
+                  spreadRadius: 4,
+                ),
+              ]
+            : null,
       ),
     );
   }
 }
 
 class _TimeCol extends StatelessWidget {
-  const _TimeCol({required this.label, required this.time, required this.active});
+  const _TimeCol({
+    required this.label,
+    required this.time,
+    required this.active,
+  });
 
   final String label;
   final DateTime time;
@@ -498,7 +645,9 @@ class _TimeCol extends StatelessWidget {
               fontSize: 9.5,
               fontWeight: FontWeight.w600,
               letterSpacing: .3,
-              color: active ? EnsomColors.lime : Colors.white.withValues(alpha: .42),
+              color: active
+                  ? EnsomColors.lime
+                  : Colors.white.withValues(alpha: .42),
             ),
           ),
           const SizedBox(height: 3),
@@ -508,7 +657,9 @@ class _TimeCol extends StatelessWidget {
               fontSize: 16,
               fontWeight: FontWeight.w700,
               letterSpacing: -.4,
-              color: active ? Colors.white : Colors.white.withValues(alpha: .62),
+              color: active
+                  ? Colors.white
+                  : Colors.white.withValues(alpha: .62),
             ),
           ),
         ],
@@ -517,7 +668,7 @@ class _TimeCol extends StatelessWidget {
   }
 }
 
-class _HHmm {
+class _TimeFormatter {
   String format(DateTime dt) {
     final local = dt.toLocal();
     final h = local.hour.toString().padLeft(2, "0");
@@ -543,7 +694,8 @@ class _BreakdownCardState extends State<_BreakdownCard> {
   @override
   Widget build(BuildContext context) {
     final b = widget.breakdown;
-    final total = b.estimatedPrepMinutes +
+    final total =
+        b.estimatedPrepMinutes +
         b.extraPrepMinutes +
         b.personalRoutineMinutes +
         b.travelMinutes +
@@ -565,7 +717,12 @@ class _BreakdownCardState extends State<_BreakdownCard> {
           children: [
             const Text(
               "계산 근거",
-              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, letterSpacing: -.2, color: EnsomColors.ink),
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -.2,
+                color: EnsomColors.ink,
+              ),
             ),
             const Spacer(),
             InkWell(
@@ -577,12 +734,20 @@ class _BreakdownCardState extends State<_BreakdownCard> {
                   children: [
                     Text(
                       _expanded ? "접기" : "자세히",
-                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: EnsomColors.inkFaint),
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: EnsomColors.inkFaint,
+                      ),
                     ),
                     AnimatedRotation(
                       turns: _expanded ? .5 : 0,
                       duration: const Duration(milliseconds: 180),
-                      child: const Icon(Icons.keyboard_arrow_down, size: 15, color: EnsomColors.inkFaint),
+                      child: const Icon(
+                        Icons.keyboard_arrow_down,
+                        size: 15,
+                        color: EnsomColors.inkFaint,
+                      ),
                     ),
                   ],
                 ),
@@ -607,12 +772,21 @@ class _BreakdownCardState extends State<_BreakdownCard> {
                     const Expanded(
                       child: Text(
                         "총 준비·이동",
-                        style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: EnsomColors.ink),
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                          color: EnsomColors.ink,
+                        ),
                       ),
                     ),
                     Text(
                       "$total분",
-                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, letterSpacing: -.2, color: EnsomColors.ink),
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -.2,
+                        color: EnsomColors.ink,
+                      ),
                     ),
                   ],
                 ),
@@ -622,16 +796,30 @@ class _BreakdownCardState extends State<_BreakdownCard> {
                   Container(
                     padding: const EdgeInsets.symmetric(vertical: 9),
                     decoration: BoxDecoration(
-                      border: Border(top: BorderSide(color: EnsomColors.hairline)),
+                      border: Border(
+                        top: BorderSide(color: EnsomColors.hairline),
+                      ),
                     ),
                     child: Row(
                       children: [
                         Expanded(
-                          child: Text(rows[i].$1, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: EnsomColors.ink)),
+                          child: Text(
+                            rows[i].$1,
+                            style: const TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w600,
+                              color: EnsomColors.ink,
+                            ),
+                          ),
                         ),
                         Text(
                           "${rows[i].$2}분",
-                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, letterSpacing: -.2, color: EnsomColors.ink),
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: -.2,
+                            color: EnsomColors.ink,
+                          ),
                         ),
                       ],
                     ),
@@ -658,7 +846,12 @@ class _RouteSummaryCard extends ConsumerWidget {
       children: [
         const Text(
           "경로",
-          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, letterSpacing: -.2, color: EnsomColors.ink),
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -.2,
+            color: EnsomColors.ink,
+          ),
         ),
         const SizedBox(height: 8),
         Container(
@@ -673,7 +866,12 @@ class _RouteSummaryCard extends ConsumerWidget {
               Expanded(
                 child: Text(
                   "이동 $travelMin분",
-                  style: const TextStyle(fontSize: 15.5, fontWeight: FontWeight.w700, letterSpacing: -.3, color: EnsomColors.ink),
+                  style: const TextStyle(
+                    fontSize: 15.5,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -.3,
+                    color: EnsomColors.ink,
+                  ),
                 ),
               ),
               Material(
@@ -684,13 +882,24 @@ class _RouteSummaryCard extends ConsumerWidget {
                   onTap: () async {
                     final changed = await showModalBottomSheet<bool>(
                       context: context,
-                      builder: (_) => RouteChangeSheet(planId: plan.planId, eventId: eventId),
+                      builder: (_) => RouteChangeSheet(
+                        planId: plan.planId,
+                        eventId: eventId,
+                      ),
                     );
-                    if (changed == true) ref.invalidate(planControllerProvider(eventId));
+                    if (changed == true)
+                      ref.invalidate(planControllerProvider(eventId));
                   },
                   child: const Padding(
                     padding: EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                    child: Text("변경", style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.white)),
+                    child: Text(
+                      "변경",
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
+                    ),
                   ),
                 ),
               ),
