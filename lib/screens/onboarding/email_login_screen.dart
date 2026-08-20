@@ -4,6 +4,11 @@ import "package:go_router/go_router.dart";
 import "../../network/api_client.dart";
 import "../../providers/auth_providers.dart";
 import "../../theme/ensom_colors.dart";
+import "../../widgets/ensom/ensom_error_banner.dart";
+import "../../widgets/ensom/ensom_pill_button.dart";
+import "../../widgets/ensom/ensom_text_field.dart";
+import "../../widgets/ensom/ensom_top_bar.dart";
+import "email_signup_screen.dart";
 
 /// API 명세 §2.2 POST /auth/email/login
 /// 실패 시 AUTH_INVALID_CREDENTIALS (이메일 없음·비밀번호 불일치 구분 안 함, TR-14)
@@ -16,12 +21,18 @@ class EmailLoginScreen extends ConsumerStatefulWidget {
 }
 
 class _EmailLoginScreenState extends ConsumerState<EmailLoginScreen> {
-  final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
 
   bool _submitting = false;
   String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _emailController.addListener(() => setState(() {}));
+    _passwordController.addListener(() => setState(() {}));
+  }
 
   @override
   void dispose() {
@@ -30,26 +41,17 @@ class _EmailLoginScreenState extends ConsumerState<EmailLoginScreen> {
     super.dispose();
   }
 
-  String? _validateEmail(String? value) {
-    if (value == null || value.trim().isEmpty) return "이메일을 입력해주세요.";
-    return null;
-  }
-
-  String? _validatePassword(String? value) {
-    if (value == null || value.isEmpty) return "비밀번호를 입력해주세요.";
-    return null;
-  }
+  bool get _canSubmit =>
+      _emailController.text.trim().isNotEmpty && _passwordController.text.isNotEmpty && !_submitting;
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_canSubmit) return;
     setState(() {
       _submitting = true;
       _error = null;
     });
     try {
-      final installationId = await ref
-          .read(secureStorageProvider)
-          .installationId;
+      final installationId = await ref.read(secureStorageProvider).installationId;
       final authNotifier = ref.read(authNotifierProvider.notifier);
       await authNotifier.loginWithEmail(
         email: _emailController.text.trim(),
@@ -99,50 +101,83 @@ class _EmailLoginScreenState extends ConsumerState<EmailLoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("로그인")),
-      body: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Form(
-          key: _formKey,
-          child: ListView(
-            children: [
-              TextFormField(
-                controller: _emailController,
-                keyboardType: TextInputType.emailAddress,
-                decoration: const InputDecoration(labelText: "이메일"),
-                validator: _validateEmail,
-                textInputAction: TextInputAction.next,
+      backgroundColor: EnsomColors.canvas,
+      appBar: const EnsomTopBar(title: "로그인"),
+      body: SafeArea(
+        top: false,
+        child: Column(
+          children: [
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(18, 8, 18, 16),
+                children: [
+                  if (_error != null) ...[
+                    EnsomErrorBanner(title: _error!),
+                    const SizedBox(height: 14),
+                  ],
+                  EnsomTextField(
+                    label: "이메일",
+                    controller: _emailController,
+                    keyboardType: TextInputType.emailAddress,
+                    textInputAction: TextInputAction.next,
+                  ),
+                  const SizedBox(height: 14),
+                  EnsomTextField(
+                    label: "비밀번호",
+                    controller: _passwordController,
+                    obscureText: true,
+                    textInputAction: TextInputAction.done,
+                    onSubmitted: (_) => _submit(),
+                  ),
+                  const SizedBox(height: 6),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: _submitting ? null : () => context.push("/onboarding/password-reset"),
+                      style: TextButton.styleFrom(
+                        minimumSize: Size.zero,
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      child: const Text(
+                        "비밀번호를 잊으셨나요?",
+                        style: TextStyle(fontSize: 11.5, color: EnsomColors.inkMuted),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _passwordController,
-                obscureText: true,
-                decoration: const InputDecoration(labelText: "비밀번호"),
-                validator: _validatePassword,
-                textInputAction: TextInputAction.done,
-                onFieldSubmitted: (_) => _submit(),
+            ),
+            Container(
+              padding: const EdgeInsets.fromLTRB(18, 12, 18, 18),
+              decoration: const BoxDecoration(
+                color: EnsomColors.surface1,
+                border: Border(top: BorderSide(color: EnsomColors.hairline)),
               ),
-              if (_error != null) ...[
-                const SizedBox(height: 16),
-                Text(
-                  _error!,
-                  style: const TextStyle(color: EnsomColors.caution),
-                ),
-              ],
-              const SizedBox(height: 24),
-              ElevatedButton(
-                onPressed: _submitting ? null : _submit,
-                child: Text(_submitting ? "로그인 중..." : "로그인"),
+              child: Column(
+                children: [
+                  EnsomPillButton(
+                    label: _submitting ? "로그인 중..." : "로그인",
+                    onPressed: _canSubmit ? _submit : null,
+                  ),
+                  const SizedBox(height: 4),
+                  TextButton(
+                    onPressed: _submitting
+                        ? null
+                        : () {
+                            Navigator.of(context).pushReplacement(
+                              MaterialPageRoute(builder: (_) => const EmailSignupScreen()),
+                            );
+                          },
+                    child: const Text(
+                      "계정이 없으신가요? 회원가입",
+                      style: TextStyle(fontSize: 11.5, color: EnsomColors.inkMuted),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 12),
-              TextButton(
-                onPressed: _submitting
-                    ? null
-                    : () => context.push("/onboarding/password-reset"),
-                child: const Text("비밀번호를 잊으셨나요?"),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
