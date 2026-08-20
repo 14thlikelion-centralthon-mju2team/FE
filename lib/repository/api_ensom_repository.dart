@@ -1,4 +1,3 @@
-import "package:uuid/uuid.dart";
 import "ensom_repository.dart";
 import "../models/place.dart";
 import "../models/event.dart";
@@ -10,7 +9,6 @@ import "../models/daily_wellness_summary.dart";
 import "../models/prep_estimate.dart";
 import "../models/wellness_pref.dart";
 import "../models/execution.dart";
-import "../models/environment_data.dart";
 import "../network/api_client.dart";
 
 /// API v5.0 기준 실제 구현체. 이번 PR(M1)이 화면에서 실제로 쓰는
@@ -30,7 +28,6 @@ class ApiEnsomRepository implements EnsomRepository {
   ApiEnsomRepository(this._client);
 
   final ApiClient _client;
-  final _uuid = const Uuid();
 
   // -- 일정 (M1에서 쓰는 것만 구현) -----------------------------------
   @override
@@ -270,7 +267,10 @@ class ApiEnsomRepository implements EnsomRepository {
   }) async {
     final json = await _client.get<List<dynamic>>(
       "/events",
-      query: {"from": from.toUtc().toIso8601String(), "to": to.toUtc().toIso8601String()},
+      query: {
+        "from": from.toUtc().toIso8601String(),
+        "to": to.toUtc().toIso8601String(),
+      },
     );
     return json.map((e) => Event.fromJson(e as Map<String, dynamic>)).toList();
   }
@@ -379,25 +379,14 @@ class ApiEnsomRepository implements EnsomRepository {
         .toList();
   }
 
-  static const Map<WellnessResponseAction, String> _actionJsonValues = {
-    WellnessResponseAction.completed: "completed",
-    WellnessResponseAction.snoozed: "snoozed",
-    WellnessResponseAction.stopToday: "stop_today",
-    WellnessResponseAction.ignored: "ignored",
-  };
-
   @override
   Future<void> respondToNotification(
     String notificationId,
-    WellnessResponseAction action,
+    NotificationReaction reaction,
   ) async {
     await _client.post<Map<String, dynamic>>(
       "/notifications/$notificationId/respond",
-      body: {
-        "action": _actionJsonValues[action],
-        "clientEventId": _uuid.v4(),
-        "deviceTs": DateTime.now().toUtc().toIso8601String(),
-      },
+      body: {"reaction": reaction.name},
     );
   }
 
@@ -483,9 +472,7 @@ class ApiEnsomRepository implements EnsomRepository {
   Future<List<Place>> fetchPlaces() async {
     // API v5.0 §5 GET /places. api_client가 공통 응답의 data를 벗겨준다.
     final json = await _client.get<List<dynamic>>("/places");
-    return json
-        .map((e) => Place.fromJson(e as Map<String, dynamic>))
-        .toList();
+    return json.map((e) => Place.fromJson(e as Map<String, dynamic>)).toList();
   }
 
   @override
@@ -519,16 +506,6 @@ class ApiEnsomRepository implements EnsomRepository {
     //  CalendarSyncScreen이 apiClient로 직접 처리한다 — 별개 흐름)
     // 바디 없음. Idempotency-Key는 api_client.post가 자동 부착.
     await _client.post<Map<String, dynamic>>("/calendar/sync", body: const {});
-  }
-
-  // -- 환경 데이터 (날씨 + 대기질) ------------------------------------
-  // TODO: BE 배포 후 활성화 — 현재 API v5.0에 미포함
-  @override
-  Future<EnvironmentData> getEnvironment() async {
-    final json = await _client.get<Map<String, dynamic>>(
-      "/environment/current",
-    );
-    return EnvironmentData.fromJson(json);
   }
 
   // -- 도착 결과·사후 평가 (REPORT-01, §14) -----------------------------

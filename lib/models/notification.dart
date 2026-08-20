@@ -55,15 +55,16 @@ abstract class AppNotification with _$AppNotification {
       _$AppNotificationFromJson(json);
 }
 
-/// POST /notifications/{id}/respond 요청 바디의 action 값
-/// (웰니스 이벤트 알림 전용, API v5.0 §11.4).
-enum WellnessResponseAction {
-  @JsonValue("completed")
-  completed,
+/// POST /notifications/{id}/respond 요청 바디의 BE reaction 값.
+/// 서버가 허용한 값만 선언한다. 웰니스 완료/중단 UX는 별도 endpoint 계약이
+/// 확정되기 전까지 이 notification response API로 전송하지 않는다.
+enum NotificationReaction {
+  @JsonValue("started")
+  started,
   @JsonValue("snoozed")
   snoozed,
-  @JsonValue("stop_today")
-  stopToday,
-  @JsonValue("ignored")
-  ignored,
+  @JsonValue("dismissed")
+  dismissed,
+  @JsonValue("departed")
+  departed,
 }
