@@ -1,1 +1,50 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"ensom-10da2","appId":"1:133622039339:android:3c99a635184aa73b003b6e","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"ensom-10da2","configurations":{"android":"1:133622039339:android:3c99a635184aa73b003b6e","ios":"1:133622039339:ios:733623228627898f003b6e"}}}}}}
+{
+  "hosting": {
+    "public": "build/web",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ],
+    "headers": [
+      {
+        "source": "/index.html",
+        "headers": [
+          { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
+        ]
+      },
+      {
+        "source": "/flutter_service_worker.js",
+        "headers": [
+          { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
+        ]
+      }
+    ]
+  },
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "ensom-10da2",
+          "appId": "1:133622039339:android:3c99a635184aa73b003b6e",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "ensom-10da2",
+          "configurations": {
+            "android": "1:133622039339:android:3c99a635184aa73b003b6e",
+            "ios": "1:133622039339:ios:733623228627898f003b6e"
+          }
+        }
+      }
+    }
+  }
+}

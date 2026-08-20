@@ -1,8 +1,6 @@
-import "dart:io";
 import "package:drift/drift.dart";
-import "package:drift/native.dart";
-import "package:path/path.dart" as p;
-import "package:path_provider/path_provider.dart";
+
+import "connection/connection.dart";
 
 part "app_database.g.dart";
 
@@ -25,17 +23,8 @@ class OfflineActionQueue extends Table {
 
 @DriftDatabase(tables: [OfflineActionQueue])
 class AppDatabase extends _$AppDatabase {
-  AppDatabase() : super(_openConnection());
+  AppDatabase() : super(openConnection());
 
   @override
   int get schemaVersion => 1;
-}
-
-LazyDatabase _openConnection() {
-  // LazyDatabase: 실제 사용 시점까지 파일 오픈을 미룬다 (앱 시작 지연 방지).
-  return LazyDatabase(() async {
-    final dbFolder = await getApplicationDocumentsDirectory();
-    final file = File(p.join(dbFolder.path, "ensom_offline_queue.sqlite"));
-    return NativeDatabase.createInBackground(file);
-  });
 }

@@ -25,7 +25,7 @@
 ### 1.1 Base URL
 
 ```
-https://api.ensom.app/v1
+https://api.ensom.shop/v1
 ```
 
 ### 1.2 인증
