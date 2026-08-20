@@ -1,5 +1,6 @@
 import "dart:async";
 
+import "package:flutter/foundation.dart" show kIsWeb;
 import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:hive_ce_flutter/hive_ce_flutter.dart";
@@ -40,7 +41,11 @@ void main() async {
   // 로컬 알림 초기화 (TR-07)
   await LocalNotificationService.instance.initialize();
 
-  if (kKakaoNativeAppKey.isNotEmpty) {
+  // kakao_map_sdk는 MethodChannel(네이티브 전용) 기반이라 웹에는 핸들러가
+  // 없다 — 웹에서 호출하면 MissingPluginException이 runApp() 이전에
+  // 발생해 앱이 아예 뜨지 못하고 흰 화면만 남는다 (지도 화면 자체의 웹
+  // 지원 여부와는 별개 문제).
+  if (!kIsWeb && kKakaoNativeAppKey.isNotEmpty) {
     await KakaoMapSdk.instance.initialize(kKakaoNativeAppKey);
   }
 
