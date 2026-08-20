@@ -1,5 +1,6 @@
 import "dart:async";
 import "dart:convert";
+import "dart:developer" as developer;
 import "dart:io";
 
 import "package:http/http.dart" as http;
@@ -317,8 +318,15 @@ class ApiClient {
               retryable: true,
             );
           case _RefreshStatus.discarded:
-            // refresh write가 세션을 파기했다. 현재 세대면 terminal로
-            // 인증 상태까지 만료시켜 storage와 provider를 일치시킨다.
+            // refresh write가 세션을 파기했다. 원 오류는 진단을 위해 남기고,
+            // 현재 세대면 terminal로 인증 상태까지 만료시켜 storage와 provider를
+            // 일치시킨다.
+            developer.log(
+              "refresh token write rollback: session discarded",
+              name: "ApiClient",
+              error: refreshOutcome.error,
+              stackTrace: refreshOutcome.stackTrace,
+            );
             if (isCurrentSessionGeneration(protectedSession.generation)) {
               await _notifyAuthExpired(protectedSession.generation);
             }

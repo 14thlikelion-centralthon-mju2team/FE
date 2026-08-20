@@ -16,8 +16,9 @@ import "dart:async";
 ///   completion은 그 request의 handler가 안전하게 인계한다.
 /// - server rebind와 destructive delete 완료 중 어느 쪽이 먼저 발생하든, 두
 ///   이벤트가 모두 관찰된 뒤 정확히 한 번 최신 token을 재등록한다.
-/// - pending persistence write는 단조 증가 version으로 보호한 단일 직렬 큐에서
-///   수행해, 오래된 write가 최신 상태를 덮어쓰지 않는다.
+/// - pending persistence write는 단일 drain 루프에서 항상 최신 목표만 반영해,
+///   오래된 write가 최신 상태를 덮어쓰지 않는다. [requestCleanup]은 이 write가
+///   디스크에 닿을 때까지 await해 로그아웃 직후 종료에도 플래그가 보존된다.
 /// - 진행 중 delete가 오류로 끝나더라도 대기 중인 호출자(FCM initialize 등)로
 ///   오류를 전파하지 않고 내부 retry 상태로 흡수한다.
 class RetryingAsyncCleanup {
@@ -28,6 +29,8 @@ class RetryingAsyncCleanup {
     this.attemptTimeout = const Duration(seconds: 2),
     this.retryDelay = const Duration(seconds: 5),
     this.loadRetryDelay = const Duration(seconds: 5),
+    this.maxLoadRetryDelay = const Duration(minutes: 5),
+    this.maxLoadRetries = 12,
   }) : _cleanup = cleanup,
        _loadPending = loadPending,
        _savePending = savePending;
@@ -38,6 +41,13 @@ class RetryingAsyncCleanup {
   final Duration attemptTimeout;
   final Duration retryDelay;
   final Duration loadRetryDelay;
+
+  /// load 재조회 지수 backoff의 상한 지연.
+  final Duration maxLoadRetryDelay;
+
+  /// load 재조회 시도 상한. 초과하면 다음 로그인/`retryPending()`이 다시
+  /// unknown 상태를 재개할 때까지 자동 재조회를 멈춘다.
+  final int maxLoadRetries;
 
   /// 현재 활성 cleanup request. null이면 pending 없음.
   _CleanupRequest? _current;
@@ -53,6 +63,9 @@ class RetryingAsyncCleanup {
   /// unknown load를 스스로 재조회하기 위한 bounded timer.
   Timer? _loadRetryTimer;
 
+  /// load 재조회 누적 시도 수(지수 backoff·상한 계산).
+  int _loadRetryCount = 0;
+
   int _requestSeq = 0;
   Future<void> Function()? _recoveryCallback;
 
@@ -61,6 +74,7 @@ class RetryingAsyncCleanup {
   bool _persistTarget = false;
   bool _persistTargetSet = false;
   bool _persistDraining = false;
+  final List<Completer<void>> _persistWaiters = [];
   bool _disposed = false;
 
   bool get isPending => _current != null;
@@ -71,7 +85,9 @@ class RetryingAsyncCleanup {
 
   Future<void> requestCleanup() async {
     final request = _startNewRequest();
-    _persistPending(true);
+    // crash-safety: 로그아웃 write가 지연돼도 이 write가 디스크에 닿은 뒤
+    // 반환해, 반환 직후 프로세스가 종료돼도 pending 플래그가 보존된다.
+    await _persistPending(true);
     await _attempt(request);
   }
 
@@ -84,6 +100,7 @@ class RetryingAsyncCleanup {
         return;
       }
       _pendingLoaded = true;
+      _loadRetryCount = 0;
       if (loaded && _current == null) {
         _startNewRequest();
       }
@@ -98,14 +115,28 @@ class RetryingAsyncCleanup {
   /// 끝나면 방금 등록한 token까지 지울 수 있으므로, delete 완료와 결합해
   /// 정확히 한 번 최신 token을 재등록한다.
   Future<void> markResolvedByServerRebind() async {
+    // rebind는 "이 installation이 새 세션에 묶였다"는 뜻이므로 load 성공 여부와
+    // 무관하게 pending을 해소한다. unknown load였다면 예약된 재조회 timer도
+    // 멈추고, 메모리에 request가 없어도 디스크 pending=true를 지워 고아 플래그를
+    // 남기지 않는다.
+    final wasUnknown = !_pendingLoaded;
     _pendingLoaded = true;
+    _loadRetryTimer?.cancel();
+    _loadRetryTimer = null;
     final request = _current ?? _awaitingRebind;
-    if (request == null) return;
+    if (request == null) {
+      if (wasUnknown) await _persistPending(false);
+      return;
+    }
     request.resolvedByRebind = true;
     request.retryTimer?.cancel();
     request.retryTimer = null;
     if (identical(_current, request)) {
       _current = null;
+      _persistPending(false);
+    } else if (wasUnknown) {
+      // _awaitingRebind만 있고 _current가 없던 unknown 경계에서도 디스크를
+      // 최신 상태(false)로 맞춘다.
       _persistPending(false);
     }
     await _maybeRecover(request);
@@ -163,18 +194,19 @@ class RetryingAsyncCleanup {
   }
 
   Future<void> _handleDeleteComplete(_CleanupRequest request) async {
+    final wasCurrent = identical(_current, request);
     request.inFlight = null;
     request.deleteCompleted = true;
     request.retryTimer?.cancel();
     request.retryTimer = null;
-    if (identical(_current, request)) {
+    if (wasCurrent) {
       _current = null;
       _persistPending(false);
     }
-    // rebind가 아직 안 왔으면 이 request를 보존해 나중에 결합한다. 단, 이미
-    // 다른 request가 rebind를 기다리고 있으면 가장 최근 완료 request만 남긴다
-    // (이전 대기 request는 rebind 없이 완료된 것이므로 recovery 대상 아님).
-    if (!request.resolvedByRebind && !request.recoveryDone) {
+    // 완료 시점에 current였던 request만 rebind 결합 대기 대상으로 남긴다.
+    // 이미 교체돼 버려진 request의 늦은 완료는 rebind 없이 끝난 것이므로
+    // recovery 대상이 아니다("recovery는 rebind 이후 delete 완료 시에만").
+    if (wasCurrent && !request.resolvedByRebind && !request.recoveryDone) {
       _awaitingRebind = request;
     }
     await _maybeRecover(request);
@@ -214,7 +246,14 @@ class RetryingAsyncCleanup {
 
   void _scheduleLoadRetry() {
     if (_disposed || _pendingLoaded || _loadRetryTimer != null) return;
-    _loadRetryTimer = Timer(loadRetryDelay, () {
+    if (_loadRetryCount >= maxLoadRetries) return; // 상한 도달 — 자동 재조회 중단
+    // 지수 backoff: loadRetryDelay × 2^n, maxLoadRetryDelay로 상한.
+    final factor = 1 << _loadRetryCount;
+    var ms = loadRetryDelay.inMilliseconds * factor;
+    final capMs = maxLoadRetryDelay.inMilliseconds;
+    if (ms > capMs || ms < 0) ms = capMs;
+    _loadRetryCount++;
+    _loadRetryTimer = Timer(Duration(milliseconds: ms), () {
       _loadRetryTimer = null;
       if (_disposed || _pendingLoaded) return;
       unawaited(retryPending());
@@ -234,13 +273,21 @@ class RetryingAsyncCleanup {
   /// pending 영속 write를 단일 drain 루프로 직렬화한다. 항상 "가장 최신
   /// 목표 상태"만 반영하므로, 오래된 write가 진행 중이더라도 완료 후 목표가
   /// 바뀌었으면 최신 목표값으로 다시 쓴다. 메모리와 disk가 역전되지 않는다.
-  void _persistPending(bool pending) {
+  ///
+  /// 반환 Future는 이 호출로 예약된 목표가 (또는 그 뒤 더 최신 목표가) 디스크
+  /// 반영을 마치고 drain이 idle이 될 때 완료된다. 이로써 [requestCleanup]이
+  /// crash-safety를 위해 write 완료를 await할 수 있다.
+  Future<void> _persistPending(bool pending) {
     _persistVersion++;
     _persistTarget = pending;
     _persistTargetSet = true;
-    if (_persistDraining) return;
-    _persistDraining = true;
-    unawaited(_drainPersist());
+    final waiter = Completer<void>();
+    _persistWaiters.add(waiter);
+    if (!_persistDraining) {
+      _persistDraining = true;
+      unawaited(_drainPersist());
+    }
+    return waiter.future;
   }
 
   Future<void> _drainPersist() async {
@@ -259,15 +306,28 @@ class RetryingAsyncCleanup {
       }
     }
     _persistDraining = false;
+    _completePersistWaiters();
+  }
+
+  void _completePersistWaiters() {
+    if (_persistWaiters.isEmpty) return;
+    final waiters = List<Completer<void>>.of(_persistWaiters);
+    _persistWaiters.clear();
+    for (final w in waiters) {
+      if (!w.isCompleted) w.complete();
+    }
   }
 
   void dispose() {
     _disposed = true;
     _current?.retryTimer?.cancel();
     _current?.retryTimer = null;
+    _awaitingRebind = null;
+    _current = null;
     _loadRetryTimer?.cancel();
     _loadRetryTimer = null;
     _recoveryCallback = null;
+    _completePersistWaiters();
   }
 }
 
