@@ -313,7 +313,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: "/profile/prep",
-        builder: (c, s) => const PrepTimeEntryScreen(),
+        builder: (c, s) => const PrepTimeEntryScreen(isOnboarding: false),
       ),
       GoRoute(
         path: "/profile/notifications",
