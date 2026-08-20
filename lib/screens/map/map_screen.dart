@@ -2,10 +2,14 @@ import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:geolocator/geolocator.dart";
 import "package:go_router/go_router.dart";
+import "package:hive_ce_flutter/hive_ce_flutter.dart";
 import "package:kakao_map_sdk/kakao_map_sdk.dart";
+import "../../local/place_cache_entry.dart";
 import "../../models/event.dart";
 import "../../models/plan.dart";
+import "../../network/api_client.dart";
 import "../../network/kakao_local_search_service.dart";
+import "../../providers/auth_providers.dart";
 import "../../providers/map_providers.dart";
 import "../../repository/providers.dart";
 import "../../widgets/permission_degraded_banner.dart";
@@ -36,6 +40,75 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   double? _destLng;
   bool _searching = false;
   bool _routing = false;
+  List<Map<String, dynamic>>? _bookmarks;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBookmarks();
+  }
+
+  Future<void> _loadBookmarks() async {
+    try {
+      final api = ref.read(apiClientProvider);
+      final data = await api.get<List<dynamic>>("/me/bookmarks");
+      if (mounted) {
+        setState(() => _bookmarks = data.map((e) => e as Map<String, dynamic>).toList());
+      }
+    } on ApiException catch (_) {
+      // 조용히 생략 — 칩 줄에 북마크가 안 보일 뿐 지도는 정상 동작한다.
+    }
+  }
+
+  /// 집·직장 등록 장소(§4.2 place_cache)에서 라벨이 일치하는 항목을 찾는다.
+  PlaceCacheEntry? _placeByLabel(String label) {
+    if (!Hive.isBoxOpen("place_cache")) return null;
+    final box = Hive.box<PlaceCacheEntry>("place_cache");
+    for (final entry in box.values) {
+      if (entry.label == label) return entry;
+    }
+    return null;
+  }
+
+  void _selectDestination(String name, double lat, double lng) {
+    setState(() {
+      _destName = name;
+      _destLat = lat;
+      _destLng = lng;
+    });
+    _controller?.moveCamera(
+      CameraUpdate.newCenterPosition(LatLng(lat, lng)),
+      animation: const CameraAnimation(500),
+    );
+  }
+
+  Future<void> _openBookmarkQuickPick() async {
+    if (_bookmarks == null || _bookmarks!.isEmpty) {
+      context.push("/map/bookmarks");
+      return;
+    }
+    final selected = await showModalBottomSheet<Map<String, dynamic>>(
+      context: context,
+      builder: (sheetContext) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            for (final b in _bookmarks!)
+              ListTile(
+                leading: const Icon(Icons.bookmark_outline),
+                title: Text(b["placeName"]?.toString() ?? "이름 없음"),
+                onTap: () => Navigator.of(sheetContext).pop(b),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (selected == null) return;
+    final lat = (selected["lat"] as num?)?.toDouble();
+    final lng = (selected["lng"] as num?)?.toDouble();
+    if (lat == null || lng == null) return;
+    _selectDestination(selected["placeName"]?.toString() ?? "북마크", lat, lng);
+  }
 
   Future<void> _moveToCurrentLocation() async {
     setState(() {
@@ -338,12 +411,12 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     final search = ref.watch(kakaoLocalSearchServiceProvider);
     final destSelected = _destLat != null && _destLng != null;
 
+    // S-08 "검색 전" 화면 구성 원칙: 검색 바 우측에 아이콘을 두지 않고,
+    // 북마크 전체 목록 진입구는 칩 줄 끝의 '전체보기' 하나뿐이다.
+    final home = _placeByLabel("집");
+    final work = _placeByLabel("회사");
+
     return Scaffold(
-      floatingActionButton: FloatingActionButton.small(
-        heroTag: "bookmarks",
-        onPressed: () => context.push("/map/bookmarks"),
-        child: const Icon(Icons.bookmark_outline),
-      ),
       body: Stack(
         children: [
           KakaoMap(
@@ -396,9 +469,39 @@ class _MapScreenState extends ConsumerState<MapScreen> {
               ),
             ),
           ),
+          Positioned(
+            top: 72,
+            left: 16,
+            right: 16,
+            height: 40,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              children: [
+                if (home != null)
+                  _MapChip(
+                    label: "집",
+                    onTap: () => _selectDestination("집", home.lat, home.lng),
+                  ),
+                if (work != null)
+                  _MapChip(
+                    label: "회사",
+                    onTap: () => _selectDestination("회사", work.lat, work.lng),
+                  ),
+                _MapChip(
+                  label: "북마크",
+                  icon: Icons.bookmark_outline,
+                  onTap: _openBookmarkQuickPick,
+                ),
+                _MapChip(
+                  label: "전체보기",
+                  onTap: () => context.push("/map/bookmarks"),
+                ),
+              ],
+            ),
+          ),
           if (_error != null)
             Positioned(
-              top: 76,
+              top: 122,
               left: 16,
               right: 16,
               child: Material(
@@ -417,7 +520,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
               ),
             ),
           Positioned(
-            top: _error != null ? 140 : 76,
+            top: _error != null ? 186 : 122,
             left: 16,
             right: 16,
             child: const PermissionDegradedBanner(
@@ -459,21 +562,80 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                 ),
               ),
             ),
+          // 우측 하단 확대·축소·현재 위치 3개만 (§3 S-08 "화면 구성").
           Positioned(
             right: 16,
             bottom: destSelected ? 96 : 24,
-            child: FloatingActionButton(
-              onPressed: _locating ? null : _moveToCurrentLocation,
-              child: _locating
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.my_location),
+            child: Column(
+              children: [
+                FloatingActionButton.small(
+                  heroTag: "zoomIn",
+                  onPressed: () => _controller?.moveCamera(CameraUpdate.zoomIn()),
+                  child: const Icon(Icons.add),
+                ),
+                const SizedBox(height: 8),
+                FloatingActionButton.small(
+                  heroTag: "zoomOut",
+                  onPressed: () => _controller?.moveCamera(CameraUpdate.zoomOut()),
+                  child: const Icon(Icons.remove),
+                ),
+                const SizedBox(height: 8),
+                FloatingActionButton(
+                  heroTag: "myLocation",
+                  onPressed: _locating ? null : _moveToCurrentLocation,
+                  child: _locating
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.my_location),
+                ),
+              ],
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// §3 S-08 "장소 칩 줄" — 집·직장·북마크 항목들·전체보기, 가로 스크롤.
+/// §9.3 칩 규격(12px/600, radius 12px)을 그대로 따른다.
+class _MapChip extends StatelessWidget {
+  const _MapChip({required this.label, required this.onTap, this.icon});
+
+  final String label;
+  final VoidCallback onTap;
+  final IconData? icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 7),
+      child: Material(
+        color: EnsomColors.surface2,
+        borderRadius: BorderRadius.circular(14),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (icon != null) ...[
+                  Icon(icon, size: 14, color: EnsomColors.ink),
+                  const SizedBox(width: 5),
+                ],
+                Text(
+                  label,
+                  style: const TextStyle(fontSize: 12.5, color: EnsomColors.ink),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
