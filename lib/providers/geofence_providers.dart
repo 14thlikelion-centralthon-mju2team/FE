@@ -1,3 +1,4 @@
+import "package:flutter/foundation.dart" show kIsWeb;
 import "package:flutter/widgets.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "../services/geofence_manager.dart";
@@ -21,6 +22,11 @@ class GeofenceSync extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // 웹에는 지오펜스(geofencing_api, 네이티브 전용)가 없다. 여기서 nextEvent를
+    // 구독하면 미인증 상태에서도 /events/next를 호출해 401이 나고, 네이티브
+    // 플러그인 접근으로 앱이 크래시한다. 웹에서는 아무 것도 하지 않는다.
+    if (kIsWeb) return const SizedBox.shrink();
+
     final eventAsync = ref.watch(nextEventProvider);
     // Riverpod 3의 AsyncValue.value는 이전 데이터 없이 에러 상태면 그
     // 자리에서 예외를 다시 던진다 — build() 안에서 무조건 .value를

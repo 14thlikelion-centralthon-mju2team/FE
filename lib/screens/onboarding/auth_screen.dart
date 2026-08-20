@@ -46,7 +46,12 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     super.initState();
     // 웹은 GSI가 직접 그리는 버튼(google_web_button.dart)을 쓴다 —
     // signIn()과 달리 결과가 Future 반환값이 아니라 이 스트림으로 온다.
-    if (kIsWeb) {
+    //
+    // onLoginUserChanged 접근은 GoogleSignIn 웹 플러그인의 GIS 초기화를
+    // 트리거한다. client_id(GOOGLE_SERVER_CLIENT_ID)가 없으면 GIS가
+    // try-catch로 못 잡는 raw JS 예외를 던져 앱 전체가 흰 화면이 된다.
+    // client_id가 있을 때만 구독한다(버튼도 §241에서 같은 조건으로 노출).
+    if (kIsWeb && kGoogleServerClientId.isNotEmpty) {
       _webGoogleSub = GoogleAuthHelper.instance.onLoginUserChanged.listen(
         _handleWebGoogleAccount,
       );

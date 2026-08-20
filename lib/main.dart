@@ -104,8 +104,13 @@ class EnsomApp extends ConsumerWidget {
       ),
       routerConfig: router,
       debugShowCheckedModeBanner: false,
-      builder: (context, child) =>
-          Stack(children: [?child, const GeofenceSync()]),
+      // GeofenceSync는 nextEvent를 구독하고 GeofenceManager(geofencing_api,
+      // 네이티브 전용)를 건드린다. 웹에는 지오펜스가 없고, 이 위젯이 앱 전역
+      // builder에서 항상 렌더되며 /events/next를 호출해 미인증 상태에서도
+      // 401 + 네이티브 플러그인 접근으로 흰 화면을 유발했다. 웹에서는 뺀다.
+      builder: (context, child) => kIsWeb
+          ? (child ?? const SizedBox.shrink())
+          : Stack(children: [?child, const GeofenceSync()]),
     );
   }
 }
