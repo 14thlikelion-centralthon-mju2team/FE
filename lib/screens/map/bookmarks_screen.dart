@@ -1,5 +1,6 @@
 import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
+import "package:go_router/go_router.dart";
 import "../../network/api_client.dart";
 import "../../providers/auth_providers.dart";
 import "../../theme/ensom_colors.dart";
@@ -247,6 +248,8 @@ class _BookmarksScreenState extends ConsumerState<BookmarksScreen> {
                     final id = bookmark["bookmarkId"]?.toString() ?? "";
                     final name = bookmark["placeName"]?.toString() ?? "이름 없음";
                     final folder = bookmark["folder"]?.toString() ?? "";
+                    final lat = (bookmark["lat"] as num?)?.toDouble();
+                    final lng = (bookmark["lng"] as num?)?.toDouble();
 
                     return Dismissible(
                       key: Key(id),
@@ -265,6 +268,13 @@ class _BookmarksScreenState extends ConsumerState<BookmarksScreen> {
                         leading: const Icon(Icons.bookmark_outline),
                         title: Text(name),
                         subtitle: folder.isNotEmpty ? Text(folder) : null,
+                        // Issue #52: 북마크 탭 → 지도(S-08R)로 좌표 전달하며 이동
+                        onTap: (lat != null && lng != null)
+                            ? () => context.push(
+                                  "/map?destLat=$lat&destLng=$lng"
+                                  "&destName=${Uri.encodeComponent(name)}",
+                                )
+                            : null,
                       ),
                     );
                   },

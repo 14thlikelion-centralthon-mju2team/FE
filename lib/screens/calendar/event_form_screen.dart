@@ -194,7 +194,7 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen> {
           );
 
       if (draft != null) {
-        ref.read(mapDraftEventProvider.notifier).state = null;
+        await ref.read(mapDraftEventProvider.notifier).clear();
       }
       if (!mounted) return;
 
