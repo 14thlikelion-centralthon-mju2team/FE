@@ -37,7 +37,10 @@ abstract class ActionLogEntry with _$ActionLogEntry {
   const factory ActionLogEntry({
     required String clientEventId,
     required ActionType actionType,
-    required DateTime deviceTs,
+    // 기기 시각(deviceTs)은 UTC(Z)로 직렬화한다. 로컬 DateTime의
+    // toIso8601String()은 오프셋/Z가 없어 BE(Instant) 파싱이 400으로
+    // 실패한다. updatePlan/reportArrival과 동일한 toUtc() 규약.
+    @JsonKey(toJson: _deviceTsToJson) required DateTime deviceTs,
     required ActionSource actionSource,
     double? confidence, // actionSource: geo일 때만. 좌표는 포함하지 않는다.
   }) = _ActionLogEntry;
@@ -45,6 +48,9 @@ abstract class ActionLogEntry with _$ActionLogEntry {
   factory ActionLogEntry.fromJson(Map<String, dynamic> json) =>
       _$ActionLogEntryFromJson(json);
 }
+
+/// deviceTs를 UTC(Z) ISO-8601 문자열로 변환. TR-02 시각 규약.
+String _deviceTsToJson(DateTime dt) => dt.toUtc().toIso8601String();
 
 /// POST /plans/{id}/actions 응답. 배치이므로 accepted/duplicated가
 /// 정수 카운트다 (API v5.0 §13).

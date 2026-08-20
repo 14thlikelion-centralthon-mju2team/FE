@@ -270,7 +270,7 @@ class ApiEnsomRepository implements EnsomRepository {
   }) async {
     final json = await _client.get<List<dynamic>>(
       "/events",
-      query: {"from": from.toIso8601String(), "to": to.toIso8601String()},
+      query: {"from": from.toUtc().toIso8601String(), "to": to.toUtc().toIso8601String()},
     );
     return json.map((e) => Event.fromJson(e as Map<String, dynamic>)).toList();
   }
@@ -598,7 +598,7 @@ class ApiEnsomRepository implements EnsomRepository {
           {
             "actionType": "ARRIVED",
             "actionSource": source.name.toUpperCase(),
-            "deviceTs": DateTime.now().toIso8601String(),
+            "deviceTs": DateTime.now().toUtc().toIso8601String(),
             "clientEventId": clientEventId,
             if (confidence != null) "confidence": confidence,
           },
