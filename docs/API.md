@@ -2,8 +2,8 @@
 
 | 항목 | 내용 |
 |---|---|
-| 문서 버전 | v5.0 |
-| 작성일 | 2026-08-17 |
+| 문서 버전 | v5.1 |
+| 작성일 | 2026-08-20 |
 | 근거 문서 | **PRD v0.4.3** (최상위) · **ERD v3.1** · **TRD v4.0** |
 | 스택 | Flutter · **Java 21 · Spring Boot 4.1.0** · PostgreSQL 16 |
 | 외부 연동 | **ODsay 대중교통 API · 카카오맵 SDK · 기상청 · 에어코리아 · Google (OAuth · Calendar)** |
@@ -95,6 +95,20 @@ https://api.ensom.app/v1
 | POST | `/push-devices` | FCM 토큰 등록·갱신 | AUTH-02 |
 | DELETE | `/push-devices/{installationId}` | 토큰 해지 | AUTH-04 |
 | GET / POST | `/consents` | 약관 동의 조회·기록 | AUTH-01 |
+| PATCH | `/me/nickname` | 닉네임 변경 | AUTH-02 |
+| GET | `/auth/check-nickname` | 닉네임 중복확인 | AUTH-02 |
+| POST | `/me/email/change-request` | 이메일 변경 요청 | AUTH-02 |
+| POST | `/me/email/change-confirm` | 이메일 변경 확정 | AUTH-02 |
+| GET | `/me/providers` | 로그인 수단 목록 | AUTH-02 |
+| POST | `/me/providers` | 로그인 수단 연결 | AUTH-02 |
+| DELETE | `/me/providers/{id}` | 로그인 수단 해제 | AUTH-02 |
+| GET | `/me/sessions` | 세션(로그인 기록) 목록 | AUTH-03 |
+| DELETE | `/me/sessions/{id}` | 개별 세션 무효화 | AUTH-03 |
+| DELETE | `/me/sessions` | 전체 세션 무효화(현재 제외) | AUTH-03 |
+| GET | `/me/bookmarks` | 북마크 목록 | MAP-01 |
+| POST | `/me/bookmarks` | 북마크 추가 | MAP-01 |
+| DELETE | `/me/bookmarks/{id}` | 북마크 삭제 | MAP-01 |
+| DELETE | `/me/action-logs` | 행동 기록 일괄 삭제 | DATA-01 |
 
 ### 2.1 POST /auth/email/signup
 
@@ -1120,7 +1134,108 @@ arrivalResult = 'early'         → α ×0.7     줄이는 방향은 신중히
 
 ---
 
-## 16. 데이터 삭제 · 계정 수명주기 (DATA-01 · 02 · AUTH-04)
+## 16. 계정 관리 (S-16 · S-25~S-31 · S-14E)
+
+08.20 화면연결 명세에서 추가된 계정·북마크·행동 기록 관련 API입니다.
+
+### 16.1 닉네임 변경·중복확인
+
+```json
+// PATCH /me/nickname
+{ "nickname": "새닉네임" }
+// Response 200
+{ "data": { "nickname": "새닉네임" } }
+
+// GET /auth/check-nickname?value=테스트
+// Response 200
+{ "data": { "available": true } }
+```
+
+- 닉네임 2~12자, 특수문자(`!@#$%^&*`) 불가
+- 중복확인은 인증 없이 호출 가능 (`/auth/*` 허용)
+
+### 16.2 이메일 변경
+
+```json
+// POST /me/email/change-request
+{ "newEmail": "new@example.com", "password": "현재비밀번호" }
+// Response 202 — 새 이메일로 인증 토큰 발송
+
+// POST /me/email/change-confirm
+{ "token": "원문 토큰" }
+// Response 204 — User.email + UserIdentity.providerUid 갱신
+```
+
+- 현재 비밀번호 검증 후 발송 (Google 전용 계정은 호출 불가)
+- 기존 이메일은 인증 완료 전까지 유지
+- 토큰 30분 TTL, SHA-256 해시 저장
+
+### 16.3 로그인 수단 관리
+
+```json
+// GET /me/providers
+// Response 200
+{ "data": [{ "identityId": "uuid", "provider": "email", "linkedAt": "2026-..." }, ...] }
+
+// POST /me/providers
+{ "provider": "google", "providerToken": "Google idToken" }
+// Response 201
+
+// DELETE /me/providers/{identityId}
+// Response 204
+```
+
+- active identity가 1개만 남으면 해제 거부 (`400 LAST_PROVIDER`)
+- Google 연결 시 idToken 검증으로 providerUid 추출
+
+### 16.4 세션(로그인 기록) 관리
+
+```json
+// GET /me/sessions
+// Response 200
+{ "data": [{ "refreshTokenId": "uuid", "issuedAt": "2026-...", "isCurrent": true }, ...] }
+
+// DELETE /me/sessions/{id}
+// Response 204
+
+// DELETE /me/sessions   — 현재 기기 제외 전체 무효화
+// Response 204
+```
+
+- `isCurrent`는 요청의 Bearer 토큰에서 추출
+- 현재 기기 세션은 삭제 불가 (`400 CANNOT_REVOKE_CURRENT`)
+
+### 16.5 북마크
+
+```json
+// GET /me/bookmarks(?folder=자주가는곳)
+// Response 200
+{ "data": [{ "bookmarkId": "uuid", "placeName": "강남역", "lat": 37.4979, "lng": 127.0276, "folder": "자주가는곳", "createdAt": "2026-..." }] }
+
+// POST /me/bookmarks
+{ "placeName": "강남역", "lat": 37.4979, "lng": 127.0276, "folder": "자주가는곳" }
+// Response 201
+
+// DELETE /me/bookmarks/{bookmarkId}
+// Response 204
+```
+
+- `folder`는 선택. null이면 기본 폴더
+- UserPlace(주요 장소)와 별개 도메인
+
+### 16.6 행동 기록 삭제
+
+```json
+// DELETE /me/action-logs
+// Response 204
+```
+
+- 사용자 소유 `EVENT_ACTION_LOG` 전체 삭제
+- `USER_PREP_ESTIMATE`(개인화 모델)는 유지 — 개인화 초기화는 `DELETE /me/personalization` (§15.3)
+
+---
+
+## 17. 데이터 삭제 · 계정 수명주기 (DATA-01 · 02 · AUTH-04)
 
 | 전이 | API | 처리 |
 |---|---|---|

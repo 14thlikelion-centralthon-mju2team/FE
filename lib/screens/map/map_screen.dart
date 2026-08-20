@@ -339,6 +339,11 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     final destSelected = _destLat != null && _destLng != null;
 
     return Scaffold(
+      floatingActionButton: FloatingActionButton.small(
+        heroTag: "bookmarks",
+        onPressed: () => context.push("/map/bookmarks"),
+        child: const Icon(Icons.bookmark_outline),
+      ),
       body: Stack(
         children: [
           KakaoMap(
