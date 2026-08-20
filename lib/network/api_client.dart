@@ -76,16 +76,20 @@ class ApiClient {
     required SecureStorageService secureStorage,
     http.Client? httpClient,
     Future<void> Function(int generation)? onAuthExpired,
+    Future<void> Function()? beforeRequestDispatch,
   }) : _secureStorage = secureStorage,
        _http = httpClient ?? http.Client(),
-       _onAuthExpired = onAuthExpired;
+       _onAuthExpired = onAuthExpired,
+       _beforeRequestDispatch = beforeRequestDispatch;
 
   final String baseUrl;
   final SecureStorageService _secureStorage;
   final http.Client _http;
   final _uuid = const Uuid();
   Future<void> Function(int generation)? _onAuthExpired;
+  final Future<void> Function()? _beforeRequestDispatch;
   int _sessionGeneration = 0;
+  int? _committedSessionGeneration = 0;
   Future<void> _sessionMutationTail = Future<void>.value();
 
   int get sessionGeneration => _sessionGeneration;
@@ -136,29 +140,50 @@ class ApiClient {
   }) {
     return _serializeSessionMutation(() async {
       if (!isCurrentSessionGeneration(expectedGeneration)) return;
-      await _secureStorage.saveSession(
-        accessToken: accessToken,
-        refreshToken: refreshToken,
-        userId: userId,
-      );
-      if (!isCurrentSessionGeneration(expectedGeneration)) {
-        // 다음 session mutation이 실행되기 전에 방금 기록한 stale 세션을
-        // rollback한다. 이후 세대의 save는 queue에서 이 clear 뒤에 실행된다.
-        await _secureStorage.clearSession();
+      try {
+        await _secureStorage.saveSession(
+          accessToken: accessToken,
+          refreshToken: refreshToken,
+          userId: userId,
+        );
+      } catch (error, stackTrace) {
+        await _rollbackSessionBestEffort(expectedGeneration);
+        Error.throwWithStackTrace(error, stackTrace);
       }
+      if (!isCurrentSessionGeneration(expectedGeneration)) {
+        await _rollbackSessionBestEffort(expectedGeneration);
+        return;
+      }
+      _committedSessionGeneration = expectedGeneration;
     });
   }
 
   Future<void> clearSession({required int expectedGeneration}) {
     return _serializeSessionMutation(() async {
       if (!isCurrentSessionGeneration(expectedGeneration)) return;
+      _committedSessionGeneration = null;
       await _secureStorage.clearSession();
     });
   }
 
-  Future<_SessionSnapshot> _captureSession({int? expectedGeneration}) async {
+  Future<void> _rollbackSessionBestEffort(int expectedGeneration) async {
+    if (isCurrentSessionGeneration(expectedGeneration)) {
+      _committedSessionGeneration = null;
+    }
+    try {
+      await _secureStorage.clearSession();
+    } catch (_) {
+      // 원 mutation 오류를 보존하되 현재 프로세스에서는 capture를 차단한다.
+    }
+  }
+
+  Future<_SessionSnapshot> _captureSession({
+    int? expectedGeneration,
+    bool allowUncommitted = false,
+  }) async {
     final generation = expectedGeneration ?? _sessionGeneration;
-    if (!isCurrentSessionGeneration(generation)) {
+    if (!isCurrentSessionGeneration(generation) ||
+        (!allowUncommitted && _committedSessionGeneration != generation)) {
       throw _staleSessionException();
     }
     final values = await Future.wait<String?>([
@@ -166,7 +191,8 @@ class ApiClient {
       _secureStorage.refreshToken,
       _secureStorage.userId,
     ]);
-    if (!isCurrentSessionGeneration(generation)) {
+    if (!isCurrentSessionGeneration(generation) ||
+        (!allowUncommitted && _committedSessionGeneration != generation)) {
       throw _staleSessionException();
     }
     return _SessionSnapshot(
@@ -211,6 +237,17 @@ class ApiClient {
     required bool allowRefresh,
     bool hasRetried = false,
   }) async {
+    if (session != null && !isCurrentSessionGeneration(session.generation)) {
+      throw _staleSessionException();
+    }
+    final beforeRequestDispatch = _beforeRequestDispatch;
+    if (session != null && beforeRequestDispatch != null) {
+      await beforeRequestDispatch();
+      if (!isCurrentSessionGeneration(session.generation)) {
+        throw _staleSessionException();
+      }
+    }
+
     final http.Response response;
     try {
       response = await request(session?.accessToken);
@@ -363,13 +400,18 @@ class ApiClient {
       final body = jsonDecode(response.body) as Map<String, dynamic>;
       final data = (body["data"] ?? body) as Map<String, dynamic>;
       final accessToken = data["accessToken"] as String;
-      return _serializeSessionMutation(() async {
+      return await _serializeSessionMutation(() async {
         if (!isCurrentSessionGeneration(session.generation)) {
           return const _RefreshOutcome(_RefreshStatus.stale);
         }
-        await _secureStorage.updateAccessToken(accessToken);
+        try {
+          await _secureStorage.updateAccessToken(accessToken);
+        } catch (error, stackTrace) {
+          await _rollbackSessionBestEffort(session.generation);
+          Error.throwWithStackTrace(error, stackTrace);
+        }
         if (!isCurrentSessionGeneration(session.generation)) {
-          await _secureStorage.clearSession();
+          await _rollbackSessionBestEffort(session.generation);
           return const _RefreshOutcome(_RefreshStatus.stale);
         }
         return _RefreshOutcome(_RefreshStatus.success, accessToken);
@@ -400,10 +442,14 @@ class ApiClient {
     Map<String, dynamic>? body,
     bool requiresAuth = true,
     int? expectedGeneration,
+    bool allowUncommittedSession = false,
   }) async {
     final idempotencyKey = _uuid.v4();
     final session = requiresAuth
-        ? await _captureSession(expectedGeneration: expectedGeneration)
+        ? await _captureSession(
+            expectedGeneration: expectedGeneration,
+            allowUncommitted: allowUncommittedSession,
+          )
         : null;
     return _handle<T>(
       (accessToken) => _http.post(

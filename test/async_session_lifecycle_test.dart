@@ -95,7 +95,13 @@ void main() {
           cancellationTimeout: const Duration(milliseconds: 20),
         );
         final cancelGate = Completer<void>();
-        final events = StreamController<int>(onCancel: () => cancelGate.future);
+        var cancelCalled = false;
+        final events = StreamController<int>(
+          onCancel: () {
+            cancelCalled = true;
+            return cancelGate.future;
+          },
+        );
 
         await lifecycle.initialize((generation, isCurrent) async {
           return <StreamSubscription<dynamic>>[events.stream.listen((_) {})];
@@ -103,54 +109,11 @@ void main() {
 
         await lifecycle.dispose().timeout(const Duration(milliseconds: 200));
 
+        expect(cancelCalled, isTrue);
         expect(lifecycle.activeSubscriptionCount, 0);
         cancelGate.complete();
         await events.close();
       },
     );
-
-    test(
-      "device cleanup is invoked and bounded by the lifecycle timeout",
-      () async {
-        final lifecycle = AsyncSessionLifecycle(
-          cancellationTimeout: const Duration(milliseconds: 20),
-        );
-        final cleanupStarted = Completer<void>();
-        final cleanupGate = Completer<void>();
-
-        await lifecycle
-            .dispose(
-              deviceCleanup: () {
-                cleanupStarted.complete();
-                return cleanupGate.future;
-              },
-            )
-            .timeout(const Duration(milliseconds: 200));
-
-        expect(cleanupStarted.isCompleted, isTrue);
-        expect(lifecycle.generation, 1);
-        cleanupGate.complete();
-      },
-    );
-
-    test("initialize waits for the actual timed-out device cleanup", () async {
-      final lifecycle = AsyncSessionLifecycle(
-        cancellationTimeout: const Duration(milliseconds: 20),
-      );
-      final cleanupGate = Completer<void>();
-      await lifecycle.dispose(deviceCleanup: () => cleanupGate.future);
-
-      var installerStarted = false;
-      final initializing = lifecycle.initialize((generation, isCurrent) async {
-        installerStarted = true;
-        return const <StreamSubscription<dynamic>>[];
-      });
-      await Future<void>.delayed(Duration.zero);
-      expect(installerStarted, isFalse);
-
-      cleanupGate.complete();
-      await initializing;
-      expect(installerStarted, isTrue);
-    });
   });
 }

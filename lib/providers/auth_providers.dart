@@ -208,17 +208,24 @@ class AuthNotifier extends StateNotifier<AuthState> {
     String? installationId,
   }) async {
     final loginGeneration = _beginLoginTransition();
-    final result = await authService.loginWithEmail(
-      email: email,
-      password: password,
-      expectedGeneration: loginGeneration,
-      installationId: installationId,
-    );
-    _handleLoginResult(
-      result,
-      expectedGeneration: loginGeneration,
-      email: email,
-    );
+    try {
+      final result = await authService.loginWithEmail(
+        email: email,
+        password: password,
+        expectedGeneration: loginGeneration,
+        installationId: installationId,
+      );
+      _handleLoginResult(
+        result,
+        expectedGeneration: loginGeneration,
+        email: email,
+      );
+    } catch (_) {
+      await _bestEffort(
+        () => apiClient.clearSession(expectedGeneration: loginGeneration),
+      );
+      rethrow;
+    }
   }
 
   /// Google 로그인 성공
@@ -227,12 +234,19 @@ class AuthNotifier extends StateNotifier<AuthState> {
     required String installationId,
   }) async {
     final loginGeneration = _beginLoginTransition();
-    final result = await authService.loginWithGoogle(
-      idToken: idToken,
-      installationId: installationId,
-      expectedGeneration: loginGeneration,
-    );
-    _handleLoginResult(result, expectedGeneration: loginGeneration);
+    try {
+      final result = await authService.loginWithGoogle(
+        idToken: idToken,
+        installationId: installationId,
+        expectedGeneration: loginGeneration,
+      );
+      _handleLoginResult(result, expectedGeneration: loginGeneration);
+    } catch (_) {
+      await _bestEffort(
+        () => apiClient.clearSession(expectedGeneration: loginGeneration),
+      );
+      rethrow;
+    }
   }
 
   /// 약관 동의 완료 후 신규 사용자는 온보딩을 이어가고, 약관 개정에

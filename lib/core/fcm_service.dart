@@ -4,9 +4,11 @@ import "dart:io" show Platform;
 
 import "package:firebase_messaging/firebase_messaging.dart";
 import "package:flutter_local_notifications/flutter_local_notifications.dart";
+import "package:shared_preferences/shared_preferences.dart";
 import "../network/api_client.dart";
 import "async_session_lifecycle.dart";
 import "local_notification_service.dart";
+import "retrying_async_cleanup.dart";
 
 /// FCM 푸시 수신 서비스.
 ///
@@ -27,9 +29,22 @@ class FcmService {
   FcmService._();
   static final instance = FcmService._();
 
+  static const _pendingTokenCleanupKey = "fcm_token_cleanup_pending";
+
   final _messaging = FirebaseMessaging.instance;
   final _localPlugin = FlutterLocalNotificationsPlugin();
   final _sessionLifecycle = AsyncSessionLifecycle();
+  late final RetryingAsyncCleanup _tokenCleanup = RetryingAsyncCleanup(
+    cleanup: _messaging.deleteToken,
+    loadPending: () async {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getBool(_pendingTokenCleanupKey) ?? false;
+    },
+    savePending: (pending) async {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_pendingTokenCleanupKey, pending);
+    },
+  );
 
   /// TR-10: 잠금화면에서 민감 정보 숨김 여부. bootstrap에서 세팅.
   bool _lockscreenHideSensitive = true;
@@ -46,6 +61,16 @@ class FcmService {
   }) {
     return _sessionLifecycle.initialize((generation, isCurrent) async {
       try {
+        _tokenCleanup.setRecoveryCallback(
+          () => _recoverCurrentToken(
+            apiClient: apiClient,
+            installationId: installationId,
+            isCurrent: isCurrent,
+          ),
+        );
+        await _tokenCleanup.retryPending();
+        if (!isCurrent()) return const [];
+
         const androidSettings = AndroidInitializationSettings(
           "@mipmap/ic_launcher",
         );
@@ -93,7 +118,7 @@ class FcmService {
 
         final token = await _messaging.getToken();
         if (token != null && isCurrent()) {
-          await _registerToken(
+          await _registerTokenAndResolveCleanup(
             token,
             apiClient: apiClient,
             installationId: installationId,
@@ -106,7 +131,7 @@ class FcmService {
           _messaging.onTokenRefresh.listen((token) {
             if (!isCurrent()) return;
             unawaited(
-              _registerToken(
+              _registerTokenAndResolveCleanup(
                 token,
                 apiClient: apiClient,
                 installationId: installationId,
@@ -150,13 +175,13 @@ class FcmService {
 
   /// POST /push-devices — FCM 토큰 등록·갱신 (API 명세 §2.7)
   /// installationId가 UNIQUE이므로 재설치 전까지 같은 기기는 한 행을 갱신.
-  Future<void> _registerToken(
+  Future<bool> _registerToken(
     String token, {
     required ApiClient apiClient,
     required String installationId,
     required bool Function() isCurrent,
   }) async {
-    if (!isCurrent()) return;
+    if (!isCurrent()) return false;
     try {
       await apiClient.post<Map<String, dynamic>>(
         "/push-devices",
@@ -166,10 +191,46 @@ class FcmService {
           "platform": _getPlatform(),
         },
       );
+      return isCurrent();
     } catch (_) {
       // 토큰 등록 실패는 치명적이지 않음 — 다음 앱 실행 시 재시도
+      return false;
     }
   }
+
+  Future<void> _registerTokenAndResolveCleanup(
+    String token, {
+    required ApiClient apiClient,
+    required String installationId,
+    required bool Function() isCurrent,
+  }) async {
+    final registered = await _registerToken(
+      token,
+      apiClient: apiClient,
+      installationId: installationId,
+      isCurrent: isCurrent,
+    );
+    if (registered) await _tokenCleanup.markResolvedByServerRebind();
+  }
+
+  Future<void> _recoverCurrentToken({
+    required ApiClient apiClient,
+    required String installationId,
+    required bool Function() isCurrent,
+  }) async {
+    if (!isCurrent()) return;
+    final token = await _messaging.getToken();
+    if (token == null || !isCurrent()) return;
+    await _registerTokenAndResolveCleanup(
+      token,
+      apiClient: apiClient,
+      installationId: installationId,
+      isCurrent: isCurrent,
+    );
+  }
+
+  /// 앱 시작 시 이전 프로세스에서 남은 token cleanup을 bounded retry한다.
+  Future<void> retryPendingTokenCleanup() => _tokenCleanup.retryPending();
 
   /// 포그라운드 메시지 수신 처리.
   ///
@@ -276,7 +337,11 @@ class FcmService {
   /// router tap handler는 앱 수명 callback이므로 재로그인 복구를 위해 유지한다.
   Future<void> dispose() async {
     _foregroundMessageController = null;
-    await _sessionLifecycle.dispose(deviceCleanup: _messaging.deleteToken);
+    _tokenCleanup.setRecoveryCallback(null);
+    await Future.wait([
+      _sessionLifecycle.dispose(),
+      _tokenCleanup.requestCleanup(),
+    ]);
   }
 
   /// 알림 탭 시 딥링크 처리 — notificationTapHandler로 전달.

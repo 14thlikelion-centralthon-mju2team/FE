@@ -99,16 +99,11 @@ void main() {
 
     test("cleanup failures do not mask terminal transition", () async {
       var deviceTokenDeleteCount = 0;
-      final lifecycle = AsyncSessionLifecycle(
-        cancellationTimeout: const Duration(milliseconds: 20),
-      );
       final harness = await _createHarness(
         MockClient((request) async => http.Response("{}", 401)),
         failSessionCleanup: true,
         failDraftCleanup: true,
-        fcmDisposer: () => lifecycle.dispose(
-          deviceCleanup: () async => deviceTokenDeleteCount++,
-        ),
+        fcmDisposer: () async => deviceTokenDeleteCount++,
       );
       addTearDown(harness.dispose);
 
@@ -377,11 +372,14 @@ void main() {
         );
         await storage.sessionSaveStarted!.future;
 
+        final loginB = notifier.loginWithEmail(
+          email: "b@example.com",
+          password: "password-b",
+        );
+        await Future<void>.delayed(Duration.zero);
+        storage.sessionSaveGate!.complete();
         await expectLater(
-          notifier.loginWithEmail(
-            email: "b@example.com",
-            password: "password-b",
-          ),
+          loginB,
           throwsA(
             isA<ApiException>().having(
               (error) => error.code,
@@ -391,14 +389,231 @@ void main() {
           ),
         );
 
-        storage.sessionSaveGate!.complete();
         await loginA;
 
         expect(storage.accessTokenValue, isNull);
         expect(storage.refreshTokenValue, isNull);
         expect(storage.userIdValue, isNull);
-        expect(storage.clearSessionCount, 1);
+        expect(storage.clearSessionCount, 2);
         expect(notifier.state.status, AuthStatus.unauthenticated);
+      },
+    );
+
+    test(
+      "a transition cannot capture the previously committed token",
+      () async {
+        final storage = _MemorySecureStorage()
+          ..accessTokenValue = "access-a"
+          ..refreshTokenValue = "refresh-a"
+          ..userIdValue = "user-a";
+        var protectedHttpCalls = 0;
+        var refreshCalls = 0;
+        final client = ApiClient(
+          baseUrl: "https://api.ensom.test/v1",
+          secureStorage: storage,
+          httpClient: MockClient((request) async {
+            if (request.url.path.endsWith("/auth/refresh")) refreshCalls++;
+            protectedHttpCalls++;
+            return http.Response("{}", 401);
+          }),
+        );
+
+        final loginGeneration = client.beginSessionTransition();
+        await expectLater(
+          client.get<Map<String, dynamic>>("/protected"),
+          throwsA(
+            isA<ApiException>().having(
+              (error) => error.code,
+              "code",
+              "STALE_SESSION",
+            ),
+          ),
+        );
+        await client.saveSession(
+          expectedGeneration: loginGeneration,
+          accessToken: "access-b",
+          refreshToken: "refresh-b",
+          userId: "user-b",
+        );
+
+        expect(protectedHttpCalls, 0);
+        expect(refreshCalls, 0);
+        expect(storage.accessTokenValue, "access-b");
+        expect(storage.refreshTokenValue, "refresh-b");
+        expect(storage.userIdValue, "user-b");
+      },
+    );
+
+    test(
+      "a partial session save is rolled back and preserves its error",
+      () async {
+        final originalError = StateError("refresh key write failed");
+        final storage = _MemorySecureStorage()
+          ..accessTokenValue = "access-a"
+          ..refreshTokenValue = "refresh-a"
+          ..userIdValue = "user-a"
+          ..saveSessionErrorAfterAccessToken = originalError;
+        final client = ApiClient(
+          baseUrl: "https://api.ensom.test/v1",
+          secureStorage: storage,
+          httpClient: MockClient((_) async => http.Response("{}", 200)),
+        );
+        final generation = client.beginSessionTransition();
+
+        await expectLater(
+          client.saveSession(
+            expectedGeneration: generation,
+            accessToken: "access-b",
+            refreshToken: "refresh-b",
+            userId: "user-b",
+          ),
+          throwsA(same(originalError)),
+        );
+
+        expect(storage.clearSessionCount, 1);
+        expect(storage.accessTokenValue, isNull);
+        expect(storage.refreshTokenValue, isNull);
+        expect(storage.userIdValue, isNull);
+        await expectLater(
+          client.get<Map<String, dynamic>>("/protected"),
+          throwsA(
+            isA<ApiException>().having(
+              (error) => error.code,
+              "code",
+              "STALE_SESSION",
+            ),
+          ),
+        );
+      },
+    );
+
+    test(
+      "a stale refresh rollback completes before the next session save",
+      () async {
+        final storage = _MemorySecureStorage()
+          ..accessTokenValue = "access-a"
+          ..refreshTokenValue = "refresh-a"
+          ..userIdValue = "user-a"
+          ..accessUpdateStarted = Completer<void>()
+          ..accessUpdateGate = Completer<void>();
+        final client = ApiClient(
+          baseUrl: "https://api.ensom.test/v1",
+          secureStorage: storage,
+          httpClient: MockClient((request) async {
+            if (request.url.path.endsWith("/auth/refresh")) {
+              return http.Response(
+                '{"data":{"accessToken":"refreshed-a"}}',
+                200,
+              );
+            }
+            return http.Response("{}", 401);
+          }),
+        );
+
+        final staleRequest = client.get<Map<String, dynamic>>("/protected");
+        await storage.accessUpdateStarted!.future;
+        final loginGeneration = client.beginSessionTransition();
+        final saveB = client.saveSession(
+          expectedGeneration: loginGeneration,
+          accessToken: "access-b",
+          refreshToken: "refresh-b",
+          userId: "user-b",
+        );
+        storage.accessUpdateGate!.complete();
+
+        await expectLater(
+          staleRequest,
+          throwsA(
+            isA<ApiException>().having(
+              (error) => error.code,
+              "code",
+              "STALE_SESSION",
+            ),
+          ),
+        );
+        await saveB;
+
+        expect(storage.clearSessionCount, 1);
+        expect(storage.accessTokenValue, "access-b");
+        expect(storage.refreshTokenValue, "refresh-b");
+        expect(storage.userIdValue, "user-b");
+      },
+    );
+
+    test("a partial refresh-token update clears the whole session", () async {
+      final storage = _MemorySecureStorage()
+        ..accessTokenValue = "access-a"
+        ..refreshTokenValue = "refresh-a"
+        ..userIdValue = "user-a"
+        ..accessUpdateErrorAfterWrite = StateError("access write failed");
+      final client = ApiClient(
+        baseUrl: "https://api.ensom.test/v1",
+        secureStorage: storage,
+        httpClient: MockClient((request) async {
+          if (request.url.path.endsWith("/auth/refresh")) {
+            return http.Response('{"data":{"accessToken":"refreshed-a"}}', 200);
+          }
+          return http.Response("{}", 401);
+        }),
+      );
+
+      await expectLater(
+        client.get<Map<String, dynamic>>("/protected"),
+        throwsA(
+          isA<ApiException>()
+              .having((error) => error.code, "code", "NETWORK_ERROR")
+              .having((error) => error.retryable, "retryable", isTrue),
+        ),
+      );
+      expect(storage.clearSessionCount, 1);
+      expect(storage.accessTokenValue, isNull);
+      expect(storage.refreshTokenValue, isNull);
+      expect(storage.userIdValue, isNull);
+    });
+
+    test(
+      "a stale logout is stopped immediately before HTTP dispatch",
+      () async {
+        final storage = _MemorySecureStorage()
+          ..accessTokenValue = "access-a"
+          ..refreshTokenValue = "refresh-a"
+          ..userIdValue = "user-a";
+        final dispatchReached = Completer<void>();
+        final dispatchGate = Completer<void>();
+        var logoutHttpCalls = 0;
+        final client = ApiClient(
+          baseUrl: "https://api.ensom.test/v1",
+          secureStorage: storage,
+          beforeRequestDispatch: () async {
+            dispatchReached.complete();
+            await dispatchGate.future;
+          },
+          httpClient: MockClient((request) async {
+            logoutHttpCalls++;
+            return http.Response('{"data":{}}', 200);
+          }),
+        );
+
+        final logout = client.post<Map<String, dynamic>>(
+          "/auth/logout",
+          expectedGeneration: client.sessionGeneration,
+          allowUncommittedSession: true,
+        );
+        await dispatchReached.future;
+        client.beginSessionTransition();
+        dispatchGate.complete();
+
+        await expectLater(
+          logout,
+          throwsA(
+            isA<ApiException>().having(
+              (error) => error.code,
+              "code",
+              "STALE_SESSION",
+            ),
+          ),
+        );
+        expect(logoutHttpCalls, 0);
       },
     );
 
@@ -515,14 +730,13 @@ void main() {
     test("failed explicit logout still deletes the device token", () async {
       final storage = _MemorySecureStorage();
       var deviceTokenDeleteCount = 0;
-      final lifecycle = AsyncSessionLifecycle(
-        cancellationTimeout: const Duration(milliseconds: 20),
-      );
+      var logoutHttpCount = 0;
       final apiClient = ApiClient(
         baseUrl: "https://api.ensom.test/v1",
         secureStorage: storage,
         httpClient: MockClient((request) async {
           if (request.url.path.endsWith("/auth/logout")) {
+            logoutHttpCount++;
             throw const SocketException("offline");
           }
           if (request.url.path.endsWith("/auth/email/login")) {
@@ -537,9 +751,7 @@ void main() {
         apiClient: apiClient,
         clearMapDraft: () async {},
         initializeFcm: (_, _) async {},
-        disposeFcm: () => lifecycle.dispose(
-          deviceCleanup: () async => deviceTokenDeleteCount++,
-        ),
+        disposeFcm: () async => deviceTokenDeleteCount++,
       );
       addTearDown(notifier.dispose);
       await notifier.sessionCheckCompletion;
@@ -550,6 +762,7 @@ void main() {
 
       await notifier.logout();
 
+      expect(logoutHttpCount, 1);
       expect(deviceTokenDeleteCount, 1);
       expect(storage.accessTokenValue, isNull);
       expect(storage.refreshTokenValue, isNull);
@@ -766,7 +979,10 @@ class _Harness {
 }
 
 class _AuthenticatedAuthService extends AuthService {
-  _AuthenticatedAuthService({required super.apiClient});
+  _AuthenticatedAuthService({required super.apiClient})
+    : _apiClient = apiClient;
+
+  final ApiClient _apiClient;
 
   @override
   Future<LoginResult> loginWithEmail({
@@ -775,6 +991,12 @@ class _AuthenticatedAuthService extends AuthService {
     required int expectedGeneration,
     String? installationId,
   }) async {
+    await _apiClient.saveSession(
+      expectedGeneration: expectedGeneration,
+      accessToken: "access-1",
+      refreshToken: "refresh-1",
+      userId: "user-1",
+    );
     return const LoginResult(
       userId: "user-1",
       nickname: "tester",
@@ -787,7 +1009,9 @@ class _AuthenticatedAuthService extends AuthService {
 }
 
 class _ConsentAuthService extends AuthService {
-  _ConsentAuthService({required super.apiClient});
+  _ConsentAuthService({required super.apiClient}) : _apiClient = apiClient;
+
+  final ApiClient _apiClient;
 
   @override
   Future<LoginResult> loginWithEmail({
@@ -796,6 +1020,12 @@ class _ConsentAuthService extends AuthService {
     required int expectedGeneration,
     String? installationId,
   }) async {
+    await _apiClient.saveSession(
+      expectedGeneration: expectedGeneration,
+      accessToken: "access-1",
+      refreshToken: "refresh-1",
+      userId: "user-1",
+    );
     return const LoginResult(
       userId: "user-1",
       nickname: "tester",
@@ -817,6 +1047,10 @@ class _MemorySecureStorage extends SecureStorageService {
   Completer<void>? sessionReadGate;
   Completer<void>? sessionSaveStarted;
   Completer<void>? sessionSaveGate;
+  Object? saveSessionErrorAfterAccessToken;
+  Completer<void>? accessUpdateStarted;
+  Completer<void>? accessUpdateGate;
+  Object? accessUpdateErrorAfterWrite;
 
   Future<String?> _readSessionValue(String? value) async {
     final gate = sessionReadGate;
@@ -856,6 +1090,8 @@ class _MemorySecureStorage extends SecureStorageService {
       await gate.future;
     }
     accessTokenValue = accessToken;
+    final partialWriteError = saveSessionErrorAfterAccessToken;
+    if (partialWriteError != null) throw partialWriteError;
     refreshTokenValue = refreshToken;
     userIdValue = userId;
   }
@@ -872,5 +1108,11 @@ class _MemorySecureStorage extends SecureStorageService {
   @override
   Future<void> updateAccessToken(String accessToken) async {
     accessTokenValue = accessToken;
+    final started = accessUpdateStarted;
+    if (started != null && !started.isCompleted) started.complete();
+    final gate = accessUpdateGate;
+    if (gate != null) await gate.future;
+    final partialWriteError = accessUpdateErrorAfterWrite;
+    if (partialWriteError != null) throw partialWriteError;
   }
 }

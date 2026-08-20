@@ -11,7 +11,6 @@ class AsyncSessionLifecycle {
   final Duration cancellationTimeout;
   int _generation = 0;
   List<StreamSubscription<dynamic>> _subscriptions = const [];
-  Future<void> _deviceCleanupBarrier = Future<void>.value();
 
   int get generation => _generation;
   int get activeSubscriptionCount => _subscriptions.length;
@@ -27,7 +26,6 @@ class AsyncSessionLifecycle {
   ) async {
     final generation = ++_generation;
     await _clearActiveSubscriptions();
-    await _deviceCleanupBarrier;
     if (!isCurrent(generation)) return;
 
     final installed = await installer(generation, () => isCurrent(generation));
@@ -46,33 +44,11 @@ class AsyncSessionLifecycle {
     _subscriptions = installed;
   }
 
-  Future<void> dispose({Future<void> Function()? deviceCleanup}) async {
+  Future<void> dispose() async {
     ++_generation;
     // 진행 중 installer Future와 독립적으로 현재 설치가 끝난 구독만
     // 취소한다. 늦게 반환되는 installer 결과는 initialize 쪽에서 폐기한다.
-    final cleanupFuture = deviceCleanup == null
-        ? null
-        : _queueDeviceCleanup(deviceCleanup);
-    await Future.wait([
-      _clearActiveSubscriptions(),
-      if (cleanupFuture != null) _waitForCleanupBounded(cleanupFuture),
-    ]);
-  }
-
-  Future<void> _queueDeviceCleanup(Future<void> Function() cleanup) {
-    final cleanupFuture = _deviceCleanupBarrier.then((_) => cleanup());
-    _deviceCleanupBarrier = cleanupFuture.catchError((_) {
-      // device cleanup 실패는 다음 initialize를 영구 차단하지 않는다.
-    });
-    return _deviceCleanupBarrier;
-  }
-
-  Future<void> _waitForCleanupBounded(Future<void> cleanup) async {
-    try {
-      await cleanup.timeout(cancellationTimeout);
-    } on TimeoutException {
-      // 인증 전이는 끝내되 실제 cleanup Future는 initialize barrier로 유지한다.
-    }
+    await _clearActiveSubscriptions();
   }
 
   Future<void> _clearActiveSubscriptions() {

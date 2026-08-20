@@ -141,6 +141,7 @@ class AuthService {
       await _client.post<Map<String, dynamic>>(
         "/auth/logout",
         expectedGeneration: expectedGeneration,
+        allowUncommittedSession: true,
       );
     } catch (_) {
       // 로그아웃 서버 호출 실패해도 현재 로그아웃 세대의 로컬 세션은 소거한다.
