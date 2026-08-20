@@ -1,10 +1,7 @@
 import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:go_router/go_router.dart";
-import "package:google_sign_in/google_sign_in.dart";
 import "../../core/logout_helper.dart";
-import "../../network/api_client.dart";
-import "../../providers/auth_providers.dart";
 import "../../theme/ensom_colors.dart";
 
 /// PRF-02 계정 정보 — v6 프로토타입 기준 redesign
