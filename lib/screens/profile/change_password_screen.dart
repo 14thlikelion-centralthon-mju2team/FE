@@ -42,7 +42,9 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
       await api.patch<Map<String, dynamic>>(
         "/me/password",
         body: {
-          "currentPassword": _currentPasswordCtrl.text,
+          // Google-only 계정 최초 설정 시 currentPassword 생략 (§2.4)
+          if (_currentPasswordCtrl.text.isNotEmpty)
+            "currentPassword": _currentPasswordCtrl.text,
           "newPassword": _newPasswordCtrl.text,
         },
       );
@@ -82,9 +84,12 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
               TextFormField(
                 controller: _currentPasswordCtrl,
                 obscureText: true,
-                decoration: const InputDecoration(labelText: "현재 비밀번호"),
-                validator: (v) =>
-                    (v == null || v.isEmpty) ? "현재 비밀번호를 입력해주세요." : null,
+                decoration: const InputDecoration(
+                  labelText: "현재 비밀번호",
+                  helperText: "Google로만 가입한 경우 비워두세요",
+                ),
+                // Google-only 계정은 currentPassword 생략 가능 (§2.4)
+                // BE가 provider 확인 후 판단
               ),
               const SizedBox(height: 16),
               TextFormField(

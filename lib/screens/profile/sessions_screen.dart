@@ -149,10 +149,10 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
       itemCount: sessions.length,
       itemBuilder: (context, index) {
         final session = sessions[index];
-        final id = session["id"]?.toString() ?? "";
+        final id = session["refreshTokenId"]?.toString() ?? "";
         final isCurrent = session["isCurrent"] == true;
-        final deviceName = session["deviceName"]?.toString() ?? "알 수 없는 기기";
-        final lastActive = session["lastActiveAt"]?.toString() ?? "";
+        final deviceName = session["platform"]?.toString() ?? "알 수 없는 기기";
+        final lastActive = session["issuedAt"]?.toString() ?? "";
 
         return Dismissible(
           key: Key(id),

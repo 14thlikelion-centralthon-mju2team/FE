@@ -244,7 +244,7 @@ class _BookmarksScreenState extends ConsumerState<BookmarksScreen> {
                   itemCount: filtered.length,
                   itemBuilder: (context, index) {
                     final bookmark = filtered[index];
-                    final id = bookmark["id"]?.toString() ?? "";
+                    final id = bookmark["bookmarkId"]?.toString() ?? "";
                     final name = bookmark["placeName"]?.toString() ?? "이름 없음";
                     final folder = bookmark["folder"]?.toString() ?? "";
 

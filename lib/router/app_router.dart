@@ -53,7 +53,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       final path = state.uri.path;
       final isAuthPage =
           path.startsWith("/onboarding/auth") ||
-          path.startsWith("/onboarding/email");
+          path.startsWith("/onboarding/email") ||
+          path.startsWith("/onboarding/password-reset");
       final isConsentPage = path == "/onboarding/consent";
 
       switch (authState.status) {

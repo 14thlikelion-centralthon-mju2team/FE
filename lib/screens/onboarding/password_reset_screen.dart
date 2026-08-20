@@ -45,14 +45,23 @@ class _PasswordResetScreenState extends ConsumerState<PasswordResetScreen> {
         body: {"email": email},
       );
     } on ApiException catch (e) {
-      // 계정 열거 방지: 에러가 나도 항상 "메일을 보냈어요" 안내
-      if (e.isNetworkError) {
+      if (e.isNetworkError || e.retryable) {
+        // 네트워크 오류 또는 서버 일시 오류(429/5xx) → 재시도 안내
         setState(() {
           _submitting = false;
-          _error = "네트워크에 연결할 수 없어요. 다시 시도해주세요.";
+          _error = e.isNetworkError
+              ? "네트워크에 연결할 수 없어요. 다시 시도해주세요."
+              : "요청을 처리하지 못했어요. 잠시 후 다시 시도해주세요.";
         });
         return;
       }
+      // 그 외(400 계열) — 계정 존재 은닉을 위해 서버가 항상 200을 주므로
+      // 여기 도달하면 예상치 못한 오류. 사용자에게 재시도 안내.
+      setState(() {
+        _submitting = false;
+        _error = "요청을 처리하지 못했어요. 다시 시도해주세요.";
+      });
+      return;
     } finally {
       if (mounted && _error == null) {
         setState(() {

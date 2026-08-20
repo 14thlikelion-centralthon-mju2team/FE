@@ -107,7 +107,7 @@ class _ProvidersScreenState extends ConsumerState<ProvidersScreen> {
       final api = ref.read(apiClientProvider);
       await api.post<Map<String, dynamic>>(
         "/me/providers",
-        body: {"provider": "GOOGLE", "idToken": idToken},
+        body: {"provider": "google", "providerToken": idToken},
       );
       await _load();
     } on ApiException catch (e) {
@@ -161,7 +161,7 @@ class _ProvidersScreenState extends ConsumerState<ProvidersScreen> {
       children: [
         const SizedBox(height: 8),
         ...providers.map((p) {
-          final id = p["id"]?.toString() ?? "";
+          final id = p["identityId"]?.toString() ?? "";
           final type = p["provider"]?.toString() ?? "";
           final email = p["email"]?.toString() ?? "";
           return ListTile(
