@@ -3,8 +3,11 @@ import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:go_router/go_router.dart";
 import "../../providers/auth_providers.dart";
 import "../../theme/ensom_colors.dart";
+import "../../widgets/ensom/ensom_pill_button.dart";
 
 /// S-42 온보딩 완료. 이전 단계로 돌아갈 수 없으며 시작하기로 상태를 확정한다.
+/// ensom_onboarding_flow.html STEP 8("준비됐어요")의 라임 원형 체크
+/// 아이콘 + 헤드라인 + 알약 버튼 패턴을 반영한다.
 class OnboardingCompleteScreen extends ConsumerWidget {
   const OnboardingCompleteScreen({super.key});
 
@@ -13,47 +16,43 @@ class OnboardingCompleteScreen extends ConsumerWidget {
     return PopScope(
       canPop: false,
       child: Scaffold(
+        backgroundColor: EnsomColors.canvas,
         body: SafeArea(
           child: Padding(
-            padding: const EdgeInsets.all(32),
+            padding: const EdgeInsets.fromLTRB(26, 0, 26, 18),
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Spacer(flex: 2),
-                const Icon(
-                  Icons.check_circle_outline,
-                  size: 80,
-                  color: EnsomColors.limeInk,
+                const Spacer(flex: 3),
+                Container(
+                  width: 72,
+                  height: 72,
+                  decoration: const BoxDecoration(color: EnsomColors.lime, shape: BoxShape.circle),
+                  child: const Icon(Icons.check, size: 32, color: Colors.white),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 20),
                 const Text(
-                  "준비 완료!",
-                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                  "준비됐어요",
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, letterSpacing: -.4, color: EnsomColors.ink),
                 ),
                 const SizedBox(height: 12),
                 const Text(
-                  "이제 Ensom이 일정에 맞춰\n준비 시작 시각을 알려드릴게요.",
+                  "이제 일정을 추가하면 언제부터\n준비해야 할지 알려드릴게요.",
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: EnsomColors.inkMuted, fontSize: 15),
+                  style: TextStyle(fontSize: 12.5, color: EnsomColors.inkMuted, height: 1.65),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
                 const Text(
                   "설정은 언제든 프로필에서 변경할 수 있어요.",
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: EnsomColors.inkMuted, fontSize: 13),
+                  style: TextStyle(fontSize: 11, color: EnsomColors.inkFaint),
                 ),
-                const Spacer(flex: 3),
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton(
-                    onPressed: () {
-                      ref
-                          .read(authNotifierProvider.notifier)
-                          .onOnboardingCompleted();
-                      context.go("/home");
-                    },
-                    child: const Text("시작하기"),
-                  ),
+                const Spacer(flex: 4),
+                EnsomPillButton(
+                  label: "시작하기",
+                  onPressed: () {
+                    ref.read(authNotifierProvider.notifier).onOnboardingCompleted();
+                    context.go("/home");
+                  },
                 ),
               ],
             ),

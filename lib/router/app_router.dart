@@ -9,7 +9,6 @@ import "../screens/onboarding/auth_screen.dart";
 import "../screens/onboarding/splash_screen.dart";
 import "../screens/onboarding/consent_screen.dart";
 import "../screens/onboarding/email_verification_screen.dart";
-import "../screens/onboarding/location_permission_screen.dart";
 import "../screens/onboarding/prep_time_entry_screen.dart";
 import "../screens/onboarding/wellness_onboarding_screen.dart";
 import "../screens/onboarding/onboarding_complete_screen.dart";
@@ -172,10 +171,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: "/onboarding/prep-time",
         builder: (c, s) => const PrepTimeEntryScreen(),
-      ),
-      GoRoute(
-        path: "/onboarding/location-intro",
-        builder: (c, s) => const LocationPermissionScreen(),
       ),
       GoRoute(
         path: "/onboarding/places",
