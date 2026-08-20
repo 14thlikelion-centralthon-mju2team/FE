@@ -110,7 +110,7 @@ class ApiEnsomRepository implements EnsomRepository {
           "anchorMode": anchorMode == EventAnchor.departAt
               ? "depart_at"
               : "arrive_by",
-          "at": at.toIso8601String(),
+          "at": at.toUtc().toIso8601String(),
         },
       );
       return json
@@ -396,7 +396,7 @@ class ApiEnsomRepository implements EnsomRepository {
       body: {
         "action": _actionJsonValues[action],
         "clientEventId": _uuid.v4(),
-        "deviceTs": DateTime.now().toIso8601String(),
+        "deviceTs": DateTime.now().toUtc().toIso8601String(),
       },
     );
   }
