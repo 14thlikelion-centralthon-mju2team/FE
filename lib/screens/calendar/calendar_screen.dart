@@ -3,6 +3,8 @@ import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:go_router/go_router.dart";
 import "package:intl/intl.dart";
 import "../../models/event.dart";
+import "../../network/api_client.dart";
+import "../../providers/auth_providers.dart";
 import "../../providers/bootstrap_provider.dart";
 import "../../providers/calendar_providers.dart";
 import "../../theme/ensom_colors.dart";
@@ -12,6 +14,8 @@ import "../../widgets/permission_degraded_banner.dart";
 enum _CalView { week, month }
 
 enum _EventFilter { all, move, online }
+
+enum _SyncBannerStatus { idle, syncing, failed }
 
 DateTime _dateOnly(DateTime d) => DateTime(d.year, d.month, d.day);
 
@@ -42,6 +46,8 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
   late DateTime _selectedDate = _dateOnly(DateTime.now());
   _EventFilter _filter = _EventFilter.all;
   bool _searchOpen = false;
+  _SyncBannerStatus _syncStatus = _SyncBannerStatus.idle;
+  DateTime? _syncFailedAt;
 
   // 선택한 날이 있는 달의 앞뒤 한 달씩을 같이 불러온다 — 주간 뷰가 달
   // 경계를 넘나들 때, 그리고 검색 오버레이가 뒤질 범위를 위해서다.
@@ -49,6 +55,40 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     from: DateTime(_focusedMonth.year, _focusedMonth.month - 1, 1),
     to: DateTime(_focusedMonth.year, _focusedMonth.month + 2, 1),
   );
+
+  @override
+  void initState() {
+    super.initState();
+    _syncIfConnected();
+  }
+
+  /// ensom_calendar_syncbanner.html — 구글 캘린더가 연동돼 있을 때만
+  /// 동기화를 시도한다. `POST /calendar/sync`는 응답 형태가 문서화돼
+  /// 있지 않아(§7 표에 경로만 있음) 성공/실패만으로 배너 상태를 가른다.
+  /// 실패해도 이미 가진 일정 목록은 그대로 두고 배너로만 알린다(§1.5).
+  Future<void> _syncIfConnected() async {
+    final api = ref.read(apiClientProvider);
+    try {
+      final status = await api.get<Map<String, dynamic>>("/calendar/google/status");
+      if (status["connected"] != true) return;
+    } on ApiException catch (_) {
+      return;
+    }
+    if (!mounted) return;
+    setState(() => _syncStatus = _SyncBannerStatus.syncing);
+    try {
+      await api.post("/calendar/sync");
+      if (!mounted) return;
+      setState(() => _syncStatus = _SyncBannerStatus.idle);
+      ref.invalidate(eventsInRangeProvider(_fetchRange));
+    } on ApiException catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _syncStatus = _SyncBannerStatus.failed;
+        _syncFailedAt = DateTime.now();
+      });
+    }
+  }
 
   void _selectDate(DateTime d) {
     setState(() {
@@ -146,6 +186,14 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 _header(),
+                if (_syncStatus != _SyncBannerStatus.idle) ...[
+                  const SizedBox(height: 10),
+                  _SyncBanner(
+                    status: _syncStatus,
+                    failedAt: _syncFailedAt,
+                    onRetry: _syncIfConnected,
+                  ),
+                ],
                 const SizedBox(height: 14),
                 _CalendarPanel(
                   view: _view,
@@ -322,6 +370,63 @@ class _IconAction extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// ensom_calendar_syncbanner.html — "동기화 중" 스피너 배너와 "일부 실패"
+/// 재시도 배너 2종(정상 상태는 배너 자체가 없는 것으로 표현).
+class _SyncBanner extends StatelessWidget {
+  const _SyncBanner({required this.status, required this.failedAt, required this.onRetry});
+
+  final _SyncBannerStatus status;
+  final DateTime? failedAt;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
+      decoration: BoxDecoration(color: EnsomColors.surface2, borderRadius: BorderRadius.circular(15)),
+      child: status == _SyncBannerStatus.syncing
+          ? Row(
+              children: const [
+                SizedBox(
+                  width: 13,
+                  height: 13,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: EnsomColors.inkMuted),
+                ),
+                SizedBox(width: 9),
+                Text(
+                  "일정을 가져오는 중",
+                  style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: EnsomColors.inkMuted),
+                ),
+              ],
+            )
+          : Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(
+                    "일부 일정을 가져오지 못했어요"
+                    "${failedAt == null ? '' : ' · ${failedAt!.hour.toString().padLeft(2, '0')}:${failedAt!.minute.toString().padLeft(2, '0')} 기준'}",
+                    style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: EnsomColors.inkMuted),
+                  ),
+                ),
+                GestureDetector(
+                  onTap: onRetry,
+                  child: const Text(
+                    "다시 시도",
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: EnsomColors.ink,
+                      decoration: TextDecoration.underline,
+                    ),
+                  ),
+                ),
+              ],
+            ),
     );
   }
 }

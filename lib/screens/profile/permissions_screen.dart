@@ -1,9 +1,16 @@
 import "package:flutter/material.dart";
 import "package:permission_handler/permission_handler.dart";
 import "../../theme/ensom_colors.dart";
+import "../../widgets/ensom/ensom_pill_button.dart";
+import "../../widgets/ensom/ensom_top_bar.dart";
 
 /// PRF-05 권한 관리
 /// OS 설정으로 이동하는 간단한 상태 표시 화면
+///
+/// ensom_profile.html "2. 권한 관리" 화면 반영. 목업엔 캘린더 연동
+/// 행도 있지만, 그건 OS 권한이 아니라 OAuth 연동 상태(캘린더 연동
+/// 관리 화면이 따로 있음)라 이 permission_handler 기반 화면에는
+/// 넣지 않았다 — 이 화면이 실제로 조회할 수 있는 상태만 보여준다.
 class PermissionsScreen extends StatefulWidget {
   const PermissionsScreen({super.key});
 
@@ -50,75 +57,120 @@ class _PermissionsScreenState extends State<PermissionsScreen>
 
   @override
   Widget build(BuildContext context) {
+    final alwaysGranted = _statuses[Permission.locationAlways]?.isGranted ?? false;
+
     return Scaffold(
-      appBar: AppBar(title: const Text("권한 관리")),
-      body: ListView(
-        children: [
-          _PermissionTile(
-            icon: Icons.notifications_outlined,
-            label: "알림",
-            status: _statuses[Permission.notification],
-          ),
-          _PermissionTile(
-            icon: Icons.location_on_outlined,
-            label: "위치 (사용 중)",
-            status: _statuses[Permission.location],
-          ),
-          _PermissionTile(
-            icon: Icons.location_on,
-            label: "위치 (항상 허용)",
-            status: _statuses[Permission.locationAlways],
-            description: "자동 출발·도착 감지에 필요해요",
-          ),
-          const Divider(),
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: ElevatedButton.icon(
-              onPressed: openAppSettings,
-              icon: const Icon(Icons.settings),
-              label: const Text("시스템 설정 열기"),
+      backgroundColor: EnsomColors.canvas,
+      appBar: const EnsomTopBar(title: "권한"),
+      body: SafeArea(
+        top: false,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(18, 8, 18, 24),
+          children: [
+            _PermissionRow(
+              label: "위치 (사용 중)",
+              status: _statuses[Permission.location],
             ),
-          ),
-        ],
+            const SizedBox(height: 9),
+            _PermissionRow(
+              label: "알림",
+              status: _statuses[Permission.notification],
+            ),
+            const Divider(height: 30, color: EnsomColors.hairline),
+            const Text(
+              "자동 출발 · 도착 확인",
+              style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: EnsomColors.inkFaint, letterSpacing: .4),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(15),
+              decoration: BoxDecoration(color: EnsomColors.surface2, borderRadius: BorderRadius.circular(18)),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          "항상 위치 허용",
+                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: EnsomColors.ink),
+                        ),
+                        const SizedBox(height: 4),
+                        const Text(
+                          "앱을 쓰지 않을 때도 출발·도착을 자동으로 확인해요.",
+                          style: TextStyle(fontSize: 11.5, color: EnsomColors.inkMuted, height: 1.5),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(
+                    alwaysGranted ? Icons.check_circle : Icons.chevron_right,
+                    size: alwaysGranted ? 20 : 16,
+                    color: alwaysGranted ? EnsomColors.limeInk : EnsomColors.inkFaint,
+                  ),
+                ],
+              ),
+            ),
+            if (alwaysGranted) ...[
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(13),
+                decoration: BoxDecoration(color: EnsomColors.surface2, borderRadius: BorderRadius.circular(14)),
+                child: const Text(
+                  "위치 정보는 준비·이동 시간 계산에만 사용되고 암호화되어 저장돼요. 언제든 시스템 설정에서 다시 끌 수 있어요.",
+                  style: TextStyle(fontSize: 11.5, color: EnsomColors.inkMuted, height: 1.5),
+                ),
+              ),
+            ],
+            const SizedBox(height: 22),
+            EnsomPillButton(label: "시스템 설정 열기", onPressed: openAppSettings),
+          ],
+        ),
       ),
     );
   }
 }
 
-class _PermissionTile extends StatelessWidget {
-  const _PermissionTile({
-    required this.icon,
-    required this.label,
-    this.status,
-    this.description,
-  });
+class _PermissionRow extends StatelessWidget {
+  const _PermissionRow({required this.label, this.status});
 
-  final IconData icon;
   final String label;
   final PermissionStatus? status;
-  final String? description;
 
   @override
   Widget build(BuildContext context) {
     final granted = status?.isGranted ?? false;
-    return ListTile(
-      leading: Icon(
-        icon,
-        color: granted ? EnsomColors.limeInk : EnsomColors.inkMuted,
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: EnsomColors.surface1,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: EnsomColors.hairline),
       ),
-      title: Text(label),
-      subtitle: description != null ? Text(description!) : null,
-      trailing: Chip(
-        label: Text(
-          granted ? "허용" : "꺼짐",
-          style: TextStyle(
-            color: granted ? EnsomColors.limeInk : EnsomColors.caution,
-            fontSize: 12,
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: EnsomColors.ink),
+            ),
           ),
-        ),
-        backgroundColor: granted
-            ? EnsomColors.limeSoft
-            : EnsomColors.caution.withValues(alpha: 0.1),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: granted ? EnsomColors.limeSoft : EnsomColors.surface2,
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Text(
+              granted ? "허용" : "꺼짐",
+              style: TextStyle(
+                fontSize: 10.5,
+                fontWeight: FontWeight.w700,
+                color: granted ? EnsomColors.limeInk : EnsomColors.inkMuted,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

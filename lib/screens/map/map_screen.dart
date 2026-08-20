@@ -12,8 +12,9 @@ import "../../network/kakao_local_search_service.dart";
 import "../../providers/auth_providers.dart";
 import "../../providers/map_providers.dart";
 import "../../repository/providers.dart";
-import "../../widgets/permission_degraded_banner.dart";
 import "../../theme/ensom_colors.dart";
+import "../../widgets/ensom/ensom_quick_save_sheet.dart";
+import "../../widgets/permission_degraded_banner.dart";
 
 /// MAP-01~04, CAL-05. 기본 지도 화면 -- 현재 위치 표시, 목적지 검색,
 /// 경로 후보 조회, 캘린더 저장(일정 생성)까지가 이 화면의 범위다
@@ -102,17 +103,69 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     }
     final selected = await showModalBottomSheet<Map<String, dynamic>>(
       context: context,
+      backgroundColor: EnsomColors.canvas,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+      ),
       builder: (sheetContext) => SafeArea(
-        child: ListView(
-          shrinkWrap: true,
-          children: [
-            for (final b in _bookmarks!)
-              ListTile(
-                leading: const Icon(Icons.bookmark_outline),
-                title: Text(b["placeName"]?.toString() ?? "이름 없음"),
-                onTap: () => Navigator.of(sheetContext).pop(b),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: EnsomColors.surfaceNeutral,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                ),
               ),
-          ],
+              const SizedBox(height: 14),
+              const Text(
+                "북마크에서 선택",
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: -.2, color: EnsomColors.ink),
+              ),
+              const SizedBox(height: 10),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 320),
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: _bookmarks!.length,
+                  separatorBuilder: (_, _) => const SizedBox(height: 6),
+                  itemBuilder: (context, index) {
+                    final b = _bookmarks![index];
+                    return Material(
+                      color: EnsomColors.surface2,
+                      borderRadius: BorderRadius.circular(14),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(14),
+                        onTap: () => Navigator.of(sheetContext).pop(b),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.bookmark_outline, size: 17, color: EnsomColors.inkFaint),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  b["placeName"]?.toString() ?? "이름 없음",
+                                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: EnsomColors.ink),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -316,24 +369,69 @@ class _MapScreenState extends ConsumerState<MapScreen> {
 
       final selectedRoute = await _showRouteSheet(routes);
       if (selectedRoute == null) return;
+      if (!mounted) return;
 
-      await ref
-          .read(mapDraftEventProvider.notifier)
-          .set(
-            MapDraftEvent(
-              originLat: origin.latitude,
-              originLng: origin.longitude,
-              destName: _destName!,
-              destLat: _destLat!,
-              destLng: _destLng!,
-              selectedRoute: selectedRoute,
-              anchorMode: anchor.$1,
-              at: anchor.$2,
-              createdAt: routesFetchedAt,
+      final quickSave = await EnsomQuickSaveSheet.show(
+        context,
+        destName: _destName!,
+        anchorMode: anchor.$1,
+        at: anchor.$2,
+        route: selectedRoute,
+      );
+      if (quickSave == null) return;
+
+      if (quickSave.detailedEdit) {
+        await ref
+            .read(mapDraftEventProvider.notifier)
+            .set(
+              MapDraftEvent(
+                originLat: origin.latitude,
+                originLng: origin.longitude,
+                destName: _destName!,
+                destLat: _destLat!,
+                destLng: _destLng!,
+                selectedRoute: selectedRoute,
+                anchorMode: anchor.$1,
+                at: anchor.$2,
+                createdAt: routesFetchedAt,
+                label: quickSave.label,
+              ),
+            );
+        if (!mounted) return;
+        context.push("/events/create-from-map");
+        return;
+      }
+
+      final endsAt = anchor.$1 == EventAnchor.arriveBy
+          ? anchor.$2
+          : anchor.$2.add(const Duration(hours: 1));
+      await ref.read(ensomRepositoryProvider).createEvent(
+            Event(
+              eventId: "",
+              displayLabel: quickSave.label!,
+              displayName: quickSave.label!,
+              startsAt: anchor.$1 == EventAnchor.arriveBy
+                  ? anchor.$2.subtract(const Duration(hours: 1))
+                  : anchor.$2,
+              endsAt: endsAt,
+              locationState: LocationState.requiredResolved,
+              destinationName: _destName,
+              destinationLat: _destLat,
+              destinationLng: _destLng,
+              anchor: anchor.$1,
+              sourceType: EventSourceType.mapSearch,
             ),
+            selectedRouteOptionId: selectedRoute.routeOptionId,
           );
       if (!mounted) return;
-      context.push("/events/create-from-map");
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("일정으로 저장했어요.")),
+      );
+      setState(() {
+        _destName = null;
+        _destLat = null;
+        _destLng = null;
+      });
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(
