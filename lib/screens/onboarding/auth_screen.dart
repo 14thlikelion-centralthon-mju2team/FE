@@ -1,8 +1,13 @@
+import "dart:async";
+
+import "package:flutter/foundation.dart" show kIsWeb;
 import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:go_router/go_router.dart";
+import "package:google_sign_in/google_sign_in.dart" show GoogleSignInAccount;
 import "../../core/app_config.dart";
 import "../../core/google_auth_helper.dart";
+import "../../core/google_web_button/google_web_button.dart";
 import "../../network/api_client.dart";
 import "../../providers/auth_providers.dart";
 import "../../theme/ensom_colors.dart";
@@ -33,10 +38,59 @@ class AuthScreen extends ConsumerStatefulWidget {
 class _AuthScreenState extends ConsumerState<AuthScreen> {
   bool _submitting = false;
   _AuthNotice _notice = _AuthNotice.none;
-  // TODO(임시 진단용): 원인 파악되면 제거. 배너에 실제 예외 메시지를
-  // 노출해 개발자 도구 없이도 원인을 알 수 있게 한다.
-  String? _debugErrorDetail;
+  String? _errorDetail;
+  StreamSubscription<GoogleSignInAccount?>? _webGoogleSub;
 
+  @override
+  void initState() {
+    super.initState();
+    // 웹은 GSI가 직접 그리는 버튼(google_web_button.dart)을 쓴다 —
+    // signIn()과 달리 결과가 Future 반환값이 아니라 이 스트림으로 온다.
+    if (kIsWeb) {
+      _webGoogleSub = GoogleAuthHelper.instance.onLoginUserChanged.listen(
+        _handleWebGoogleAccount,
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _webGoogleSub?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _handleWebGoogleAccount(GoogleSignInAccount? account) async {
+    if (account == null || _submitting) return;
+    setState(() {
+      _submitting = true;
+      _notice = _AuthNotice.none;
+    });
+    try {
+      final auth = await account.authentication;
+      final idToken = auth.idToken;
+      if (idToken == null) {
+        throw StateError("Google 인증에서 idToken을 가져오지 못했습니다.");
+      }
+      await _completeLogin(idToken);
+    } on ApiException catch (e) {
+      debugPrint("[google-login] 실패(ApiException): ${e.code} ${e.message}");
+      setState(() {
+        _notice = e.code == "NETWORK_ERROR" ? _AuthNotice.network : _AuthNotice.provider;
+        _errorDetail = "${e.code}: ${e.message}";
+      });
+    } catch (e, st) {
+      debugPrint("[google-login] 실패: $e\n$st");
+      setState(() {
+        _notice = _AuthNotice.provider;
+        _errorDetail = e.toString();
+      });
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
+  }
+
+  /// 모바일 전용 — 네이티브 채널 기반이라 deprecated 아니고 팝업/user-
+  /// activation 문제도 없다. 웹은 initState의 스트림 구독으로 처리한다.
   Future<void> _handleGoogleLogin() async {
     setState(() {
       _submitting = true;
@@ -52,44 +106,45 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
         });
         return;
       }
-
-      final installationId = await ref
-          .read(secureStorageProvider)
-          .installationId;
-      final authNotifier = ref.read(authNotifierProvider.notifier);
-      await authNotifier.loginWithGoogle(
-        idToken: idToken,
-        installationId: installationId,
-      );
-
-      if (!mounted) return;
-
-      final authState = ref.read(authNotifierProvider);
-      switch (authState.status) {
-        case AuthStatus.consentRequired:
-          context.go("/onboarding/consent");
-        case AuthStatus.onboarding:
-          context.go("/onboarding/prep-time");
-        case AuthStatus.authenticated:
-          context.go("/home");
-        default:
-          // Google 로그인은 emailVerificationRequired가 되지 않음
-          context.go("/home");
-      }
+      await _completeLogin(idToken);
     } on ApiException catch (e) {
       debugPrint("[google-login] 실패(ApiException): ${e.code} ${e.message}");
       setState(() {
         _notice = e.code == "NETWORK_ERROR" ? _AuthNotice.network : _AuthNotice.provider;
-        _debugErrorDetail = "${e.code}: ${e.message}";
+        _errorDetail = "${e.code}: ${e.message}";
       });
     } catch (e, st) {
       debugPrint("[google-login] 실패: $e\n$st");
       setState(() {
         _notice = _AuthNotice.provider;
-        _debugErrorDetail = e.toString();
+        _errorDetail = e.toString();
       });
     } finally {
       if (mounted) setState(() => _submitting = false);
+    }
+  }
+
+  Future<void> _completeLogin(String idToken) async {
+    final installationId = await ref.read(secureStorageProvider).installationId;
+    final authNotifier = ref.read(authNotifierProvider.notifier);
+    await authNotifier.loginWithGoogle(
+      idToken: idToken,
+      installationId: installationId,
+    );
+
+    if (!mounted) return;
+
+    final authState = ref.read(authNotifierProvider);
+    switch (authState.status) {
+      case AuthStatus.consentRequired:
+        context.go("/onboarding/consent");
+      case AuthStatus.onboarding:
+        context.go("/onboarding/prep-time");
+      case AuthStatus.authenticated:
+        context.go("/home");
+      default:
+        // Google 로그인은 emailVerificationRequired가 되지 않음
+        context.go("/home");
     }
   }
 
@@ -155,16 +210,18 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                   caution: false,
                   title: "연결을 확인해 주세요",
                   subtitle: "네트워크가 불안정한 것 같아요",
-                  onRetry: _submitting ? null : _handleGoogleLogin,
+                  onRetry: (_submitting || kIsWeb) ? null : _handleGoogleLogin,
                 ),
               if (_notice == _AuthNotice.provider)
                 _ErrorBanner(
                   caution: true,
                   title: "Google 로그인에 문제가 생겼어요",
-                  subtitle: _debugErrorDetail == null
+                  subtitle: _errorDetail == null
                       ? "잠시 후 다시 시도하거나 다른 방법으로 로그인해 주세요"
-                      : "(임시 진단) $_debugErrorDetail",
-                  onRetry: _submitting ? null : _handleGoogleLogin,
+                      : _errorDetail!,
+                  // 웹은 재시도가 함수 호출이 아니라 아래 구글 버튼을
+                  // 다시 클릭하는 것이라 onRetry를 안 둔다.
+                  onRetry: (_submitting || kIsWeb) ? null : _handleGoogleLogin,
                 ),
               if (_notice != _AuthNotice.none) const SizedBox(height: 4),
               Column(
@@ -182,7 +239,10 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                   ),
                   const SizedBox(height: 10),
                   if (kGoogleServerClientId.isNotEmpty)
-                    _GoogleButton(loading: _submitting, onPressed: _handleGoogleLogin),
+                    if (kIsWeb)
+                      buildGoogleWebButton()
+                    else
+                      _GoogleButton(loading: _submitting, onPressed: _handleGoogleLogin),
                 ],
               ),
               const SizedBox(height: 18),
