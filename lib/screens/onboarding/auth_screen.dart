@@ -6,12 +6,23 @@ import "../../core/google_auth_helper.dart";
 import "../../network/api_client.dart";
 import "../../providers/auth_providers.dart";
 import "../../theme/ensom_colors.dart";
+import "../../widgets/ensom/ensom_pill_button.dart";
+import "../../widgets/ensom/ensom_wordmark.dart";
+import "consent_detail_screen.dart";
 import "email_signup_screen.dart";
 import "email_login_screen.dart";
+import "support_screen.dart";
 
-/// 진입 선택 화면. API 명세 §2.5 POST /auth/login (Google)
+enum _AuthNotice { none, cancelled, network, provider }
+
+/// S-01 진입 선택 화면. API 명세 §2.5 POST /auth/login (Google)
 /// Google 로그인은 idToken을 서버에 보내면 서버가 계정 확정·세션 발급.
 /// Google 로그인은 항상 emailVerificationRequired: false (§2.5).
+///
+/// ensom_auth.html 목업의 "화면1 로그인"·"화면2 오류" 스타일을 반영한다.
+/// 목업의 이메일 인라인 폼(이메일+비밀번호를 이 화면에서 바로 입력)은
+/// 프로토타입 단순화였을 뿐 실제 가입 흐름과 안 맞아서(가입엔 더 많은
+/// 정보가 필요) 적용하지 않고, 기존처럼 EmailSignupScreen으로 이동한다.
 class AuthScreen extends ConsumerStatefulWidget {
   const AuthScreen({super.key});
 
@@ -21,18 +32,21 @@ class AuthScreen extends ConsumerStatefulWidget {
 
 class _AuthScreenState extends ConsumerState<AuthScreen> {
   bool _submitting = false;
-  String? _error;
+  _AuthNotice _notice = _AuthNotice.none;
 
   Future<void> _handleGoogleLogin() async {
     setState(() {
       _submitting = true;
-      _error = null;
+      _notice = _AuthNotice.none;
     });
     try {
       final idToken = await GoogleAuthHelper.instance.signInForLogin();
       if (idToken == null) {
         // 사용자가 취소
-        setState(() => _submitting = false);
+        setState(() {
+          _submitting = false;
+          _notice = _AuthNotice.cancelled;
+        });
         return;
       }
 
@@ -61,88 +75,275 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       }
     } on ApiException catch (e) {
       setState(() {
-        switch (e.code) {
-          case "NETWORK_ERROR":
-            _error = "네트워크에 연결할 수 없어요. 잠시 후 다시 시도해주세요.";
-          default:
-            _error = "Google 로그인에 실패했어요. 다시 시도해주세요.";
-        }
+        _notice = e.code == "NETWORK_ERROR" ? _AuthNotice.network : _AuthNotice.provider;
       });
     } catch (e) {
-      setState(() => _error = "Google 로그인에 실패했어요. 다시 시도해주세요.");
+      setState(() => _notice = _AuthNotice.provider);
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
   }
 
+  void _openPrivacyPolicy() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => const ConsentDetailScreen(consentType: "privacy", title: "개인정보 처리방침"),
+      ),
+    );
+  }
+
+  void _openSupport() {
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SupportScreen()));
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: EnsomColors.canvas,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.fromLTRB(22, 20, 22, 22),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text(
-                "Ensom",
-                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                "늦지 않게, 서두르지 않게.",
-                style: TextStyle(color: EnsomColors.inkMuted),
-              ),
-              const SizedBox(height: 48),
-              if (_error != null) ...[
-                Text(
-                  _error!,
-                  style: const TextStyle(color: EnsomColors.caution),
+              const SizedBox(height: 52),
+              Center(
+                child: Column(
+                  children: [
+                    const EnsomWordmark(fontSize: 26),
+                    const SizedBox(height: 12),
+                    const Text(
+                      "늦지 않게, 서두르지 않게.",
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        color: EnsomColors.inkMuted,
+                        letterSpacing: -.2,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      child: Text(
+                        "다음 일정까지, 언제부터 준비하면 되는지 알려드려요.",
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          color: EnsomColors.inkFaint,
+                          height: 1.6,
+                          letterSpacing: -.2,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 16),
-              ],
-              if (kGoogleServerClientId.isNotEmpty) ...[
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: _submitting ? null : _handleGoogleLogin,
-                    icon: const Icon(Icons.g_mobiledata, size: 24),
-                    label: const Text("Google로 시작하기"),
+              ),
+              const Spacer(),
+              if (_notice == _AuthNotice.cancelled)
+                const _QuietNote(text: "로그인이 취소됐어요. 다시 시도해 주세요."),
+              if (_notice == _AuthNotice.network)
+                _ErrorBanner(
+                  caution: false,
+                  title: "연결을 확인해 주세요",
+                  subtitle: "네트워크가 불안정한 것 같아요",
+                  onRetry: _submitting ? null : _handleGoogleLogin,
+                ),
+              if (_notice == _AuthNotice.provider)
+                _ErrorBanner(
+                  caution: true,
+                  title: "Google 로그인에 문제가 생겼어요",
+                  subtitle: "잠시 후 다시 시도하거나 다른 방법으로 로그인해 주세요",
+                  onRetry: _submitting ? null : _handleGoogleLogin,
+                ),
+              if (_notice != _AuthNotice.none) const SizedBox(height: 4),
+              Column(
+                children: [
+                  EnsomPillButton(
+                    label: "이메일로 계속하기",
+                    icon: const Icon(Icons.mail_outline, size: 18, color: Colors.white),
+                    onPressed: _submitting
+                        ? null
+                        : () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(builder: (_) => const EmailSignupScreen()),
+                            );
+                          },
                   ),
-                ),
-                const SizedBox(height: 12),
-              ],
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton(
-                  onPressed: _submitting
-                      ? null
-                      : () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => const EmailSignupScreen(),
-                            ),
-                          );
-                        },
-                  child: const Text("이메일로 시작하기"),
-                ),
+                  const SizedBox(height: 10),
+                  if (kGoogleServerClientId.isNotEmpty)
+                    _GoogleButton(loading: _submitting, onPressed: _handleGoogleLogin),
+                ],
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 18),
               TextButton(
                 onPressed: _submitting
                     ? null
                     : () {
                         Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => const EmailLoginScreen(),
-                          ),
+                          MaterialPageRoute(builder: (_) => const EmailLoginScreen()),
                         );
                       },
-                child: const Text("이미 계정이 있으신가요? 로그인"),
+                child: const Text(
+                  "이미 계정이 있으신가요? 로그인",
+                  style: TextStyle(fontSize: 12.5, color: EnsomColors.inkMuted),
+                ),
+              ),
+              const SizedBox(height: 6),
+              Wrap(
+                alignment: WrapAlignment.center,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  GestureDetector(
+                    onTap: _openPrivacyPolicy,
+                    child: const Text(
+                      "개인정보 처리방침",
+                      style: TextStyle(fontSize: 11, color: EnsomColors.inkFaint),
+                    ),
+                  ),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 6),
+                    child: Text("·", style: TextStyle(fontSize: 11, color: EnsomColors.hairline)),
+                  ),
+                  GestureDetector(
+                    onTap: _openSupport,
+                    child: const Text(
+                      "고객지원",
+                      style: TextStyle(fontSize: 11, color: EnsomColors.inkFaint),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _GoogleButton extends StatelessWidget {
+  const _GoogleButton({required this.loading, required this.onPressed});
+
+  final bool loading;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white,
+      shape: StadiumBorder(side: BorderSide(color: EnsomColors.hairline)),
+      child: InkWell(
+        onTap: loading ? null : onPressed,
+        customBorder: StadiumBorder(side: BorderSide(color: EnsomColors.hairline)),
+        child: SizedBox(
+          width: double.infinity,
+          height: 50,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.g_mobiledata, size: 26, color: Color(0xFF4285F4)),
+              const SizedBox(width: 4),
+              Text(
+                "Google로 계속하기",
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -.2,
+                  color: EnsomColors.ink.withValues(alpha: loading ? .4 : 1),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _QuietNote extends StatelessWidget {
+  const _QuietNote({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(color: EnsomColors.surface2, borderRadius: BorderRadius.circular(12)),
+      child: Text(
+        text,
+        textAlign: TextAlign.center,
+        style: const TextStyle(fontSize: 12, color: EnsomColors.inkMuted, height: 1.6, letterSpacing: -.2),
+      ),
+    );
+  }
+}
+
+class _ErrorBanner extends StatelessWidget {
+  const _ErrorBanner({
+    required this.caution,
+    required this.title,
+    required this.subtitle,
+    required this.onRetry,
+  });
+
+  final bool caution;
+  final String title;
+  final String subtitle;
+  final VoidCallback? onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 12),
+      decoration: BoxDecoration(
+        color: caution ? const Color(0xFFFAF0DD) : EnsomColors.surface2,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            width: 3,
+            decoration: BoxDecoration(
+              color: caution ? EnsomColors.caution : EnsomColors.inkFaint.withValues(alpha: .4),
+              borderRadius: BorderRadius.circular(999),
+            ),
+          ),
+          const SizedBox(width: 11),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, letterSpacing: -.3, color: EnsomColors.ink),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  subtitle,
+                  style: const TextStyle(fontSize: 11, color: EnsomColors.inkMuted, height: 1.5, letterSpacing: -.2),
+                ),
+              ],
+            ),
+          ),
+          TextButton(
+            onPressed: onRetry,
+            style: TextButton.styleFrom(
+              foregroundColor: EnsomColors.ink,
+              minimumSize: Size.zero,
+              padding: const EdgeInsets.only(left: 4),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            child: const Text(
+              "다시 시도",
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, decoration: TextDecoration.underline),
+            ),
+          ),
+        ],
       ),
     );
   }

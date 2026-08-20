@@ -17,14 +17,14 @@ class ConsentDetailScreen extends StatelessWidget {
   String get _placeholderBody {
     switch (consentType) {
       case "terms":
-        return "이용약관 전문이 여기에 표시됩니다.\n\n"
-            "아직 약관 문서가 확정되지 않았습니다. 확정 후 이 화면에 전체 내용이 노출됩니다.";
+        return "이용약관은 Product/Legal 검토 및 승인 대기 중입니다.\n\n"
+            "승인된 전문과 시행일이 확정되면 이 화면에서 제공합니다.";
       case "privacy":
-        return "개인정보 수집·이용 동의 전문이 여기에 표시됩니다.\n\n"
-            "아직 개인정보 처리방침 문서가 확정되지 않았습니다.";
+        return "개인정보 처리방침은 Product/Legal 검토 및 승인 대기 중입니다.\n\n"
+            "승인된 수집 항목·이용 목적·보유기간·시행일이 확정되면 이 화면에서 제공합니다.";
       case "location":
-        return "위치기반 서비스 이용약관 전문이 여기에 표시됩니다.\n\n"
-            "아직 위치기반 서비스 이용약관이 확정되지 않았습니다.";
+        return "위치기반 서비스 이용약관은 Product/Legal 검토 및 승인 대기 중입니다.\n\n"
+            "승인된 위치정보 처리·보유기간·시행일이 확정되면 이 화면에서 제공합니다.";
       case "marketing":
         return "마케팅 정보 수신 동의 내용이 여기에 표시됩니다.";
       default:
