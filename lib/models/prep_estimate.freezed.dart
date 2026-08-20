@@ -16,7 +16,10 @@ T _$identity<T>(T value) => value;
 mixin _$PrepEstimate {
 
  String get scopeType;// global | event_kind | weather | origin_place | time_band
- String? get scopeValue; int get estimatedMinutes; int get sampleCount; String? get lastReason;
+ String? get scopeValue; int get estimatedMinutes; int get sampleCount;// BE 응답 필드명은 adjustmentReason(API v5.0 §15 · ERD USER_PREP_ESTIMATE).
+// JsonKey 없이는 json['lastReason']을 찾아 항상 null이 되어 보정 근거가
+// 화면에 뜨지 않는다.
+@JsonKey(name: "adjustmentReason") String? get lastReason;
 /// Create a copy of PrepEstimate
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -49,7 +52,7 @@ abstract mixin class $PrepEstimateCopyWith<$Res>  {
   factory $PrepEstimateCopyWith(PrepEstimate value, $Res Function(PrepEstimate) _then) = _$PrepEstimateCopyWithImpl;
 @useResult
 $Res call({
- String scopeType, String? scopeValue, int estimatedMinutes, int sampleCount, String? lastReason
+ String scopeType, String? scopeValue, int estimatedMinutes, int sampleCount,@JsonKey(name: "adjustmentReason") String? lastReason
 });
 
 
@@ -158,7 +161,7 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String scopeType,  String? scopeValue,  int estimatedMinutes,  int sampleCount,  String? lastReason)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String scopeType,  String? scopeValue,  int estimatedMinutes,  int sampleCount, @JsonKey(name: "adjustmentReason")  String? lastReason)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _PrepEstimate() when $default != null:
 return $default(_that.scopeType,_that.scopeValue,_that.estimatedMinutes,_that.sampleCount,_that.lastReason);case _:
@@ -179,7 +182,7 @@ return $default(_that.scopeType,_that.scopeValue,_that.estimatedMinutes,_that.sa
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String scopeType,  String? scopeValue,  int estimatedMinutes,  int sampleCount,  String? lastReason)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String scopeType,  String? scopeValue,  int estimatedMinutes,  int sampleCount, @JsonKey(name: "adjustmentReason")  String? lastReason)  $default,) {final _that = this;
 switch (_that) {
 case _PrepEstimate():
 return $default(_that.scopeType,_that.scopeValue,_that.estimatedMinutes,_that.sampleCount,_that.lastReason);case _:
@@ -199,7 +202,7 @@ return $default(_that.scopeType,_that.scopeValue,_that.estimatedMinutes,_that.sa
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String scopeType,  String? scopeValue,  int estimatedMinutes,  int sampleCount,  String? lastReason)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String scopeType,  String? scopeValue,  int estimatedMinutes,  int sampleCount, @JsonKey(name: "adjustmentReason")  String? lastReason)?  $default,) {final _that = this;
 switch (_that) {
 case _PrepEstimate() when $default != null:
 return $default(_that.scopeType,_that.scopeValue,_that.estimatedMinutes,_that.sampleCount,_that.lastReason);case _:
@@ -214,7 +217,7 @@ return $default(_that.scopeType,_that.scopeValue,_that.estimatedMinutes,_that.sa
 @JsonSerializable()
 
 class _PrepEstimate implements PrepEstimate {
-  const _PrepEstimate({required this.scopeType, this.scopeValue, required this.estimatedMinutes, required this.sampleCount, this.lastReason});
+  const _PrepEstimate({required this.scopeType, this.scopeValue, required this.estimatedMinutes, required this.sampleCount, @JsonKey(name: "adjustmentReason") this.lastReason});
   factory _PrepEstimate.fromJson(Map<String, dynamic> json) => _$PrepEstimateFromJson(json);
 
 @override final  String scopeType;
@@ -222,7 +225,10 @@ class _PrepEstimate implements PrepEstimate {
 @override final  String? scopeValue;
 @override final  int estimatedMinutes;
 @override final  int sampleCount;
-@override final  String? lastReason;
+// BE 응답 필드명은 adjustmentReason(API v5.0 §15 · ERD USER_PREP_ESTIMATE).
+// JsonKey 없이는 json['lastReason']을 찾아 항상 null이 되어 보정 근거가
+// 화면에 뜨지 않는다.
+@override@JsonKey(name: "adjustmentReason") final  String? lastReason;
 
 /// Create a copy of PrepEstimate
 /// with the given fields replaced by the non-null parameter values.
@@ -257,7 +263,7 @@ abstract mixin class _$PrepEstimateCopyWith<$Res> implements $PrepEstimateCopyWi
   factory _$PrepEstimateCopyWith(_PrepEstimate value, $Res Function(_PrepEstimate) _then) = __$PrepEstimateCopyWithImpl;
 @override @useResult
 $Res call({
- String scopeType, String? scopeValue, int estimatedMinutes, int sampleCount, String? lastReason
+ String scopeType, String? scopeValue, int estimatedMinutes, int sampleCount,@JsonKey(name: "adjustmentReason") String? lastReason
 });
 
 

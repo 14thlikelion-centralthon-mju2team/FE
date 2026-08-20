@@ -8,6 +8,7 @@ import "package:uuid/uuid.dart";
 import "../../local/place_cache_entry.dart";
 import "../../models/place.dart";
 import "../../providers/auth_providers.dart";
+import "../../providers/map_providers.dart";
 import "../../repository/providers.dart";
 import "../../theme/ensom_colors.dart";
 import "../../widgets/ensom/ensom_chip.dart";
@@ -21,6 +22,19 @@ const _labelOptions = ["집", "학교", "회사", _customLabel];
 
 /// 커스텀 장소 이름 최대 길이 — 긴 이름이 행을 무한정 늘리지 않도록 제한.
 const _maxCustomLabelLength = 20;
+
+/// 라벨 → USER_PLACE.place_type 매핑. 스키마에 school 값이 없어
+/// "학교"/"직접 입력"은 other로 잠정 처리한다(Place 모델 주석 참조).
+String _placeTypeForLabel(String label) {
+  switch (label) {
+    case "집":
+      return "home";
+    case "회사":
+      return "work";
+    default:
+      return "other";
+  }
+}
 
 class PlaceRegistrationScreen extends ConsumerStatefulWidget {
   const PlaceRegistrationScreen({super.key, this.isOnboarding = false});
@@ -38,9 +52,9 @@ class _PlaceRegistrationScreenState
     extends ConsumerState<PlaceRegistrationScreen> {
   String selectedLabel = _labelOptions.first;
   final customLabelController = TextEditingController();
-  double radiusM = 300;
   double? lat;
   double? lng;
+  String? resolvedAddress;
   bool locating = false;
   bool saving = false;
 
@@ -87,9 +101,24 @@ class _PlaceRegistrationScreenState
     try {
       final position = await Geolocator.getCurrentPosition();
       if (!mounted) return;
+      // 좌표 → 주소 역지오코딩. BE POST /places가 address를 필수로 받으므로
+      // 여기서 사람이 읽는 주소를 확보해 둔다. 키가 없거나 실패하면 null이며
+      // 저장 시 좌표 문자열로 폴백한다(address는 not null이라 빈 값 불가).
+      String? address;
+      try {
+        final search = ref.read(kakaoLocalSearchServiceProvider);
+        address = await search.coord2address(
+          position.latitude,
+          position.longitude,
+        );
+      } catch (_) {
+        address = null; // 역지오코딩 실패는 등록을 막지 않는다
+      }
+      if (!mounted) return;
       setState(() {
         lat = position.latitude;
         lng = position.longitude;
+        resolvedAddress = address;
       });
     } catch (e) {
       // geofencing_api와 geolocator가 권한을 공유하지 않는 경우(또는
@@ -115,12 +144,24 @@ class _PlaceRegistrationScreenState
     try {
       final repo = ref.read(ensomRepositoryProvider);
       final placeId = const Uuid().v4();
+      final placeType = _placeTypeForLabel(label);
+      // BE POST /places는 address 필수(@NotBlank, DB not null). 역지오코딩으로
+      // 얻은 주소를 쓰고, 실패했으면 좌표가 아닌 상수 문자열로 폴백한다.
+      //
+      // 폴백에 좌표를 넣지 않는 이유: USER_PLACE.lat/lng는 앱 레벨 AES-GCM으로
+      // 암호화 저장하는데(ERD USER_PLACE, PRD §13, TRD §14.3) address는 평문
+      // text 컬럼이다. 여기에 좌표를 쓰면 암호화를 우회해 위치가 평문으로 남는다.
+      // 카카오 REST 키 미주입 빌드에서는 모든 등록이 이 폴백을 타므로 특히 중요.
+      final address = (resolvedAddress != null && resolvedAddress!.isNotEmpty)
+          ? resolvedAddress!
+          : "주소 미확인";
       final place = Place(
-        id: placeId,
-        label: label,
+        placeId: placeId,
+        placeType: placeType,
+        placeName: label,
+        address: address,
         lat: lat!,
         lng: lng!,
-        radiusM: radiusM.round(),
       );
 
       // 1. 서버에 등록 (mock)
@@ -132,10 +173,10 @@ class _PlaceRegistrationScreenState
         PlaceCacheEntry(
           userId: "current-user", // 실제 로그인 붙으면 provider에서 가져오도록 교체
           placeId: placeId,
-          label: label,
+          placeName: label,
+          placeType: placeType,
           lat: lat!,
           lng: lng!,
-          radiusM: radiusM.round(),
         ),
       );
 
@@ -148,6 +189,7 @@ class _PlaceRegistrationScreenState
       setState(() {
         lat = null;
         lng = null;
+        resolvedAddress = null;
         customLabelController.clear();
       });
     } catch (e) {
@@ -162,7 +204,7 @@ class _PlaceRegistrationScreenState
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text("장소 삭제"),
-        content: Text("'${entry.label}'을(를) 삭제할까요? 되돌릴 수 없어요."),
+        content: Text("'${entry.placeName}'을(를) 삭제할까요? 되돌릴 수 없어요."),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
@@ -298,45 +340,19 @@ class _PlaceRegistrationScreenState
                   ),
                 ],
                 const SizedBox(height: 16),
-                Row(
-                  children: [
-                    const Text(
-                      "반경",
-                      style: TextStyle(
+                if (lat != null && lng != null) ...[
+                  if (resolvedAddress != null &&
+                      resolvedAddress!.isNotEmpty) ...[
+                    Text(
+                      resolvedAddress!,
+                      style: const TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
-                        color: EnsomColors.inkMuted,
-                      ),
-                    ),
-                    const Spacer(),
-                    Text(
-                      "${radiusM.round()}m",
-                      style: const TextStyle(
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w700,
                         color: EnsomColors.ink,
                       ),
                     ),
+                    const SizedBox(height: 3),
                   ],
-                ),
-                SliderTheme(
-                  data: SliderTheme.of(context).copyWith(
-                    activeTrackColor: EnsomColors.cta,
-                    inactiveTrackColor: EnsomColors.surface2,
-                    thumbColor: EnsomColors.cta,
-                    overlayColor: EnsomColors.cta.withValues(alpha: .12),
-                    trackHeight: 3,
-                  ),
-                  child: Slider(
-                    value: radiusM,
-                    min: 100,
-                    max: 2000,
-                    divisions: 19,
-                    onChanged: (v) => setState(() => radiusM = v),
-                  ),
-                ),
-                if (lat != null && lng != null) ...[
-                  const SizedBox(height: 4),
                   Text(
                     "선택된 위치: ${lat!.toStringAsFixed(4)}, ${lng!.toStringAsFixed(4)}",
                     style: const TextStyle(
@@ -344,8 +360,8 @@ class _PlaceRegistrationScreenState
                       color: EnsomColors.inkFaint,
                     ),
                   ),
+                  const SizedBox(height: 10),
                 ],
-                const SizedBox(height: 14),
                 EnsomPillButton(
                   label: locating ? "위치 확인 중..." : "현재 위치 사용",
                   variant: EnsomPillVariant.secondary,
@@ -410,6 +426,17 @@ class _PlaceRow extends StatelessWidget {
   final PlaceCacheEntry entry;
   final VoidCallback onDelete;
 
+  String _placeTypeLabel(String placeType) {
+    switch (placeType) {
+      case "home":
+        return "집";
+      case "work":
+        return "직장";
+      default:
+        return "기타";
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -441,7 +468,7 @@ class _PlaceRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  entry.label,
+                  entry.placeName,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
@@ -453,7 +480,7 @@ class _PlaceRow extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  "반경 ${entry.radiusM}m",
+                  _placeTypeLabel(entry.placeType),
                   style: const TextStyle(
                     fontSize: 11,
                     color: EnsomColors.inkFaint,

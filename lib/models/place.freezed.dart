@@ -15,8 +15,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$Place {
 
- String get id; String get label; double get lat; double get lng; int get radiusM;// 100~2000 제약
- String? get kakaoPlaceId;
+ String get placeId; String get placeType; String get placeName; String? get address; double get lat; double get lng; bool get isPrimary;
 /// Create a copy of Place
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -29,16 +28,16 @@ $PlaceCopyWith<Place> get copyWith => _$PlaceCopyWithImpl<Place>(this as Place, 
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is Place&&(identical(other.id, id) || other.id == id)&&(identical(other.label, label) || other.label == label)&&(identical(other.lat, lat) || other.lat == lat)&&(identical(other.lng, lng) || other.lng == lng)&&(identical(other.radiusM, radiusM) || other.radiusM == radiusM)&&(identical(other.kakaoPlaceId, kakaoPlaceId) || other.kakaoPlaceId == kakaoPlaceId));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is Place&&(identical(other.placeId, placeId) || other.placeId == placeId)&&(identical(other.placeType, placeType) || other.placeType == placeType)&&(identical(other.placeName, placeName) || other.placeName == placeName)&&(identical(other.address, address) || other.address == address)&&(identical(other.lat, lat) || other.lat == lat)&&(identical(other.lng, lng) || other.lng == lng)&&(identical(other.isPrimary, isPrimary) || other.isPrimary == isPrimary));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,label,lat,lng,radiusM,kakaoPlaceId);
+int get hashCode => Object.hash(runtimeType,placeId,placeType,placeName,address,lat,lng,isPrimary);
 
 @override
 String toString() {
-  return 'Place(id: $id, label: $label, lat: $lat, lng: $lng, radiusM: $radiusM, kakaoPlaceId: $kakaoPlaceId)';
+  return 'Place(placeId: $placeId, placeType: $placeType, placeName: $placeName, address: $address, lat: $lat, lng: $lng, isPrimary: $isPrimary)';
 }
 
 
@@ -49,7 +48,7 @@ abstract mixin class $PlaceCopyWith<$Res>  {
   factory $PlaceCopyWith(Place value, $Res Function(Place) _then) = _$PlaceCopyWithImpl;
 @useResult
 $Res call({
- String id, String label, double lat, double lng, int radiusM, String? kakaoPlaceId
+ String placeId, String placeType, String placeName, String? address, double lat, double lng, bool isPrimary
 });
 
 
@@ -66,15 +65,16 @@ class _$PlaceCopyWithImpl<$Res>
 
 /// Create a copy of Place
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? label = null,Object? lat = null,Object? lng = null,Object? radiusM = null,Object? kakaoPlaceId = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? placeId = null,Object? placeType = null,Object? placeName = null,Object? address = freezed,Object? lat = null,Object? lng = null,Object? isPrimary = null,}) {
   return _then(_self.copyWith(
-id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
-as String,label: null == label ? _self.label : label // ignore: cast_nullable_to_non_nullable
-as String,lat: null == lat ? _self.lat : lat // ignore: cast_nullable_to_non_nullable
+placeId: null == placeId ? _self.placeId : placeId // ignore: cast_nullable_to_non_nullable
+as String,placeType: null == placeType ? _self.placeType : placeType // ignore: cast_nullable_to_non_nullable
+as String,placeName: null == placeName ? _self.placeName : placeName // ignore: cast_nullable_to_non_nullable
+as String,address: freezed == address ? _self.address : address // ignore: cast_nullable_to_non_nullable
+as String?,lat: null == lat ? _self.lat : lat // ignore: cast_nullable_to_non_nullable
 as double,lng: null == lng ? _self.lng : lng // ignore: cast_nullable_to_non_nullable
-as double,radiusM: null == radiusM ? _self.radiusM : radiusM // ignore: cast_nullable_to_non_nullable
-as int,kakaoPlaceId: freezed == kakaoPlaceId ? _self.kakaoPlaceId : kakaoPlaceId // ignore: cast_nullable_to_non_nullable
-as String?,
+as double,isPrimary: null == isPrimary ? _self.isPrimary : isPrimary // ignore: cast_nullable_to_non_nullable
+as bool,
   ));
 }
 
@@ -159,10 +159,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String label,  double lat,  double lng,  int radiusM,  String? kakaoPlaceId)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String placeId,  String placeType,  String placeName,  String? address,  double lat,  double lng,  bool isPrimary)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _Place() when $default != null:
-return $default(_that.id,_that.label,_that.lat,_that.lng,_that.radiusM,_that.kakaoPlaceId);case _:
+return $default(_that.placeId,_that.placeType,_that.placeName,_that.address,_that.lat,_that.lng,_that.isPrimary);case _:
   return orElse();
 
 }
@@ -180,10 +180,10 @@ return $default(_that.id,_that.label,_that.lat,_that.lng,_that.radiusM,_that.kak
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String label,  double lat,  double lng,  int radiusM,  String? kakaoPlaceId)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String placeId,  String placeType,  String placeName,  String? address,  double lat,  double lng,  bool isPrimary)  $default,) {final _that = this;
 switch (_that) {
 case _Place():
-return $default(_that.id,_that.label,_that.lat,_that.lng,_that.radiusM,_that.kakaoPlaceId);case _:
+return $default(_that.placeId,_that.placeType,_that.placeName,_that.address,_that.lat,_that.lng,_that.isPrimary);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -200,10 +200,10 @@ return $default(_that.id,_that.label,_that.lat,_that.lng,_that.radiusM,_that.kak
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String label,  double lat,  double lng,  int radiusM,  String? kakaoPlaceId)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String placeId,  String placeType,  String placeName,  String? address,  double lat,  double lng,  bool isPrimary)?  $default,) {final _that = this;
 switch (_that) {
 case _Place() when $default != null:
-return $default(_that.id,_that.label,_that.lat,_that.lng,_that.radiusM,_that.kakaoPlaceId);case _:
+return $default(_that.placeId,_that.placeType,_that.placeName,_that.address,_that.lat,_that.lng,_that.isPrimary);case _:
   return null;
 
 }
@@ -215,16 +215,16 @@ return $default(_that.id,_that.label,_that.lat,_that.lng,_that.radiusM,_that.kak
 @JsonSerializable()
 
 class _Place implements Place {
-  const _Place({required this.id, required this.label, required this.lat, required this.lng, this.radiusM = 300, this.kakaoPlaceId});
+  const _Place({required this.placeId, required this.placeType, required this.placeName, this.address, required this.lat, required this.lng, this.isPrimary = false});
   factory _Place.fromJson(Map<String, dynamic> json) => _$PlaceFromJson(json);
 
-@override final  String id;
-@override final  String label;
+@override final  String placeId;
+@override final  String placeType;
+@override final  String placeName;
+@override final  String? address;
 @override final  double lat;
 @override final  double lng;
-@override@JsonKey() final  int radiusM;
-// 100~2000 제약
-@override final  String? kakaoPlaceId;
+@override@JsonKey() final  bool isPrimary;
 
 /// Create a copy of Place
 /// with the given fields replaced by the non-null parameter values.
@@ -239,16 +239,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Place&&(identical(other.id, id) || other.id == id)&&(identical(other.label, label) || other.label == label)&&(identical(other.lat, lat) || other.lat == lat)&&(identical(other.lng, lng) || other.lng == lng)&&(identical(other.radiusM, radiusM) || other.radiusM == radiusM)&&(identical(other.kakaoPlaceId, kakaoPlaceId) || other.kakaoPlaceId == kakaoPlaceId));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Place&&(identical(other.placeId, placeId) || other.placeId == placeId)&&(identical(other.placeType, placeType) || other.placeType == placeType)&&(identical(other.placeName, placeName) || other.placeName == placeName)&&(identical(other.address, address) || other.address == address)&&(identical(other.lat, lat) || other.lat == lat)&&(identical(other.lng, lng) || other.lng == lng)&&(identical(other.isPrimary, isPrimary) || other.isPrimary == isPrimary));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,label,lat,lng,radiusM,kakaoPlaceId);
+int get hashCode => Object.hash(runtimeType,placeId,placeType,placeName,address,lat,lng,isPrimary);
 
 @override
 String toString() {
-  return 'Place(id: $id, label: $label, lat: $lat, lng: $lng, radiusM: $radiusM, kakaoPlaceId: $kakaoPlaceId)';
+  return 'Place(placeId: $placeId, placeType: $placeType, placeName: $placeName, address: $address, lat: $lat, lng: $lng, isPrimary: $isPrimary)';
 }
 
 
@@ -259,7 +259,7 @@ abstract mixin class _$PlaceCopyWith<$Res> implements $PlaceCopyWith<$Res> {
   factory _$PlaceCopyWith(_Place value, $Res Function(_Place) _then) = __$PlaceCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String label, double lat, double lng, int radiusM, String? kakaoPlaceId
+ String placeId, String placeType, String placeName, String? address, double lat, double lng, bool isPrimary
 });
 
 
@@ -276,15 +276,16 @@ class __$PlaceCopyWithImpl<$Res>
 
 /// Create a copy of Place
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? label = null,Object? lat = null,Object? lng = null,Object? radiusM = null,Object? kakaoPlaceId = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? placeId = null,Object? placeType = null,Object? placeName = null,Object? address = freezed,Object? lat = null,Object? lng = null,Object? isPrimary = null,}) {
   return _then(_Place(
-id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
-as String,label: null == label ? _self.label : label // ignore: cast_nullable_to_non_nullable
-as String,lat: null == lat ? _self.lat : lat // ignore: cast_nullable_to_non_nullable
+placeId: null == placeId ? _self.placeId : placeId // ignore: cast_nullable_to_non_nullable
+as String,placeType: null == placeType ? _self.placeType : placeType // ignore: cast_nullable_to_non_nullable
+as String,placeName: null == placeName ? _self.placeName : placeName // ignore: cast_nullable_to_non_nullable
+as String,address: freezed == address ? _self.address : address // ignore: cast_nullable_to_non_nullable
+as String?,lat: null == lat ? _self.lat : lat // ignore: cast_nullable_to_non_nullable
 as double,lng: null == lng ? _self.lng : lng // ignore: cast_nullable_to_non_nullable
-as double,radiusM: null == radiusM ? _self.radiusM : radiusM // ignore: cast_nullable_to_non_nullable
-as int,kakaoPlaceId: freezed == kakaoPlaceId ? _self.kakaoPlaceId : kakaoPlaceId // ignore: cast_nullable_to_non_nullable
-as String?,
+as double,isPrimary: null == isPrimary ? _self.isPrimary : isPrimary // ignore: cast_nullable_to_non_nullable
+as bool,
   ));
 }
 

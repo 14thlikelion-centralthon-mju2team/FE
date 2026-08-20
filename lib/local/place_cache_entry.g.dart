@@ -19,10 +19,10 @@ class PlaceCacheEntryAdapter extends TypeAdapter<PlaceCacheEntry> {
     return PlaceCacheEntry(
       userId: fields[0] as String,
       placeId: fields[1] as String,
-      label: fields[2] as String,
+      placeName: fields[2] as String,
       lat: (fields[3] as num).toDouble(),
       lng: (fields[4] as num).toDouble(),
-      radiusM: (fields[5] as num).toInt(),
+      placeType: fields[6] as String,
     );
   }
 
@@ -35,13 +35,13 @@ class PlaceCacheEntryAdapter extends TypeAdapter<PlaceCacheEntry> {
       ..writeByte(1)
       ..write(obj.placeId)
       ..writeByte(2)
-      ..write(obj.label)
+      ..write(obj.placeName)
       ..writeByte(3)
       ..write(obj.lat)
       ..writeByte(4)
       ..write(obj.lng)
-      ..writeByte(5)
-      ..write(obj.radiusM);
+      ..writeByte(6)
+      ..write(obj.placeType);
   }
 
   @override

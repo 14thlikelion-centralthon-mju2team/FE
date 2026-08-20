@@ -499,7 +499,15 @@ class MockEnsomRepository implements EnsomRepository {
   Future<List<Place>> fetchPlaces() async {
     await Future.delayed(const Duration(milliseconds: 300));
     return const [
-      Place(id: "p1", label: "집", lat: 37.5665, lng: 126.9780, radiusM: 300),
+      Place(
+        placeId: "p1",
+        placeType: "home",
+        placeName: "집",
+        address: "서울시 중구",
+        lat: 37.5665,
+        lng: 126.9780,
+        isPrimary: true,
+      ),
     ];
   }
 

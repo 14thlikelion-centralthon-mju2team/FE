@@ -12,7 +12,7 @@ _PrepEstimate _$PrepEstimateFromJson(Map<String, dynamic> json) =>
       scopeValue: json['scopeValue'] as String?,
       estimatedMinutes: (json['estimatedMinutes'] as num).toInt(),
       sampleCount: (json['sampleCount'] as num).toInt(),
-      lastReason: json['lastReason'] as String?,
+      lastReason: json['adjustmentReason'] as String?,
     );
 
 Map<String, dynamic> _$PrepEstimateToJson(_PrepEstimate instance) =>
@@ -21,5 +21,5 @@ Map<String, dynamic> _$PrepEstimateToJson(_PrepEstimate instance) =>
       'scopeValue': instance.scopeValue,
       'estimatedMinutes': instance.estimatedMinutes,
       'sampleCount': instance.sampleCount,
-      'lastReason': instance.lastReason,
+      'adjustmentReason': instance.lastReason,
     };

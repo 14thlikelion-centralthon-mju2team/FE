@@ -7,19 +7,21 @@ part of 'place.dart';
 // **************************************************************************
 
 _Place _$PlaceFromJson(Map<String, dynamic> json) => _Place(
-  id: json['id'] as String,
-  label: json['label'] as String,
+  placeId: json['placeId'] as String,
+  placeType: json['placeType'] as String,
+  placeName: json['placeName'] as String,
+  address: json['address'] as String?,
   lat: (json['lat'] as num).toDouble(),
   lng: (json['lng'] as num).toDouble(),
-  radiusM: (json['radiusM'] as num?)?.toInt() ?? 300,
-  kakaoPlaceId: json['kakaoPlaceId'] as String?,
+  isPrimary: json['isPrimary'] as bool? ?? false,
 );
 
 Map<String, dynamic> _$PlaceToJson(_Place instance) => <String, dynamic>{
-  'id': instance.id,
-  'label': instance.label,
+  'placeId': instance.placeId,
+  'placeType': instance.placeType,
+  'placeName': instance.placeName,
+  'address': instance.address,
   'lat': instance.lat,
   'lng': instance.lng,
-  'radiusM': instance.radiusM,
-  'kakaoPlaceId': instance.kakaoPlaceId,
+  'isPrimary': instance.isPrimary,
 };
