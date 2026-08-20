@@ -67,10 +67,9 @@ class _PersonalizationScreenState
     if (confirmed != true) return;
     setState(() => _busy = true);
     try {
-      // API v5.0 §15 POST /me/personalization/revert — 직전 보정 하나만 되돌린다.
-      // 개인화 응답(estimates)에 eventId가 없어 화면에서 특정 event를 지목할 수
-      // 없으므로 eventId 없이 호출한다(repository가 빈 값이면 바디에서 제외).
-      await ref.read(ensomRepositoryProvider).revertPersonalization("");
+      // 개인화 설정은 특정 event 문맥이 없으므로 사용자의 직전 global 보정 하나를 되돌린다.
+      // 원본 event 제외는 estimate에 source event를 저장하는 migration 이후에 지원한다.
+      await ref.read(ensomRepositoryProvider).revertPersonalization();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("직전 보정을 되돌렸어요.")),

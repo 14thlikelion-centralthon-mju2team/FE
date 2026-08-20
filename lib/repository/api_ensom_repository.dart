@@ -469,13 +469,9 @@ class ApiEnsomRepository implements EnsomRepository {
   }
 
   @override
-  Future<void> revertPersonalization(String eventId) async {
-    // API v5.0 §15 POST /me/personalization/revert — 직전 보정 되돌리기.
-    // eventId를 바디로 넘겨 특정 보정을 지목한다(서버가 없으면 무시).
-    await _client.post<Map<String, dynamic>>(
-      "/me/personalization/revert",
-      body: {if (eventId.isNotEmpty) "eventId": eventId},
-    );
+  Future<void> revertPersonalization() async {
+    // 개인화 설정은 특정 event 문맥이 없으므로 사용자의 직전 global 보정 하나를 되돌린다.
+    await _client.post<Map<String, dynamic>>("/me/personalization/revert");
   }
 
   @override

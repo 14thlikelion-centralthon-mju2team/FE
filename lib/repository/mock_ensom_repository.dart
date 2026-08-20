@@ -485,7 +485,7 @@ class MockEnsomRepository implements EnsomRepository {
   }
 
   @override
-  Future<void> revertPersonalization(String eventId) async {
+  Future<void> revertPersonalization() async {
     await Future.delayed(const Duration(milliseconds: 300));
   }
 
