@@ -196,16 +196,16 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       final selectedRoute = await _showRouteSheet(routes);
       if (selectedRoute == null) return;
 
-      ref.read(mapDraftEventProvider.notifier).state = MapDraftEvent(
-        originLat: origin.latitude,
-        originLng: origin.longitude,
-        destName: _destName!,
-        destLat: _destLat!,
-        destLng: _destLng!,
-        selectedRoute: selectedRoute,
-        anchorMode: anchor.$1,
-        at: anchor.$2,
-      );
+      await ref.read(mapDraftEventProvider.notifier).set(MapDraftEvent(
+            originLat: origin.latitude,
+            originLng: origin.longitude,
+            destName: _destName!,
+            destLat: _destLat!,
+            destLng: _destLng!,
+            selectedRoute: selectedRoute,
+            anchorMode: anchor.$1,
+            at: anchor.$2,
+          ));
       if (!mounted) return;
       context.push("/events/create-from-map");
     } catch (e) {

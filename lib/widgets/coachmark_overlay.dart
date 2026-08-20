@@ -87,7 +87,7 @@ class _CoachmarkOverlayState extends State<CoachmarkOverlay> {
                 borderRadius: BorderRadius.circular(12),
                 boxShadow: const [
                   BoxShadow(
-                    color: Colors.black26,
+                    color: EnsomColors.shadow,
                     blurRadius: 8,
                     offset: Offset(0, 2),
                   ),
@@ -168,7 +168,7 @@ class _SpotlightPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()..color = Colors.black.withValues(alpha: 0.6);
+    final paint = Paint()..color = EnsomColors.scrim;
     final path = Path()
       ..addRect(Rect.fromLTWH(0, 0, size.width, size.height))
       ..addOval(Rect.fromCircle(center: center, radius: radius))

@@ -154,13 +154,13 @@ class _GradeBadge extends StatelessWidget {
   Color _gradeColor(String grade) {
     switch (grade) {
       case "좋음":
-        return Colors.blue;
+        return EnsomColors.dataModerate;
       case "보통":
-        return Colors.green;
+        return EnsomColors.dataGood;
       case "나쁨":
-        return Colors.orange;
+        return EnsomColors.dataWarning;
       case "매우나쁨":
-        return Colors.red;
+        return EnsomColors.dataSevere;
       default:
         return EnsomColors.inkMuted;
     }

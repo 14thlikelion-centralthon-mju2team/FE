@@ -18,4 +18,15 @@ abstract final class EnsomColors {
   static const panel = Color(0xFF15170F);
   static const cta = Color(0xFF1F231A);
   static const caution = Color(0xFFE3A13B);
+
+  // ── 오버레이 (코치마크 등) ──────────────────────────────
+  static const scrim = Color(0x99000000); // 60% 검정 — 오버레이 배경
+  static const shadow = Color(0x29000000); // 16% 검정 — 그림자
+
+  // ── 데이터 시각화 전용 시맨틱 토큰 (Issue #56) ──────────
+  // 날씨/대기질 등 상태 표현에만 사용. UI 컴포넌트에는 쓰지 않는다.
+  static const dataGood = Color(0xFF4CAF50); // 좋음 (초록)
+  static const dataModerate = Color(0xFF2196F3); // 보통 (파랑)
+  static const dataWarning = Color(0xFFFF9800); // 주의 (주황)
+  static const dataSevere = Color(0xFFF44336); // 나쁨 (빨강)
 }

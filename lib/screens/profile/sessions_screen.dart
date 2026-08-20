@@ -1,6 +1,6 @@
 import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
-import "../../core/logout_helper.dart";
+
 import "../../network/api_client.dart";
 import "../../providers/auth_providers.dart";
 import "../../theme/ensom_colors.dart";
@@ -66,8 +66,9 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text("모든 기기에서 로그아웃할까요?"),
-        content: const Text("현재 기기를 포함한 모든 세션이 종료돼요."),
+        title: const Text("다른 기기에서 로그아웃할까요?"),
+        // Issue #52: 명세상 현재 기기는 제외 — 다른 기기 세션만 종료
+        content: const Text("현재 기기를 제외한 모든 세션이 종료돼요."),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -76,7 +77,7 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: TextButton.styleFrom(foregroundColor: EnsomColors.caution),
-            child: const Text("전체 로그아웃"),
+            child: const Text("다른 기기 로그아웃"),
           ),
         ],
       ),
@@ -85,11 +86,14 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
 
     try {
       final api = ref.read(apiClientProvider);
+      // DELETE /me/sessions는 현재 기기를 제외한 세션만 종료한다.
+      // 따라서 로컬 소거·로그아웃 없이 세션 목록만 새로고침한다.
       await api.delete<Map<String, dynamic>>("/me/sessions");
-      // 전체 로그아웃이므로 로컬도 소거
       if (mounted) {
-        await clearLocalCaches(ref);
-        ref.read(authNotifierProvider.notifier).logout();
+        await _load();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("다른 기기에서 로그아웃했어요.")),
+        );
       }
     } on ApiException catch (e) {
       if (mounted) {

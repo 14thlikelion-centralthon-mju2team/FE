@@ -426,35 +426,40 @@ Google 경로   login  → consents → 온보딩
 ---
 ## 7. 캘린더 연동 (CAL-02)
 
+> **경로 갱신 (Issue #53):** BE 실제 구현은 Google 전용 단일 경로입니다.
+> 이전 명세의 `/calendar/connections` (다중 provider 전제)는 폐기하고
+> 아래 BE 실제 경로로 정렬합니다.
+
 | Method | Path | 설명 |
 |---|---|---|
-| GET / POST | `/calendar/connections` | 연결 목록 · 연결 추가 |
-| DELETE | `/calendar/connections/{connectionId}` | 연결 해제 |
-| GET / PATCH | `/calendar/connections/{connectionId}/sources` | 개별 캘린더 조회·선택 |
+| POST | `/calendar/google/connect` | Google 캘린더 연결 (body: `{ authCode }`) |
+| DELETE | `/calendar/google` | Google 캘린더 연결 해제 |
+| GET | `/calendar/google/status` | 연결 상태 조회 |
 | POST | `/calendar/sync` | 수동 동기화 |
 
-### 7.1 GET /calendar/connections
+### 7.1 POST /calendar/google/connect
 
 ```json
+// Request
+{ "authCode": "google-server-auth-code" }
+
+// Response 200
 {
-  "data": [
-    {
-      "calendarConnectionId": "uuid",
-      "provider": "google",
-      "externalAccountId": "user@gmail.com",
-      "connectedAt": "2026-08-10T…",
-      "sources": [
-        { "calendarSourceId": "uuid", "externalCalendarId": "primary",
-          "displayName": "내 캘린더", "isWritable": true, "isDefault": true, "syncEnabled": true },
-        { "calendarSourceId": "uuid", "externalCalendarId": "kr.holiday",
-          "displayName": "대한민국 공휴일", "isWritable": false, "isDefault": false, "syncEnabled": false }
-      ]
-    }
-  ]
+  "data": {
+    "connected": true,
+    "externalAccountId": "user@gmail.com",
+    "connectedAt": "2026-08-10T…"
+  }
 }
 ```
 
-`CALENDAR_SOURCE`를 **연결 응답에 중첩**해 별도 조회 왕복을 없앴습니다. 개별 캘린더의 동기화 on/off만 `PATCH .../sources`로 처리합니다.
+Google serverAuthCode를 서버가 교환해 refresh token을 확보합니다.
+FE는 캘린더 연동 전용 GoogleSignIn 인스턴스(`calendar.readonly` scope)에서
+`serverAuthCode`를 획득해 전달합니다.
+
+### 7.1.1 DELETE /calendar/google
+
+연결 해제. 서버는 저장된 refresh token을 즉시 폐기합니다.
 
 ### 7.2 동기화 규약
 

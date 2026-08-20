@@ -101,6 +101,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               return "/onboarding/prep-time";
             case "places":
               return "/onboarding/places";
+            case "notification":
+              // Issue #52: 알림 프라이밍 단계 복원 누락 수정
+              return "/onboarding/priming/notification";
+            case "location":
+              // Issue #52: 위치 프라이밍 단계 복원 누락 수정
+              return "/onboarding/priming/location";
             case "calendar":
               return "/onboarding/priming/calendar";
             case "wellness":
@@ -108,7 +114,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             case "permissions":
               return "/onboarding/complete";
             default:
-              return "/onboarding/signup-complete";
+              // Issue #54: step이 null(가입완료 버튼 누르기 전 kill)일 때
+              // signup-complete(뒤로가기 차단)로 보내면 루프 발생.
+              // 온보딩의 실제 첫 단계인 prep-time으로 진행.
+              return "/onboarding/prep-time";
           }
 
         case AuthStatus.authenticated:
