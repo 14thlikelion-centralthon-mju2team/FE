@@ -8,7 +8,7 @@ import "../providers/offline_queue_providers.dart";
 import "../theme/ensom_colors.dart";
 
 /// 로그아웃/탈퇴 시 공통으로 수행해야 하는 로컬 리소스 소거.
-/// profile_screen, account_screen, settings_screen에서 공용 사용.
+/// profile_screen, account_screen에서 공용 사용.
 Future<void> clearLocalCaches(WidgetRef ref) async {
   // 로컬 알림 전체 취소
   await LocalNotificationService.instance.cancelAll();
