@@ -38,7 +38,6 @@ class AuthScreen extends ConsumerStatefulWidget {
 class _AuthScreenState extends ConsumerState<AuthScreen> {
   bool _submitting = false;
   _AuthNotice _notice = _AuthNotice.none;
-  String? _errorDetail;
   StreamSubscription<GoogleSignInAccount?>? _webGoogleSub;
 
   @override
@@ -84,14 +83,10 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       debugPrint("[google-login] 실패(ApiException): ${e.code} ${e.message}");
       setState(() {
         _notice = e.code == "NETWORK_ERROR" ? _AuthNotice.network : _AuthNotice.provider;
-        _errorDetail = "${e.code}: ${e.message}";
       });
     } catch (e, st) {
       debugPrint("[google-login] 실패: $e\n$st");
-      setState(() {
-        _notice = _AuthNotice.provider;
-        _errorDetail = e.toString();
-      });
+      setState(() => _notice = _AuthNotice.provider);
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
@@ -119,14 +114,10 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       debugPrint("[google-login] 실패(ApiException): ${e.code} ${e.message}");
       setState(() {
         _notice = e.code == "NETWORK_ERROR" ? _AuthNotice.network : _AuthNotice.provider;
-        _errorDetail = "${e.code}: ${e.message}";
       });
     } catch (e, st) {
       debugPrint("[google-login] 실패: $e\n$st");
-      setState(() {
-        _notice = _AuthNotice.provider;
-        _errorDetail = e.toString();
-      });
+      setState(() => _notice = _AuthNotice.provider);
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
@@ -224,9 +215,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                 _ErrorBanner(
                   caution: true,
                   title: "Google 로그인에 문제가 생겼어요",
-                  subtitle: _errorDetail == null
-                      ? "잠시 후 다시 시도하거나 다른 방법으로 로그인해 주세요"
-                      : _errorDetail!,
+                  subtitle: "잠시 후 다시 시도하거나 다른 방법으로 로그인해 주세요",
                   // 웹은 재시도가 함수 호출이 아니라 아래 구글 버튼을
                   // 다시 클릭하는 것이라 onRetry를 안 둔다.
                   onRetry: (_submitting || kIsWeb) ? null : _handleGoogleLogin,
