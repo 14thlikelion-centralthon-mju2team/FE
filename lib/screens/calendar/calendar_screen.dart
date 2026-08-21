@@ -44,6 +44,10 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
   _CalView _view = _CalView.week;
   DateTime _focusedMonth = _monthOf(DateTime.now());
   late DateTime _selectedDate = _dateOnly(DateTime.now());
+  // 사용자가 날짜를 직접 탭했을 때만 true — 달만 넘겼을 때는 false로
+  // 돌아가 "선택됨" 링(흰 테두리)이 안 뜬다. 오늘/일정 있는 날 표시는
+  // 이 값과 무관하게 그대로 보인다.
+  bool _hasExplicitSelection = false;
   _EventFilter _filter = _EventFilter.all;
   bool _searchOpen = false;
   _SyncBannerStatus _syncStatus = _SyncBannerStatus.idle;
@@ -94,6 +98,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     setState(() {
       _selectedDate = _dateOnly(d);
       _focusedMonth = _monthOf(_selectedDate);
+      _hasExplicitSelection = true;
     });
   }
 
@@ -102,11 +107,12 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
   void _shiftMonth(int deltaMonths) {
     setState(() {
       _focusedMonth = DateTime(_focusedMonth.year, _focusedMonth.month + deltaMonths, 1);
-      // 이전엔 선택된 날짜의 "일" 숫자만 새 달로 그대로 옮겼다 — 8/21을
-      // 선택한 채로 다음 달로 넘기면 사용자가 고른 적 없는 9/21이
-      // "선택됨(흰 동그라미)"으로 표시됐다. 달을 넘기는 건 탐색일 뿐
-      // 새 날짜를 고르는 행동이 아니므로, 선택을 그 달 1일로 되돌린다.
+      // 달을 넘기는 건 탐색일 뿐 날짜를 고르는 행동이 아니므로, 선택
+      // 표시는 끄고(_hasExplicitSelection = false) 리스트 기준값만
+      // 그 달 1일로 옮겨둔다. 사용자가 실제로 날짜를 탭해야만
+      // "선택됨" 링이 다시 뜬다.
       _selectedDate = _focusedMonth;
+      _hasExplicitSelection = false;
     });
   }
 
@@ -205,6 +211,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                   view: _view,
                   focusedMonth: _focusedMonth,
                   selectedDate: _selectedDate,
+                  hasSelection: _hasExplicitSelection,
                   eventCountOf: (d) => eventsByDay[d]?.length ?? 0,
                   onSelectDate: _selectDate,
                   onPrev: () => _view == _CalView.week ? _shiftWeek(-1) : _shiftMonth(-1),
@@ -523,6 +530,7 @@ class _CalendarPanel extends StatefulWidget {
     required this.view,
     required this.focusedMonth,
     required this.selectedDate,
+    required this.hasSelection,
     required this.eventCountOf,
     required this.onSelectDate,
     required this.onPrev,
@@ -534,6 +542,7 @@ class _CalendarPanel extends StatefulWidget {
   final _CalView view;
   final DateTime focusedMonth;
   final DateTime selectedDate;
+  final bool hasSelection;
   final int Function(DateTime) eventCountOf;
   final ValueChanged<DateTime> onSelectDate;
   final VoidCallback onPrev;
@@ -709,6 +718,7 @@ class _CalendarPanelState extends State<_CalendarPanel> {
                 date: d,
                 today: today,
                 selected: widget.selectedDate,
+                hasSelection: widget.hasSelection,
                 count: widget.eventCountOf(d),
                 onTap: () => widget.onSelectDate(d),
               ),
@@ -756,6 +766,7 @@ class _CalendarPanelState extends State<_CalendarPanel> {
             date: date,
             today: today,
             selected: widget.selectedDate,
+            hasSelection: widget.hasSelection,
             count: widget.eventCountOf(date),
             onTap: () => widget.onSelectDate(date),
           ),
@@ -795,6 +806,7 @@ class _DayDot extends StatelessWidget {
     required this.date,
     required this.today,
     required this.selected,
+    required this.hasSelection,
     required this.count,
     required this.onTap,
   });
@@ -802,13 +814,19 @@ class _DayDot extends StatelessWidget {
   final DateTime date;
   final DateTime today;
   final DateTime selected;
+  final bool hasSelection;
   final int count;
   final VoidCallback onTap;
 
+  // 날짜 상태 4단계(디자인 기준):
+  // 기본 — 테두리 없음, 흰 글씨 72%
+  // 일정 있는 날 — 라임 링(테두리)만. 채우지 않아서 과하지 않음
+  // 오늘 — 라임 채움
+  // 선택 — 흰색 채움. hasSelection이 false면(달만 넘긴 상태) 안 뜬다
   @override
   Widget build(BuildContext context) {
     final isToday = date == today;
-    final isSelected = date == selected && !isToday;
+    final isSelected = hasSelection && date == selected && !isToday;
     final hasEvents = count > 0;
 
     Color bg = Colors.transparent;
@@ -821,8 +839,9 @@ class _DayDot extends StatelessWidget {
       fg = EnsomColors.ink;
       weight = FontWeight.w700;
     } else if (isSelected) {
+      bg = Colors.white;
       border = Colors.white;
-      fg = Colors.white;
+      fg = EnsomColors.ink;
       weight = FontWeight.w700;
     } else if (hasEvents) {
       border = EnsomColors.lime.withValues(alpha: .42);
