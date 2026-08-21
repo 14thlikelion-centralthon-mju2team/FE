@@ -102,9 +102,11 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
   void _shiftMonth(int deltaMonths) {
     setState(() {
       _focusedMonth = DateTime(_focusedMonth.year, _focusedMonth.month + deltaMonths, 1);
-      final lastDay = DateTime(_focusedMonth.year, _focusedMonth.month + 1, 0).day;
-      final day = _selectedDate.day.clamp(1, lastDay);
-      _selectedDate = DateTime(_focusedMonth.year, _focusedMonth.month, day);
+      // 이전엔 선택된 날짜의 "일" 숫자만 새 달로 그대로 옮겼다 — 8/21을
+      // 선택한 채로 다음 달로 넘기면 사용자가 고른 적 없는 9/21이
+      // "선택됨(흰 동그라미)"으로 표시됐다. 달을 넘기는 건 탐색일 뿐
+      // 새 날짜를 고르는 행동이 아니므로, 선택을 그 달 1일로 되돌린다.
+      _selectedDate = _focusedMonth;
     });
   }
 
