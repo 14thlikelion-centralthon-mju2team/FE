@@ -821,9 +821,8 @@ class _DayDot extends StatelessWidget {
       fg = EnsomColors.ink;
       weight = FontWeight.w700;
     } else if (isSelected) {
-      bg = Colors.white;
       border = Colors.white;
-      fg = EnsomColors.ink;
+      fg = Colors.white;
       weight = FontWeight.w700;
     } else if (hasEvents) {
       border = EnsomColors.lime.withValues(alpha: .42);
